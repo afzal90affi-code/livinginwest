@@ -1,151 +1,134 @@
 "use client";
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, X, Menu, ChevronDown } from 'lucide-react';
-
-const categories = [
-  { name: "Food", slug: "food", emoji: "🍔" },
-  { name: "Travel", slug: "travel", emoji: "✈️" },
-  { name: "Automotive", slug: "automotive", emoji: "🚗" },
-  { name: "Finance", slug: "finance", emoji: "💰" },
-  { name: "Health", slug: "health", emoji: "🧘" },
-  { name: "Entertainment", slug: "entertainment", emoji: "🎬" },
-];
+import { Search, Menu, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
-  const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [catDropdown, setCatDropdown] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const router = useRouter();
+
+  const mainNavLinks = [
+    { name: "Food", href: "/category/food" },
+    { name: "Travel", href: "/category/travel" },
+    { name: "Automotive", href: "/category/automotive" },
+    { name: "Finance", href: "/category/finance" },
+    { name: "Health", href: "/category/health" },
+    { name: "Entertainment", href: "/category/entertainment" },
+  ];
+
+  const utilityLinks = [
+    { name: "All Categories", href: "/categories" },
+    { name: "About Us", href: "/about-us" },
+    { name: "Contact", href: "/contact-us" },
+    { name: "Privacy Policy", href: "/privacy-policy" },
+  ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      window.open(`https://www.google.com/search?q=site:livinginwest.com+${encodeURIComponent(searchQuery)}`, '_blank');
-      setSearchQuery("");
-      setSearchOpen(false);
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      setQuery(""); 
+      setMobileSearchOpen(false);
+      setMobileOpen(false);
     }
   };
 
-  const closeMobile = () => {
-    setMobileOpen(false);
-    setCatDropdown(false);
-  };
-
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-md bg-[#0A0A0A]/80 border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0" onClick={closeMobile}>
-  <img 
-    src="/logo.jpg" 
-    alt="LivingInWest Logo" 
-    className="h-8 w-auto rounded-lg object-contain" 
-  />
-  <span className="font-playfair text-xl font-bold">Living<span className="text-[#6D28D9]">InWest</span></span>
-</Link>
+    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
+      
+      {/* LINE 1: Logo & Search */}
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between border-b border-gray-100">
+        
+        {/* Left: Hamburger (Mobile) */}
+        <button onClick={() => { setMobileOpen(!mobileOpen); setMobileSearchOpen(false); }} className="lg:hidden text-gray-900">
+          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-1">
-          <Link href="/" className="px-4 py-2 text-sm text-white/80 hover:text-white rounded-lg hover:bg-white/5 transition-all">Home</Link>
+        {/* Center/Left: Logo & Brand Name */}
+        <Link href="/" className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0">
           
-          {/* Categories with Dropdown */}
-          <div className="relative">
-            <div className="flex items-center">
-              <Link href="/categories" className="px-2 py-2 text-sm text-white/80 hover:text-white rounded-lg hover:bg-white/5 transition-all">
-                Categories
-              </Link>
-              <button 
-                onClick={() => setCatDropdown(!catDropdown)} 
-                className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/5 transition-all"
-              >
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${catDropdown ? 'rotate-180' : ''}`} />
-              </button>
+          {/* Logo Image - Make sure logo.jpg is in /public folder */}
+          <img src="/logo.jpg" alt="Logo" className="w-9 h-9 rounded-sm object-cover" />
+          
+          {/* Brand Text with Dark Blue "LIVING IN" */}
+          <span className="font-playfair text-xl md:text-2xl font-bold tracking-[0.05em]">
+            <span className="text-[#1e3a8a]">LIVING IN</span> <span className="text-gray-900">WEST</span>
+          </span>
+        </Link>
+
+        {/* Right: Desktop Search Bar & Mobile Search Icon */}
+        <div className="flex items-center gap-4">
+          <form onSubmit={handleSearch} className="hidden md:flex items-center">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input 
+                type="text" 
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="SEARCH STORIES..." 
+                className="w-48 lg:w-64 pl-10 pr-4 py-2 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-[0.15em] text-gray-700 focus:outline-none focus:border-gray-900 focus:bg-white transition-colors placeholder:text-gray-400"
+              />
             </div>
-            
-            {/* Dropdown Menu */}
-            {catDropdown && (
-              <>
-                {/* Invisible overlay to close dropdown when clicking outside */}
-                <div className="fixed inset-0 z-40" onClick={() => setCatDropdown(false)}></div>
-                <div className="absolute top-full right-0 mt-2 w-56 bg-[#111111] border border-white/10 rounded-xl p-2 shadow-2xl z-50">
-                  {categories.map((cat) => (
-                    <Link 
-                      key={cat.slug} 
-                      href={`/category/${cat.slug}`} 
-                      onClick={() => setCatDropdown(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
-                    >
-                      <span className="text-lg">{cat.emoji}</span>
-                      <span className="text-sm text-white/70 hover:text-white">{cat.name}</span>
-                    </Link>
-                  ))}
-                  <div className="border-t border-white/5 mt-2 pt-2">
-                    <Link href="/categories" onClick={() => setCatDropdown(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors">
-                      <span className="text-lg">🔥</span>
-                      <span className="text-sm text-[#6D28D9] font-medium">View All Categories</span>
-                    </Link>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <Link href="/about" className="px-4 py-2 text-sm text-white/80 hover:text-white rounded-lg hover:bg-white/5 transition-all">About</Link>
-        </div>
-
-        {/* Right Side */}
-        <div className="flex items-center gap-2">
-          <button onClick={() => setSearchOpen(!searchOpen)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors">
-            {searchOpen ? <X className="w-4 h-4 text-white/70" /> : <Search className="w-4 h-4 text-white/70" />}
-          </button>
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors">
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </form>
+          <button onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setMobileOpen(false); }} className="md:hidden text-gray-900">
+            <Search className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Search Dropdown */}
-      {searchOpen && (
-        <div className="border-t border-white/5 bg-[#0A0A0A]/95 backdrop-blur-md px-6 py-4">
-          <form onSubmit={handleSearch} className="max-w-3xl mx-auto flex gap-3">
-            <div className="flex-1 flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/10 focus-within:border-[#6D28D9]/50">
-              <Search className="w-4 h-4 text-white/40" />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search articles, news, topics..." className="bg-transparent text-sm text-white placeholder:text-white/40 outline-none flex-1" autoFocus />
-            </div>
-            <button type="submit" className="px-6 py-3 bg-[#6D28D9] rounded-xl text-sm font-medium hover:bg-[#5B21B6]">Search</button>
+      {/* Mobile Search Bar */}
+      {mobileSearchOpen && (
+        <div className="md:hidden bg-white border-b border-gray-100 px-6 py-4">
+          <form onSubmit={handleSearch} className="flex items-center relative">
+            <Search className="absolute left-3 w-4 h-4 text-gray-400" />
+            <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="SEARCH STORIES..." className="w-full pl-10 pr-4 py-3 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-widest focus:outline-none focus:border-gray-900" autoFocus />
           </form>
         </div>
       )}
 
+      {/* LINE 2: Main Categories (Slightly Larger Text - text-xs) */}
+      <div className="hidden lg:block border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-center gap-8 h-10">
+          {mainNavLinks.map((link) => (
+            <Link key={link.name} href={link.href} className="text-xs uppercase tracking-[0.2em] text-gray-500 hover:text-gray-900 transition-colors font-semibold">
+              {link.name}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* LINE 3: Utility Links (Slightly Larger Text - text-[11px]) */}
+      <div className="hidden lg:block">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-center gap-6 h-8">
+          {utilityLinks.map((link) => (
+            <Link key={link.name} href={link.href} className="text-[11px] uppercase tracking-[0.2em] text-gray-400 hover:text-gray-700 transition-colors font-medium">
+              {link.name}
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-white/5 bg-[#0A0A0A]/95 backdrop-blur-md">
-          <div className="px-6 py-4 space-y-1">
-            <Link href="/" onClick={closeMobile} className="block px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-xl transition-all">Home</Link>
-            
-            {/* Mobile Categories Accordion */}
-            <div>
-              <button onClick={() => setCatDropdown(!catDropdown)} className="w-full flex items-center justify-between px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-xl transition-all">
-                Categories <ChevronDown className={`w-3 h-3 transition-transform ${catDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              {catDropdown && (
-                <div className="pl-4 space-y-1 mt-1 mb-1">
-                  {categories.map((cat) => (
-                    <Link key={cat.slug} href={`/category/${cat.slug}`} onClick={closeMobile} className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
-                      <span>{cat.emoji}</span>
-                      <span className="text-sm text-white/60">{cat.name}</span>
-                    </Link>
-                  ))}
-                  <Link href="/categories" onClick={closeMobile} className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-colors">
-                    <span>🔥</span>
-                    <span className="text-sm text-[#6D28D9] font-medium">View All</span>
-                  </Link>
-                </div>
-              )}
+        <div className="lg:hidden bg-white border-t border-gray-100 py-4 px-6 shadow-lg absolute top-16 left-0 right-0 z-40 h-screen">
+          <div className="flex flex-col gap-4">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-2 mb-1">Categories</p>
+            {mainNavLinks.map((link) => (
+              <Link key={link.name} href={link.href} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-700 font-semibold py-2 border-b border-gray-50">
+                {link.name}
+              </Link>
+            ))}
+            <div className="border-t border-gray-200 mt-4 pt-4">
+              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">Quick Links</p>
+              {utilityLinks.map((link) => (
+                <Link key={link.name} href={link.href} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-500 font-medium py-2 block border-b border-gray-50">
+                  {link.name}
+                </Link>
+              ))}
             </div>
-
-            <Link href="/about" onClick={closeMobile} className="block px-4 py-3 text-sm text-white/80 hover:text-white hover:bg-white/5 rounded-xl transition-all">About</Link>
           </div>
         </div>
       )}

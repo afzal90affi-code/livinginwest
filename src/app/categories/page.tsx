@@ -1,48 +1,62 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { db } from "@/lib/firebase"; 
+import { collection, getDocs } from "firebase/firestore";
 
 export const metadata: Metadata = {
-  title: 'All Categories',
-  description: 'Browse all lifestyle categories on LivingInWest - Food, Travel, Automotive, Finance, Health, Entertainment.',
+  title: 'All Categories - Living In West',
+  description: 'Browse all lifestyle categories on Living In West.',
 };
 
-const categories = [
-  { id: 1, name: "Food & Recipes", slug: "food", emoji: "🍔", img: "https://picsum.photos/seed/cat-food/600/400.jpg", count: 142 },
-  { id: 2, name: "Travel", slug: "travel", emoji: "✈️", img: "https://picsum.photos/seed/cat-travel/600/400.jpg", count: 198 },
-  { id: 3, name: "Automotive", slug: "automotive", emoji: "🚗", img: "https://picsum.photos/seed/cat-cars/600/400.jpg", count: 75 },
-  { id: 4, name: "Finance", slug: "finance", emoji: "💰", img: "https://picsum.photos/seed/cat-finance/600/400.jpg", count: 64 },
-  { id: 5, name: "Health & Wellness", slug: "health", emoji: "🧘", img: "https://picsum.photos/seed/cat-health/600/400.jpg", count: 89 },
-  { id: 6, name: "Entertainment", slug: "entertainment", emoji: "🎬", img: "https://picsum.photos/seed/cat-movie/600/400.jpg", count: 121 },
-];
+export default async function CategoriesPage() {
+  let catList: any[] = [];
+  let blogCounts: Record<string, number> = {};
 
-export default function CategoriesPage() {
+  try {
+    const catSnap = await getDocs(collection(db, "categories"));
+    catList = catSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+    const blogSnap = await getDocs(collection(db, "blogs"));
+    const blogs = blogSnap.docs.map(d => d.data() as any);
+    
+    blogs.forEach(blog => {
+      if (blog.category) {
+        blogCounts[blog.category] = (blogCounts[blog.category] || 0) + 1;
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+  }
+
   return (
-    <main className="min-h-screen py-20">
+    <main className="min-h-screen bg-[#FAFAFA] text-gray-900 py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-6">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition mb-8">← Back to Home</Link>
         
         <div className="text-center mb-16">
-          <h1 className="font-playfair text-5xl font-bold">All Categories</h1>
-          <p className="text-white/50 mt-4">Explore our complete collection of lifestyle topics</p>
+          <h1 className="font-playfair text-4xl md:text-6xl font-bold tracking-tight">All Categories</h1>
+          <p className="text-gray-500 mt-4 text-sm md:text-base max-w-xl mx-auto">Explore our complete collection of lifestyle topics and stories.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((cat) => (
-            <Link href={`/category/${cat.slug}`} key={cat.id} className="group cursor-pointer">
-              <div className="relative rounded-2xl overflow-hidden aspect-[4/3] border border-white/5 hover:border-white/20 transition-all">
-                <img src={cat.img} className="absolute inset-0 w-full h-full object-cover brightness-[0.35] group-hover:scale-110 group-hover:brightness-[0.5] transition-all duration-700" alt={cat.name} />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/30 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-3xl">{cat.emoji}</span>
-                    <h2 className="text-xl font-bold">{cat.name}</h2>
-                  </div>
-                  <p className="text-sm text-white/40">{cat.count} Articles</p>
+        {catList.length === 0 ? (
+          <p className="text-center text-gray-400">No categories found.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {catList.map((cat) => (
+              <Link href={`/category/${cat.slug}`} key={cat.id} className="group block relative aspect-[4/3] overflow-hidden bg-gray-100 border border-gray-200/50 hover:border-gray-900 transition-colors">
+                <img 
+                  src={cat.image || `https://picsum.photos/seed/cat-${cat.slug}/800/600.jpg`} 
+                  className="w-full h-full object-cover brightness-[0.6] group-hover:brightness-[0.4] group-hover:scale-105 transition-all duration-700" 
+                  alt={cat.name} 
+                  loading="lazy" 
+                />
+                <div className="absolute inset-0 flex flex-col justify-end p-8">
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-bold mb-2">{blogCounts[cat.slug] || 0} Stories</span>
+                  <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white leading-tight">{cat.name}</h2>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
