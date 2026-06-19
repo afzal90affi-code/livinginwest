@@ -1,0 +1,20 @@
+export default {
+  name: 'blog',
+  title: 'Blog Post',
+  type: 'document',
+  fields: [
+    { name: 'title', title: 'Title', type: 'string' },
+    { name: 'slug', title: 'Slug', type: 'slug', options: { source: 'title' } },
+    { name: 'category', title: 'Category', type: 'string' },
+    { name: 'subCategory', title: 'Sub Category', type: 'string' },
+    { name: 'desc', title: 'Short Description', type: 'text' },
+    { name: 'mainImage', title: 'Main Image (img1)', type: 'image', options: { hotspot: true } },
+    { name: 'content1', title: 'Content Part 1', type: 'text' },
+    { name: 'img2', title: 'Middle Image (img2)', type: 'image', options: { hotspot: true } },
+    { name: 'content2', title: 'Content Part 2', type: 'text' },
+    { name: 'img3', title: 'Last Image (img3)', type: 'image', options: { hotspot: true } },
+    { name: 'content3', title: 'Content Part 3', type: 'text' },
+    { name: 'date', title: 'Date', type: 'datetime' },
+    { name: 'isFeatured', title: 'Featured', type: 'boolean' },
+  ]
+}

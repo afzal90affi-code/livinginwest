@@ -1,100 +1,121 @@
-import { Metadata } from 'next';
 import Link from 'next/link';
-import { db } from "@/lib/firebase"; 
-import { collection, getDocs, query, where } from "firebase/firestore";
+import Image from 'next/image';
+import { client } from "@/lib/sanityClient";
+import { urlFor } from "@/lib/sanityImage";
 
-type Props = { params: { slug: string } };
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const categoryName = params.slug.charAt(0).toUpperCase() + params.slug.slice(1);
-  return { title: `${categoryName} - Living In West`, description: `Browse the latest ${categoryName} articles.` };
+// Category ka data fetch karna
+async function getCategoryData(slug: string) {
+  const category = await client.fetch(`*[_type == "category" && slug.current == $slug][0]{
+    _id, name, "slug": slug.current, emoji
+  }`, { slug });
+  return category;
 }
 
-export default async function CategoryDetail({ params, searchParams }: { params: { slug: string }, searchParams: { sub?: string } }) {
-  const categoryName = params.slug.charAt(0).toUpperCase() + params.slug.slice(1);
-  const activeSub = searchParams.sub || null;
+// Us category ke andar ki subcategories fetch karna
+async function getSubcategories(slug: string) {
+  const subcats = await client.fetch(`*[_type == "subcategory" && parentId == $slug] | order(name asc){
+    _id, name, "slug": slug.current, emoji, image
+  }`, { slug });
+  return subcats;
+}
 
-  let subCats: any[] = [];
-  let blogs: any[] = [];
+// Us category ke blogs fetch karna
+async function getBlogsByCategory(slug: string) {
+  const blogs = await client.fetch(`*[_type == "blog" && category == $slug] | order(date desc){
+    _id, title, "slug": slug.current, "categoryName": category, desc, "mainImage": img1, date
+  }`, { slug });
+  return blogs;
+}
 
-  try {
-    const subCatQuery = query(collection(db, "subcategories"), where("parentId", "==", params.slug));
-    const subCatSnap = await getDocs(subCatQuery);
-    subCats = subCatSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+export default async function CategoryPage({ params }: { params: { slug: string } }) {
+  const category = await getCategoryData(params.slug);
+  const subcategories = await getSubcategories(params.slug);
+  const blogs = await getBlogsByCategory(params.slug);
 
-    let q;
-    if (activeSub) {
-      q = query(collection(db, "blogs"), where("category", "==", params.slug), where("subCategory", "==", activeSub));
-    } else {
-      q = query(collection(db, "blogs"), where("category", "==", params.slug));
-    }
-    const querySnapshot = await getDocs(q);
-    blogs = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-
-  } catch (error) { console.error(error); }
+  if (!category) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4">404</h1>
+          <p className="text-gray-500">Category not found</p>
+          <Link href="/" className="text-blue-500 hover:underline mt-4 block">Back to Home</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA] text-gray-900 py-16 md:py-24">
-      <div className="max-w-7xl mx-auto px-6">
+    <div className="min-h-screen bg-[#FAFAFA] text-gray-900">
+      <div className="max-w-7xl mx-auto px-6 py-12">
         
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-400 mb-8">
-          <Link href="/" className="hover:text-gray-900">Home</Link>
-          <span>/</span>
-          <Link href="/categories" className="hover:text-gray-900">Categories</Link>
-          <span>/</span>
-          <span className="text-gray-800">{categoryName}</span>
-        </div>
-
-        <h1 className="font-playfair text-4xl md:text-6xl font-bold tracking-tight mb-10 border-b border-gray-200 pb-6">
-          <span className="text-[#1e3a8a]">{categoryName}</span>
+        {/* Category Title */}
+        <h1 className="font-playfair text-4xl md:text-5xl font-bold mb-2">
+          {category.emoji} {category.name}
         </h1>
+        <p className="text-gray-500 mb-8 border-b border-gray-200 pb-4">
+          All articles in {category.name}
+        </p>
 
-        {/* Subcategory Pills */}
-        {subCats.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 mb-12">
-            <Link href={`/category/${params.slug}`} className={`px-4 py-2 border text-xs uppercase tracking-widest font-semibold transition-colors ${!activeSub ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-900'}`}>
-              All
-            </Link>
-            {subCats.map((sub) => (
-              <Link key={sub.id} href={`/category/${params.slug}?sub=${sub.slug}`} className={`px-4 py-2 border text-xs uppercase tracking-widest font-semibold transition-colors ${activeSub === sub.slug ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-900'}`}>
-                {sub.emoji} {sub.name}
-              </Link>
-            ))}
+        {/* ===== SUBCATEGORIES SECTION (Compact Row Style) ===== */}
+        {subcategories.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center gap-3 overflow-x-auto pb-3 scrollbar-hide">
+              {subcategories.map((sub: any) => {
+                const subImg = sub.image ? urlFor(sub.image).width(100).height(100).url() : null;
+                
+                return (
+                  <Link 
+                    href={`/subcategories/${sub.slug}`} 
+                    key={sub._id} 
+                    className="group flex-shrink-0 flex items-center gap-2.5 bg-white border border-gray-200 hover:border-[#6D28D9]/50 rounded-full px-4 py-2 transition-all shadow-sm hover:shadow-md"
+                  >
+                    {/* Agar image hai toh dikhao, warna kuch mat dikhao */}
+                    {subImg && (
+                      <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                        <Image src={subImg} alt={sub.name} width={28} height={28} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    
+                    {/* Subcategory Ka Naam */}
+                    <span className="text-sm font-semibold text-gray-700 group-hover:text-[#6D28D9] whitespace-nowrap transition-colors">
+                      {sub.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Blogs Grid - FIXED IMAGE CUTTING ISSUE */}
+        {/* ===== BLOGS LIST ===== */}
         {blogs.length === 0 ? (
-          <div className="text-center py-20 bg-white border border-gray-200">
-            <p className="text-gray-500 text-sm uppercase tracking-widest">No stories found in this section</p>
+          <div className="text-center py-12 border border-dashed border-gray-300 rounded-lg bg-white">
+            <p className="text-gray-500">No blogs found in this category.</p>
+            <Link href="/" className="text-sm text-[#6D28D9] hover:underline mt-4 inline-block">Back to Home</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {blogs.map((blog) => (
-              <Link href={`/blog/${blog.id}`} key={blog.id} className="group block bg-white border border-gray-200/50 hover:border-gray-900 transition-colors overflow-hidden">
-                
-                {/* IMAGE CONTAINER - Removed forced aspect ratio so full image shows */}
-                <div className="w-full bg-gray-50 overflow-hidden">
-                  <img 
-                    src={blog.img1 || `https://picsum.photos/seed/blog-${blog.id}/800/500.jpg`} 
-                    alt={blog.title} 
-                    className="w-full h-auto group-hover:scale-105 transition-transform duration-700" 
-                    loading="lazy" 
-                  />
-                </div>
-                
-                <div className="p-6">
-                  <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{blog.subCategory || blog.category}</span>
-                  <h3 className="font-playfair text-xl font-bold mt-2 leading-tight text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{blog.title}</h3>
-                  <p className="text-sm text-gray-500 mt-2 line-clamp-2">{blog.desc}</p>
-                  {blog.date && <p className="text-[10px] text-gray-400 mt-4 uppercase tracking-widest">{blog.date}</p>}
-                </div>
-              </Link>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {blogs.map((blog: any) => {
+              const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(800).height(1000).url() : null;
+              
+              return (
+                <Link href={`/blog/${blog.slug}`} key={blog._id} className="group block">
+                  <div className="aspect-[3/4] overflow-hidden mb-4 bg-gray-100 relative">
+                    {blogImg ? (
+                      <Image src={blogImg} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 33vw" />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>
+                    )}
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">{blog.categoryName}</span>
+                  <h3 className="font-playfair text-xl font-bold mt-2 leading-tight text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">{blog.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">{blog.desc}</p>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

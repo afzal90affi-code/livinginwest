@@ -1,29 +1,30 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { db } from "@/lib/firebase"; 
-import { collection, getDocs } from "firebase/firestore";
+import Image from 'next/image'; // Next.js Image Component
+import { client } from '@/lib/sanityClient'; // Sanity Client
+import { urlFor } from '@/lib/sanityImage'; // Sanity Image Optimizer
 
 export const metadata: Metadata = {
   title: 'All Categories - Living In West',
   description: 'Browse all lifestyle categories on Living In West.',
 };
 
+// ✨ GROQ MAGIC: Ek hi query mein Categories aur unka Blog Count!
+const CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
+  _id,
+  name,
+  "slug": slug.current,
+  emoji,
+  image,
+  "blogCount": count(*[_type == "blog" && category == ^.slug])
+}`;
+
 export default async function CategoriesPage() {
   let catList: any[] = [];
-  let blogCounts: Record<string, number> = {};
 
   try {
-    const catSnap = await getDocs(collection(db, "categories"));
-    catList = catSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
-
-    const blogSnap = await getDocs(collection(db, "blogs"));
-    const blogs = blogSnap.docs.map(d => d.data() as any);
-    
-    blogs.forEach(blog => {
-      if (blog.category) {
-        blogCounts[blog.category] = (blogCounts[blog.category] || 0) + 1;
-      }
-    });
+    // Sirf ek API call, aur sab data aa gaya!
+    catList = await client.fetch(CATEGORIES_QUERY);
   } catch (error) {
     console.error("Error fetching categories:", error);
   }
@@ -38,23 +39,33 @@ export default async function CategoriesPage() {
         </div>
 
         {catList.length === 0 ? (
-          <p className="text-center text-gray-400">No categories found.</p>
+          <p className="text-center text-gray-400">No categories found. Add them from Sanity Studio.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {catList.map((cat) => (
-              <Link href={`/category/${cat.slug}`} key={cat.id} className="group block relative aspect-[4/3] overflow-hidden bg-gray-100 border border-gray-200/50 hover:border-gray-900 transition-colors">
-                <img 
-                  src={cat.image || `https://picsum.photos/seed/cat-${cat.slug}/800/600.jpg`} 
-                  className="w-full h-full object-cover brightness-[0.6] group-hover:brightness-[0.4] group-hover:scale-105 transition-all duration-700" 
-                  alt={cat.name} 
-                  loading="lazy" 
-                />
-                <div className="absolute inset-0 flex flex-col justify-end p-8">
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-bold mb-2">{blogCounts[cat.slug] || 0} Stories</span>
-                  <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white leading-tight">{cat.name}</h2>
-                </div>
-              </Link>
-            ))}
+            {catList.map((cat) => {
+              // Sanity Image URL ya Fallback
+              const imgUrl = cat.image 
+                ? urlFor(cat.image).width(800).height(600).auto('format').url() 
+                : `https://picsum.photos/seed/cat-${cat.slug}/800/600.jpg`;
+
+              return (
+                <Link href={`/category/${cat.slug}`} key={cat._id} className="group block relative aspect-[4/3] overflow-hidden bg-gray-100 border border-gray-200/50 hover:border-gray-900 transition-colors">
+                  <Image 
+                    src={imgUrl} 
+                    alt={cat.name}
+                    fill // Next.js Image fill property
+                    className="object-cover brightness-[0.6] group-hover:brightness-[0.4] group-hover:scale-105 transition-all duration-700" 
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
+                  <div className="absolute inset-0 flex flex-col justify-end p-8 z-10">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-bold mb-2">
+                      {cat.blogCount || 0} Stories
+                    </span>
+                    <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white leading-tight">{cat.name}</h2>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

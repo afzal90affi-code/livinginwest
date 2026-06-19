@@ -1,24 +1,25 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // Next.js Image component
 import { ArrowLeft, MessageCircle, Reply, Send, ChevronDown, ChevronUp, User } from 'lucide-react';
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp } from "firebase/firestore";
+import { client } from "@/lib/sanityClient"; // Sanity Client
+import { urlFor } from "@/lib/sanityImage"; // Sanity Image Optimizer
+import BlogAudioPlayer from '@/components/BlogAudioPlayer';
 
 // ─── Comment Type ────────────────────────────────────────────
 type CommentType = {
-  id: string;
+  _id: string; // Sanity mein 'id' ki jagah '_id' hoti hai
   name: string;
   text: string;
-  parentId: string | null;
-  createdAt: Timestamp | null;
+  createdAt: string | null; // Sanity Timestamp ki jagah String date deta hai
   replies?: CommentType[];
 };
 
 // ─── Format Date Helper ─────────────────────────────────────
-function formatCommentDate(timestamp: Timestamp | null): string {
-  if (!timestamp) return "";
-  const date = timestamp.toDate();
+function formatCommentDate(dateString: string | null): string {
+  if (!dateString) return "";
+  const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -54,88 +55,81 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
 
   const replyInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Fetch Blog ─────────────────────────────────────────
+  // ─── Fetch Blog & Comments from Sanity ──────────────────
   useEffect(() => {
-    const fetchBlog = async () => {
+    const fetchData = async () => {
+      setLoading(true);
+      setCommentLoading(true);
       try {
-        const docRef = doc(db, "blogs", params.slug);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setBlog({ id: docSnap.id, ...docSnap.data() });
+        // 1. Fetch Blog Data using GROQ
+        const blogQuery = `*[_type == "blog" && slug.current == $slug][0] {
+          _id, title, "category": category-> { title, "slug": slug.current }, "subCategory": subCategory-> { title, "slug": slug.current }, desc, date,
+          mainImage, img2, img3, content1, content2, content3
+        }`;
+        const blogData = await client.fetch(blogQuery, { slug: params.slug });
+        setBlog(blogData);
+
+        // 2. Fetch Comments with Nested Replies (Sanity GROQ Magic)
+        if (blogData) {
+          const commentsQuery = `*[_type == "comment" && blog._ref == $blogId && !defined(parentComment)] | order(createdAt asc) {
+            _id, name, text, createdAt,
+            "replies": *[_type == "comment" && parentComment._ref == ^._id] | order(createdAt asc) {
+              _id, name, text, createdAt
+            }
+          }`;
+          const commentsData = await client.fetch(commentsQuery, { blogId: blogData._id });
+          setComments(commentsData);
         }
       } catch (error) { console.error(error); }
-      finally { setLoading(false); }
+      finally { setLoading(false); setCommentLoading(false); }
     };
-    fetchBlog();
+    fetchData();
   }, [params.slug]);
 
-  // ─── Fetch Comments ─────────────────────────────────────
-  const fetchComments = async () => {
-    try {
-      setCommentLoading(true);
-      const q = query(
-        collection(db, "blogs", params.slug, "comments"),
-        orderBy("createdAt", "asc")
-      );
-      const snap = await getDocs(q);
-      const all: CommentType[] = snap.docs.map(d => ({
-        id: d.id,
-        ...d.data(),
-      })) as CommentType[];
-
-      // Build tree: top-level + nested replies
-      const topLevel = all.filter(c => !c.parentId);
-      const replyMap: Record<string, CommentType[]> = {};
-      all.filter(c => c.parentId).forEach(r => {
-        if (!replyMap[r.parentId!]) replyMap[r.parentId!] = [];
-        replyMap[r.parentId!].push(r);
-      });
-      topLevel.forEach(c => { c.replies = replyMap[c.id] || []; });
-
-      setComments(topLevel);
-    } catch (error) { console.error(error); }
-    finally { setCommentLoading(false); }
-  };
-
-  useEffect(() => { fetchComments(); }, [params.slug]);
-
-  // ─── Submit Top-Level Comment ───────────────────────────
+  // ─── Submit Top-Level Comment via API Route ─────────────
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentName.trim() || !commentText.trim()) return;
+    if (!commentName.trim() || !commentText.trim() || !blog?._id) return;
     try {
       setSubmitting(true);
-      await addDoc(collection(db, "blogs", params.slug, "comments"), {
-        name: commentName.trim(),
-        text: commentText.trim(),
-        parentId: null,
-        createdAt: serverTimestamp(),
+      await fetch('/api/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: commentName.trim(), text: commentText.trim(), blogId: blog._id }),
       });
       setCommentName("");
       setCommentText("");
-      await fetchComments();
+      
+      // Refresh comments
+      const commentsQuery = `*[_type == "comment" && blog._ref == $blogId && !defined(parentComment)] | order(createdAt asc) {
+        _id, name, text, createdAt, "replies": *[_type == "comment" && parentComment._ref == ^._id] | order(createdAt asc) { _id, name, text, createdAt }
+      }`;
+      setComments(await client.fetch(commentsQuery, { blogId: blog._id }));
     } catch (error) { console.error(error); }
     finally { setSubmitting(false); }
   };
 
-  // ─── Submit Reply ───────────────────────────────────────
+  // ─── Submit Reply via API Route ─────────────────────────
   const handleSubmitReply = async (e: React.FormEvent, parentId: string) => {
     e.preventDefault();
-    if (!replyName.trim() || !replyText.trim()) return;
+    if (!replyName.trim() || !replyText.trim() || !blog?._id) return;
     try {
       setSubmittingReply(true);
-      await addDoc(collection(db, "blogs", params.slug, "comments"), {
-        name: replyName.trim(),
-        text: replyText.trim(),
-        parentId: parentId,
-        createdAt: serverTimestamp(),
+      await fetch('/api/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: replyName.trim(), text: replyText.trim(), blogId: blog._id, parentCommentId: parentId }),
       });
       setReplyName("");
       setReplyText("");
       setReplyingTo(null);
-      // Auto-expand replies after submitting
       setExpandedReplies(prev => new Set(prev).add(parentId));
-      await fetchComments();
+      
+      // Refresh comments
+      const commentsQuery = `*[_type == "comment" && blog._ref == $blogId && !defined(parentComment)] | order(createdAt asc) {
+        _id, name, text, createdAt, "replies": *[_type == "comment" && parentComment._ref == ^._id] | order(createdAt asc) { _id, name, text, createdAt }
+      }`;
+      setComments(await client.fetch(commentsQuery, { blogId: blog._id }));
     } catch (error) { console.error(error); }
     finally { setSubmittingReply(false); }
   };
@@ -165,6 +159,9 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
   // ─── Total Comment Count ────────────────────────────────
   const totalComments = comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
 
+  // Audio Player k liye paragraphs ko ek single text plain string m convert karne ka helper
+  const fullBlogText = [blog?.content1, blog?.content2, blog?.content3].filter(Boolean).join(" ");
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
       <div className="animate-spin h-10 w-10 border-2 border-gray-900 border-t-transparent rounded-full"></div>
@@ -183,29 +180,42 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
 
         {/* Breadcrumb */}
         <div className="flex items-center justify-between mb-12">
-          <Link href={`/category/${blog.category}`} className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to {blog.category}
+          <Link href={`/category/${blog.category?.slug}`} className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to {blog.category?.title || blog.category?.slug}
           </Link>
-          <span className="text-xs uppercase tracking-widest text-gray-400">{blog.date}</span>
+          <span className="text-xs uppercase tracking-widest text-gray-400">
+            {blog.date ? new Date(blog.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+          </span>
         </div>
 
         {/* Header */}
         <div className="mb-12 text-center">
           <span className="inline-block px-3 py-1 border border-gray-200 text-[10px] uppercase tracking-[0.3em] text-gray-500 font-bold mb-6">
-            {blog.subCategory || blog.category}
+            {blog.subCategory?.title || blog.category?.title}
           </span>
           <h1 className="font-playfair text-4xl md:text-6xl font-bold leading-[1.1] tracking-tight mb-6">
             {blog.title}
           </h1>
           {blog.desc && <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">{blog.desc}</p>}
         </div>
-
-        {/* Hero Image */}
-        {blog.img1 && (
-          <div className="mb-16 overflow-hidden border border-gray-200 bg-gray-50">
-            <img src={blog.img1} alt={blog.title} className="w-full h-auto max-h-[650px] object-cover object-top" />
+        
+        {/* Hero Image (Optimized with Next/Image) */}
+        {blog.mainImage && (
+          <div className="mb-12 overflow-hidden border border-gray-200 bg-gray-50 relative aspect-video">
+            <Image 
+              src={urlFor(blog.mainImage).width(1200).height(650).auto('format').url()} 
+              alt={blog.title} 
+              fill 
+              className="object-cover object-top" 
+              priority 
+            />
           </div>
         )}
+
+        {/* 🎧 AI VOICE AUDIO NARRATOR WIDGET PLACEMENT */}
+        <div className="mb-12 flex justify-center">
+          <BlogAudioPlayer title={blog.title} content={fullBlogText} />
+        </div>
 
         {/* Content Part 1 */}
         <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed mb-12 font-inter">
@@ -214,8 +224,8 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
 
         {/* Middle Image */}
         {blog.img2 && (
-          <div className="my-16 overflow-hidden border border-gray-200 bg-gray-50">
-            <img src={blog.img2} alt="Article image 2" className="w-full h-auto" />
+          <div className="my-16 overflow-hidden border border-gray-200 bg-gray-50 relative aspect-video">
+            <Image src={urlFor(blog.img2).width(1200).auto('format').url()} alt="Article image 2" fill className="object-cover" />
           </div>
         )}
 
@@ -233,8 +243,8 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
 
         {/* Last Image */}
         {blog.img3 && (
-          <div className="my-16 overflow-hidden border border-gray-200 bg-gray-50">
-            <img src={blog.img3} alt="Article image 3" className="w-full h-auto" />
+          <div className="my-16 overflow-hidden border border-gray-200 bg-gray-50 relative aspect-video">
+            <Image src={urlFor(blog.img3).width(1200).auto('format').url()} alt="Article image 3" fill className="object-cover" />
           </div>
         )}
 
@@ -266,6 +276,8 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
             <h3 className="text-xs uppercase tracking-[0.2em] font-bold text-gray-500 mb-6">Leave a comment</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <input
+                id="comment-name"
+                name="name"
                 type="text"
                 placeholder="Your name *"
                 value={commentName}
@@ -276,6 +288,8 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
               <div /> {/* spacer for alignment */}
             </div>
             <textarea
+              id="comment-text"
+              name="text"
               placeholder="Write your comment... *"
               value={commentText}
               onChange={e => setCommentText(e.target.value)}
@@ -310,10 +324,10 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
             <div className="space-y-0">
               {comments.map((comment) => {
                 const hasReplies = comment.replies && comment.replies.length > 0;
-                const isExpanded = expandedReplies.has(comment.id);
+                const isExpanded = expandedReplies.has(comment._id);
 
                 return (
-                  <div key={comment.id} className="border-b border-gray-100 last:border-b-0">
+                  <div key={comment._id} className="border-b border-gray-100 last:border-b-0">
 
                     {/* ── Single Comment ─────────────────── */}
                     <div className="py-6">
@@ -336,7 +350,7 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
                           {/* Action Row */}
                           <div className="flex items-center gap-4 mt-3">
                             <button
-                              onClick={() => handleReplyClick(comment.id)}
+                              onClick={() => handleReplyClick(comment._id)}
                               className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-gray-400 hover:text-gray-900 transition-colors"
                             >
                               <Reply className="w-3.5 h-3.5" />
@@ -344,7 +358,7 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
                             </button>
                             {hasReplies && (
                               <button
-                                onClick={() => toggleReplies(comment.id)}
+                                onClick={() => toggleReplies(comment._id)}
                                 className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-bold text-gray-400 hover:text-gray-900 transition-colors"
                               >
                                 {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -354,14 +368,16 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
                           </div>
 
                           {/* ── Reply Input Box ─────────────── */}
-                          {replyingTo === comment.id && (
+                          {replyingTo === comment._id && (
                             <form
-                              onSubmit={(e) => handleSubmitReply(e, comment.id)}
+                              onSubmit={(e) => handleSubmitReply(e, comment._id)}
                               className="mt-4 pt-4 border-t border-gray-100"
                             >
                               <div className="flex flex-col sm:flex-row gap-3">
                                 <input
                                   ref={replyInputRef}
+                                  id={`reply-name-${comment._id}`}
+                                  name="replyName"
                                   type="text"
                                   placeholder="Your name *"
                                   value={replyName}
@@ -370,6 +386,8 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
                                   className="flex-shrink-0 sm:w-48 px-4 py-2.5 border border-gray-200 bg-[#FAFAFA] text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-900 transition-colors"
                                 />
                                 <input
+                                  id={`reply-text-${comment._id}`}
+                                  name="replyText"
                                   type="text"
                                   placeholder="Write a reply... *"
                                   value={replyText}
@@ -403,7 +421,7 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
                     {hasReplies && isExpanded && (
                       <div className="ml-14 border-l-2 border-gray-100 pl-6 pb-4 space-y-0">
                         {comment.replies!.map((reply) => (
-                          <div key={reply.id} className="py-4 border-b border-gray-50 last:border-b-0">
+                          <div key={reply._id} className="py-4 border-b border-gray-50 last:border-b-0">
                             <div className="flex items-start gap-3">
                               <div className="flex-shrink-0 w-8 h-8 bg-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold uppercase">
                                 {reply.name?.charAt(0) || <User className="w-3 h-3" />}
