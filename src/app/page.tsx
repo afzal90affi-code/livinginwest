@@ -1,6 +1,29 @@
 import HomeContent from '@/components/HomeContent';
 import { client } from "@/lib/sanityClient"; 
 
+// 👇 Types define kiye
+interface CategoryData {
+  _id: string;
+  name: string;
+  slug?: string;
+  emoji?: string;
+  image?: { asset?: { _ref: string; url?: string }; url?: string };
+}
+
+interface BlogData {
+  _id: string;
+  title?: string;
+  slug?: string;
+  categoryName?: string;
+  subcategoryName?: string;
+  desc?: string;
+  mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
+  date?: string;
+  isFeatured?: boolean;
+  isEditorsPick?: boolean;
+  isMoreStory?: boolean;
+}
+
 // 👇 Google Search Meta Data
 export const metadata = {
   title: "Living In West - Premium Lifestyle & News",
@@ -38,12 +61,11 @@ export default async function Page() {
   const catDataRaw = await client.fetch(CATEGORIES_QUERY);
   const blogDataRaw = await client.fetch(BLOGS_QUERY);
 
-  // Ab slug pehle se string hai, koi convert karne ki zaroorat nahi
-  const catData = catDataRaw.map((c: any) => ({
+  const catData: CategoryData[] = catDataRaw.map((c: CategoryData) => ({
     ...c,
   }));
 
-  const blogData = blogDataRaw.map((b: any) => ({
+  const blogData: BlogData[] = blogDataRaw.map((b: BlogData) => ({
     ...b,
   }));
 

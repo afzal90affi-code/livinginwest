@@ -1,8 +1,18 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import Image from 'next/image'; // Next.js Image Component
-import { client } from '@/lib/sanityClient'; // Sanity Client
-import { urlFor } from '@/lib/sanityImage'; // Sanity Image Optimizer
+import Image from 'next/image';
+import { client } from '@/lib/sanityClient';
+import { urlFor } from '@/lib/sanityImage';
+
+// 👇 Type define kiya
+interface CategoryItem {
+  _id: string;
+  name: string;
+  slug: string;
+  emoji?: string;
+  image?: { asset?: { _ref: string; url?: string }; url?: string };
+  blogCount?: number;
+}
 
 export const metadata: Metadata = {
   title: 'All Categories - Living In West',
@@ -20,10 +30,9 @@ const CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
 }`;
 
 export default async function CategoriesPage() {
-  let catList: any[] = [];
+  let catList: CategoryItem[] = [];
 
   try {
-    // Sirf ek API call, aur sab data aa gaya!
     catList = await client.fetch(CATEGORIES_QUERY);
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -42,8 +51,7 @@ export default async function CategoriesPage() {
           <p className="text-center text-gray-400">No categories found. Add them from Sanity Studio.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {catList.map((cat) => {
-              // Sanity Image URL ya Fallback
+            {catList.map((cat: CategoryItem) => {
               const imgUrl = cat.image 
                 ? urlFor(cat.image).width(800).height(600).auto('format').url() 
                 : `https://picsum.photos/seed/cat-${cat.slug}/800/600.jpg`;
@@ -53,7 +61,7 @@ export default async function CategoriesPage() {
                   <Image 
                     src={imgUrl} 
                     alt={cat.name}
-                    fill // Next.js Image fill property
+                    fill
                     className="object-cover brightness-[0.6] group-hover:brightness-[0.4] group-hover:scale-105 transition-all duration-700" 
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />

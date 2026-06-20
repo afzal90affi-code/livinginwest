@@ -15,7 +15,7 @@ export default function AboutUs() {
           <p>Welcome to <strong className="text-gray-900">Living In West</strong> — your premium destination for lifestyle, travel, food, and financial insights tailored for the modern reader.</p>
           
           <h2 className="font-playfair text-2xl font-bold text-gray-900 mt-8 mb-4">Our Mission</h2>
-          <p>Our mission is to bridge the gap between quality journalism and everyday lifestyle. We believe that staying informed about the world, managing finances, exploring new cuisines, and traveling shouldn't be separate experiences—they are all part of living a rich, fulfilling life.</p>
+          <p>Our mission is to bridge the gap between quality journalism and everyday lifestyle. We believe that staying informed about the world, managing finances, exploring new cuisines, and traveling shouldn&apos;t be separate experiences—they are all part of living a rich, fulfilling life.</p>
 
           <h2 className="font-playfair text-2xl font-bold text-gray-900 mt-8 mb-4">What We Cover</h2>
           <ul className="list-disc pl-6 space-y-2">

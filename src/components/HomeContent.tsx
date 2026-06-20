@@ -5,14 +5,76 @@ import Image from 'next/image';
 import { ArrowRight, Cloud, Clock } from 'lucide-react';
 import { urlFor } from "@/lib/sanityImage";
 
-export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: any[], initialBlogs: any[] }) {
+// 👇 Types define kiye
+interface Category {
+  _id: string;
+  name: string;
+  slug?: string | { current: string };
+  emoji?: string;
+  image?: { asset?: { _ref: string; url?: string }; url?: string };
+}
+
+interface Blog {
+  _id: string;
+  title?: string;
+  slug?: string;
+  categoryName?: string;
+  desc?: string;
+  mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
+  date?: string;
+  isFeatured?: boolean;
+  isEditorsPick?: boolean;
+  isMoreStory?: boolean;
+}
+
+interface MappedCategory {
+  id: string;
+  name: string;
+  slug: string;
+  emoji?: string;
+  img: string;
+}
+
+interface MappedBlog {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  desc: string;
+  img: string;
+  date: string;
+  isFeatured: boolean;
+  isEditorsPick: boolean;
+  isMoreStory: boolean;
+}
+
+interface ExternalNews {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  desc?: string;
+  img?: string;
+  date?: string;
+}
+
+interface GNewsArticle {
+  title: string;
+  url: string;
+  description?: string;
+  image?: string;
+  publishedAt?: string;
+  source?: { name?: string };
+}
+
+export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: Category[], initialBlogs: Blog[] }) {
   const [nyTime, setNyTime] = useState("");
   const [weather, setWeather] = useState({ temp: "--", condition: "" });
-  const [externalNews, setExternalNews] = useState<any[]>([]);
+  const [externalNews, setExternalNews] = useState<ExternalNews[]>([]);
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
 
   // 👇 INDESTRUCTIBLE SLUG EXTRACTOR
-  const categories = initialCategories.map((c: any) => {
+  const categories: MappedCategory[] = initialCategories.map((c: Category) => {
     let catSlug = 'category';
     if (typeof c.slug === 'string') {
       catSlug = c.slug;
@@ -33,7 +95,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     };
   });
 
-  const blogs = initialBlogs.map((b: any) => {
+  const blogs: MappedBlog[] = initialBlogs.map((b: Blog) => {
     const blogSlug = b.slug || "";
     return { 
       id: b._id, 
@@ -50,13 +112,13 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
   });
 
   // 🛠️ BUG FIX: Crash Protection if no featured post is selected in Sanity
-  const featuredFilter = blogs.filter((b: any) => b.isFeatured);
+  const featuredFilter = blogs.filter((b: MappedBlog) => b.isFeatured);
   const heroNews = featuredFilter.length > 0 ? featuredFilter : blogs.slice(0, 3);
 
-  const editorPicks = blogs.filter((b: any) => b.isEditorsPick);
+  const editorPicks = blogs.filter((b: MappedBlog) => b.isEditorsPick);
   const editorLeft = editorPicks.length > 0 ? editorPicks[0] : (blogs.length > 3 ? blogs[3] : null);
   const editorRight = editorPicks.length > 1 ? editorPicks.slice(1, 3) : blogs.slice(4, 6);
-  const moreStories = blogs.filter((b: any) => b.isMoreStory).length > 0 ? blogs.filter((b: any) => b.isMoreStory) : blogs.slice(0, 6);
+  const moreStories = blogs.filter((b: MappedBlog) => b.isMoreStory).length > 0 ? blogs.filter((b: MappedBlog) => b.isMoreStory) : blogs.slice(0, 6);
   
   const catRow1 = categories.slice(0, 2); 
   const catRow2 = categories.slice(2, 5); 
@@ -92,7 +154,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
       try {
         const res = await fetch(`https://gnews.io/api/v4/top-headlines?category=general&lang=en&country=us&max=6&apikey=${apiKey}`);
         const data = await res.json();
-        if (data.articles) setExternalNews(data.articles.map((a: any, i: number) => ({ id: `ext-${i}`, title: a.title, slug: a.url, category: a.source?.name || "World", desc: a.description, img: a.image, date: a.publishedAt?.split('T')[0] })));
+        if (data.articles) setExternalNews(data.articles.map((a: GNewsArticle, i: number) => ({ id: `ext-${i}`, title: a.title, slug: a.url, category: a.source?.name || "World", desc: a.description, img: a.image, date: a.publishedAt?.split('T')[0] })));
       } catch (error) { console.error(error); }
     };
     fetchNews();
@@ -155,10 +217,10 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </section>
       )}
 
-      {/* ===== EDITOR'S PICK ===== */}
+      {/* ===== EDITOR&apos;S PICK ===== */}
       <section className="py-16 bg-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-6">
-          <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">Editor's Pick</h2>
+          <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">Editor&apos;s Pick</h2>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
             {editorLeft && (
               <Link href={`/blog/${editorLeft.slug}`} className="md:col-span-7 group block">
@@ -259,7 +321,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {externalNews.map((news) => (
                 <a href={news.slug} key={news.id} target="_blank" rel="noopener noreferrer" className="group block border-b border-gray-100 pb-4">
-                  {/* 🛠️ Fixed Layout Shift with relative Next.js Image wrapper style */}
                   <div className="aspect-video overflow-hidden mb-3 bg-gray-100 relative">
                     <Image 
                       src={news.img || "/fallback-news.jpg"} 

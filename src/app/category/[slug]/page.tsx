@@ -3,8 +3,34 @@ import Image from 'next/image';
 import { client } from "@/lib/sanityClient";
 import { urlFor } from "@/lib/sanityImage";
 
+// 👇 Types define kiye
+interface CategoryData {
+  _id: string;
+  name: string;
+  slug: string;
+  emoji?: string;
+}
+
+interface SubcategoryData {
+  _id: string;
+  name: string;
+  slug: string;
+  emoji?: string;
+  image?: { asset?: { _ref: string; url?: string }; url?: string };
+}
+
+interface BlogData {
+  _id: string;
+  title: string;
+  slug: string;
+  categoryName: string;
+  desc?: string;
+  mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
+  date?: string;
+}
+
 // Category ka data fetch karna
-async function getCategoryData(slug: string) {
+async function getCategoryData(slug: string): Promise<CategoryData | null> {
   const category = await client.fetch(`*[_type == "category" && slug.current == $slug][0]{
     _id, name, "slug": slug.current, emoji
   }`, { slug });
@@ -12,7 +38,7 @@ async function getCategoryData(slug: string) {
 }
 
 // Us category ke andar ki subcategories fetch karna
-async function getSubcategories(slug: string) {
+async function getSubcategories(slug: string): Promise<SubcategoryData[]> {
   const subcats = await client.fetch(`*[_type == "subcategory" && parentId == $slug] | order(name asc){
     _id, name, "slug": slug.current, emoji, image
   }`, { slug });
@@ -20,7 +46,7 @@ async function getSubcategories(slug: string) {
 }
 
 // Us category ke blogs fetch karna
-async function getBlogsByCategory(slug: string) {
+async function getBlogsByCategory(slug: string): Promise<BlogData[]> {
   const blogs = await client.fetch(`*[_type == "blog" && category == $slug] | order(date desc){
     _id, title, "slug": slug.current, "categoryName": category, desc, "mainImage": img1, date
   }`, { slug });
@@ -60,7 +86,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         {subcategories.length > 0 && (
           <div className="mb-10">
             <div className="flex items-center gap-3 overflow-x-auto pb-3 scrollbar-hide">
-              {subcategories.map((sub: any) => {
+              {subcategories.map((sub: SubcategoryData) => {
                 const subImg = sub.image ? urlFor(sub.image).width(100).height(100).url() : null;
                 
                 return (
@@ -95,7 +121,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {blogs.map((blog: any) => {
+            {blogs.map((blog: BlogData) => {
               const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(800).height(1000).url() : null;
               
               return (

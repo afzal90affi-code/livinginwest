@@ -25,9 +25,9 @@ interface Blog {
   desc?: string;
   isFeatured: boolean;
   content1?: string;
-  content2?: string;  // <-- YE ADD KAREIN
+  content2?: string;  
   content3?: string;
-  img1Url?: string; // Sanity se aayega preview ke liye
+  img1Url?: string; 
   img2Url?: string;
   img3Url?: string;
   metaTitle?: string;
@@ -40,9 +40,9 @@ interface Blog {
 interface Category {
   _id: string;
   name: string;
-  slug: any;
+  slug: string | { current: string }; // 👈 FIX 1: any hata diya
   emoji?: string;
-  imageUrl?: string; // Sanity se aayega preview ke liye
+  imageUrl?: string; 
   metaTitle?: string;
   metaDesc?: string;
 }
@@ -51,7 +51,7 @@ interface Subcategory {
   _id: string;
   parentId: string;
   name: string;
-  slug: any;
+  slug: string | { current: string }; // 👈 FIX 2: any hata diya
   emoji?: string;
   desc?: string;
   imageUrl?: string;
@@ -63,6 +63,10 @@ interface ImageState {
   url: string;
   assetId: string;
 }
+
+// 👇 FIX 3, 4, 5, 6: Record<string, any> ke liye custom type
+type SanityImageRef = { _type: 'image'; asset: { _ref: string; _type: 'reference' } };
+type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef>;
 
 export default function AdminPanel() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -128,13 +132,14 @@ export default function AdminPanel() {
 
     const result = await uploadImage(formData);
     if (result.success) {
-      setter({ url: result.url, assetId: result.assetId });
+     setter({ url: result.url || "", assetId: result.assetId || "" });
     } else {
       alert("Image upload failed: " + result.error);
     }
   };
 
-  const getSlug = (slug: any): string => {
+  // 👇 FIX 3: any hata diya
+  const getSlug = (slug: string | { current: string } | undefined): string => {
     if (!slug) return "";
     if (typeof slug === 'string') return slug;
     if (typeof slug === 'object' && slug.current) return slug.current;
@@ -189,7 +194,9 @@ export default function AdminPanel() {
 
   const handleSaveBlog = async () => {
     if (!blogTitle) return alert("Title is required!");
-    const blogData: Record<string, any> = {
+    
+    // 👇 FIX 4: Record<string, any> hata diya
+    const blogData: ActionData = {
       title: blogTitle, category: blogCategory, subCategory: blogSubCategory, isFeatured: blogFeatured, desc: blogDesc,
       content1: blogContent1, content2: blogContent2, content3: blogContent3,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords
@@ -223,8 +230,10 @@ export default function AdminPanel() {
   const handleSaveCategory = async () => {
     if (!catName) return alert("Category name zaroori hai!");
     const slugString = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const data: Record<string, any> = {
-      name: catName, slug: { _type: 'slug', current: slugString }, emoji: catEmoji || "📁",
+    
+    // 👇 FIX 5: Record<string, any> hata diya
+    const data: ActionData = {
+      name: catName, slug: { _type: 'slug', current: slugString } as unknown as string, emoji: catEmoji || "📁",
       metaTitle: catMetaTitle, metaDesc: catMetaDesc
     };
     if (catImg.assetId) data.image = { _type: 'image', asset: { _ref: catImg.assetId, _type: 'reference' } };
@@ -246,8 +255,10 @@ export default function AdminPanel() {
   const handleSaveSubCategory = async () => {
     if (!subCatName || !selectedParentCat) return alert("Sab bharo!");
     const slugString = subCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const data: Record<string, any> = {
-      parentId: selectedParentCat, name: subCatName, slug: { _type: 'slug', current: slugString },
+    
+    // 👇 FIX 6: Record<string, any> hata diya
+    const data: ActionData = {
+      parentId: selectedParentCat, name: subCatName, slug: { _type: 'slug', current: slugString } as unknown as string,
       emoji: subCatEmoji || "📁", desc: subCatDesc, metaTitle: subCatMetaTitle, metaDesc: subCatMetaDesc
     };
     if (subCatImg.assetId) data.image = { _type: 'image', asset: { _ref: subCatImg.assetId, _type: 'reference' } };

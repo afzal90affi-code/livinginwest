@@ -3,9 +3,20 @@ import Image from 'next/image';
 import { client } from "@/lib/sanityClient";
 import { urlFor } from "@/lib/sanityImage";
 
+// 👇 Type define kiya
+interface SubcategoryBlog {
+  _id: string;
+  title: string;
+  slug: string;
+  categoryName: string;
+  subcategoryName: string;
+  desc?: string;
+  mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
+  date?: string;
+}
+
 // Subcategory ka data fetch karna (Fallback queries ke saath)
 async function getSubcategoryData(slug: string) {
-  // Pehle slug.current se dhundho, warna _id se dhundho
   const subcategory = await client.fetch(`*[_type == "subcategory" && (slug.current == $slug || _id == $slug)][0]{
     _id, name, "slug": coalesce(slug.current, _id), parentId
   }`, { slug });
@@ -13,8 +24,7 @@ async function getSubcategoryData(slug: string) {
 }
 
 // Us subcategory ke blogs fetch karna
-async function getBlogsBySubcategory(slug: string) {
-  // subCategory field ko check kar rahe hain
+async function getBlogsBySubcategory(slug: string): Promise<SubcategoryBlog[]> {
   const blogs = await client.fetch(`*[_type == "blog" && subCategory == $slug] | order(date desc){
     _id, 
     title, 
@@ -66,7 +76,7 @@ export default async function SubcategoryPage({ params }: { params: { slug: stri
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {blogs.map((blog: any) => {
+            {blogs.map((blog: SubcategoryBlog) => {
               const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(800).height(1000).url() : null;
               
               return (

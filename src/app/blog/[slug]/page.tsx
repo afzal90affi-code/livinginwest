@@ -1,18 +1,44 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // Next.js Image component
+import Image from 'next/image';
 import { ArrowLeft, MessageCircle, Reply, Send, ChevronDown, ChevronUp, User } from 'lucide-react';
-import { client } from "@/lib/sanityClient"; // Sanity Client
-import { urlFor } from "@/lib/sanityImage"; // Sanity Image Optimizer
+import { client } from "@/lib/sanityClient";
+import { urlFor } from "@/lib/sanityImage";
 import BlogAudioPlayer from '@/components/BlogAudioPlayer';
+
+// ─── Types ──────────────────────────────────────────────────
+interface SanityImage {
+  asset?: { _ref: string; url?: string };
+  url?: string;
+}
+
+interface BlogCategory {
+  title: string;
+  slug: string;
+}
+
+interface BlogData {
+  _id: string;
+  title: string;
+  category?: BlogCategory | null;
+  subCategory?: BlogCategory | null;
+  desc?: string;
+  date?: string;
+  mainImage?: SanityImage;
+  img2?: SanityImage;
+  img3?: SanityImage;
+  content1?: string;
+  content2?: string;
+  content3?: string;
+}
 
 // ─── Comment Type ────────────────────────────────────────────
 type CommentType = {
-  _id: string; // Sanity mein 'id' ki jagah '_id' hoti hai
+  _id: string;
   name: string;
   text: string;
-  createdAt: string | null; // Sanity Timestamp ki jagah String date deta hai
+  createdAt: string | null;
   replies?: CommentType[];
 };
 
@@ -34,7 +60,7 @@ function formatCommentDate(dateString: string | null): string {
 }
 
 export default function BlogDetail({ params }: { params: { slug: string } }) {
-  const [blog, setBlog] = useState<any>(null);
+  const [blog, setBlog] = useState<BlogData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // ─── Comment States ─────────────────────────────────────
@@ -285,7 +311,7 @@ export default function BlogDetail({ params }: { params: { slug: string } }) {
                 required
                 className="w-full px-4 py-3 border border-gray-200 bg-[#FAFAFA] text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-900 transition-colors"
               />
-              <div /> {/* spacer for alignment */}
+              <div />
             </div>
             <textarea
               id="comment-text"
