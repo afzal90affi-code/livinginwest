@@ -165,7 +165,7 @@ export default function AdminPanel() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginPass === "admin123") { localStorage.setItem("admin_auth", "true"); setIsLoggedIn(true); } 
+    if (loginPass === "usman") { localStorage.setItem("admin_auth", "true"); setIsLoggedIn(true); } 
     else { alert("Invalid Password!"); }
   };
   const handleLogout = () => { localStorage.removeItem("admin_auth"); setIsLoggedIn(false); };
