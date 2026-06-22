@@ -9,7 +9,7 @@ interface CategoryItem {
   name: string;
   slug: string;
   emoji?: string;
-  image?: any;
+  image?: object;
   blogCount?: number;
 }
 
