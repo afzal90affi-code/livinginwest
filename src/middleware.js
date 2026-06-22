@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server'
 
 export function middleware(req) {
-  const basicAuth = req.headers.get('authorization')
-  const url = req.nextUrl
+  // Sirf aur sirf /admin route par ye check hoga
+  if (req.nextUrl.pathname.startsWith('/admin')) {
+    const basicAuth = req.headers.get('authorization')
 
-  // Agar user /admin route par ja raha hai
-  if (url.pathname.startsWith('/admin')) {
     if (basicAuth) {
       const authValue = basicAuth.split(' ')[1]
       // Base64 string ko decode karna
-      const [user, pwd] = atob(authValue).split(':')
+      const [user, pwd] = Buffer.from(authValue, 'base64').toString('utf8').split(':')
 
       // Apna Username aur Password yahan set karein
       const ADMIN_USER = 'usman'
-      const ADMIN_PASSWORD = 'usman'
+      const ADMIN_PASSWORD = 'usman' // Yahan apna password rakhein
 
       if (user === ADMIN_USER && pwd === ADMIN_PASSWORD) {
         return NextResponse.next()
@@ -32,7 +31,7 @@ export function middleware(req) {
   return NextResponse.next()
 }
 
-// Is middleware ko sirf /admin par apply karein
 export const config = {
-  matcher: '/admin/:path*',
+  // Ye ensure karega ki middleware sirf /admin par chale, home page par nahi
+  matcher: ['/admin/:path*'],
 }

@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { ArrowRight, Cloud, Clock } from 'lucide-react';
 import { urlFor } from "@/lib/sanityImage";
 
+export const dynamic = 'force-dynamic';
+
 // 👇 Types define kiye
 interface Category {
   _id: string;
@@ -67,12 +69,12 @@ interface GNewsArticle {
   source?: { name?: string };
 }
 
+
 export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: Category[], initialBlogs: Blog[] }) {
   const [nyTime, setNyTime] = useState("");
   const [weather, setWeather] = useState({ temp: "--", condition: "" });
   const [externalNews, setExternalNews] = useState<ExternalNews[]>([]);
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
-
   // 👇 INDESTRUCTIBLE SLUG EXTRACTOR
   const categories: MappedCategory[] = initialCategories.map((c: Category) => {
     let catSlug = 'category';

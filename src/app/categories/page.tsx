@@ -4,13 +4,12 @@ import Image from 'next/image';
 import { client } from '@/lib/sanityClient';
 import { urlFor } from '@/lib/sanityImage';
 
-// 👇 Type define kiya
 interface CategoryItem {
   _id: string;
   name: string;
   slug: string;
   emoji?: string;
-  image?: { asset?: { _ref: string; url?: string }; url?: string };
+  image?: any;
   blogCount?: number;
 }
 
@@ -19,14 +18,14 @@ export const metadata: Metadata = {
   description: 'Browse all lifestyle categories on Living In West.',
 };
 
-// ✨ GROQ MAGIC: Ek hi query mein Categories aur unka Blog Count!
+export const dynamic = 'force-dynamic';
+
 const CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
   _id,
   name,
   "slug": slug.current,
   emoji,
-  image,
-  "blogCount": count(*[_type == "blog" && category == ^.slug])
+  image
 }`;
 
 export default async function CategoriesPage() {
@@ -62,7 +61,7 @@ export default async function CategoriesPage() {
                     src={imgUrl} 
                     alt={cat.name}
                     fill
-                    className="object-cover brightness-[0.6] group-hover:brightness-[0.4] group-hover:scale-105 transition-all duration-700" 
+                    className="object-cover brightness-[0.8] group-hover:brightness-[0.8] group-hover:scale-105 transition-all duration-700" 
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                   <div className="absolute inset-0 flex flex-col justify-end p-8 z-10">
