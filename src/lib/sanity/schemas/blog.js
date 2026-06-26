@@ -7,6 +7,9 @@ const blog = {
     { name: 'img1', title: 'Image 1', type: 'image', options: { hotspot: true } },
     { name: 'img2', title: 'Image 2', type: 'image', options: { hotspot: true } },
     { name: 'img3', title: 'Image 3', type: 'image', options: { hotspot: true } },
+     { name: 'img3', title: 'Image 4', type: 'image', options: { hotspot: true } },
+    { name: 'img3', title: 'Image 5', type: 'image', options: { hotspot: true } },
+    { name: 'img3', title: 'Image 6', type: 'image', options: { hotspot: true } },
     // ... baaki fields same rahengi ...
   ],
 };

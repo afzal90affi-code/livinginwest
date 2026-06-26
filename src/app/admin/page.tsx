@@ -27,9 +27,15 @@ interface Blog {
   content1?: string;
   content2?: string;  
   content3?: string;
+  content4?: string; // New
+  content5?: string; // New
+  content6?: string; // New
   img1Url?: string; 
   img2Url?: string;
   img3Url?: string;
+  img4Url?: string; // New
+  img5Url?: string; // New
+  img6Url?: string; // New
   metaTitle?: string;
   metaDesc?: string;
   keywords?: string;
@@ -40,7 +46,7 @@ interface Blog {
 interface Category {
   _id: string;
   name: string;
-  slug: string | { current: string }; // 👈 FIX 1: any hata diya
+  slug: string | { current: string };
   emoji?: string;
   imageUrl?: string; 
   metaTitle?: string;
@@ -51,7 +57,7 @@ interface Subcategory {
   _id: string;
   parentId: string;
   name: string;
-  slug: string | { current: string }; // 👈 FIX 2: any hata diya
+  slug: string | { current: string };
   emoji?: string;
   desc?: string;
   imageUrl?: string;
@@ -64,7 +70,6 @@ interface ImageState {
   assetId: string;
 }
 
-// 👇 FIX 3, 4, 5, 6: Record<string, any> ke liye custom type
 type SanityImageRef = { _type: 'image'; asset: { _ref: string; _type: 'reference' } };
 type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef>;
 
@@ -95,11 +100,17 @@ export default function AdminPanel() {
   const [blogContent1, setBlogContent1] = useState<string>("");
   const [blogContent2, setBlogContent2] = useState<string>("");
   const [blogContent3, setBlogContent3] = useState<string>("");
+  const [blogContent4, setBlogContent4] = useState<string>(""); // New
+  const [blogContent5, setBlogContent5] = useState<string>(""); // New
+  const [blogContent6, setBlogContent6] = useState<string>(""); // New
   
   // Image States (URL + Asset ID for Sanity)
   const [blogImg1, setBlogImg1] = useState<ImageState>({ url: "", assetId: "" });
   const [blogImg2, setBlogImg2] = useState<ImageState>({ url: "", assetId: "" });
   const [blogImg3, setBlogImg3] = useState<ImageState>({ url: "", assetId: "" });
+  const [blogImg4, setBlogImg4] = useState<ImageState>({ url: "", assetId: "" }); // New
+  const [blogImg5, setBlogImg5] = useState<ImageState>({ url: "", assetId: "" }); // New
+  const [blogImg6, setBlogImg6] = useState<ImageState>({ url: "", assetId: "" }); // New
   
   const [blogFeatured, setBlogFeatured] = useState<boolean>(false);
   const [blogMetaTitle, setBlogMetaTitle] = useState<string>("");
@@ -138,7 +149,6 @@ export default function AdminPanel() {
     }
   };
 
-  // 👇 FIX 3: any hata diya
   const getSlug = (slug: string | { current: string } | undefined): string => {
     if (!slug) return "";
     if (typeof slug === 'string') return slug;
@@ -176,6 +186,9 @@ export default function AdminPanel() {
     setBlogContent1(""); setBlogImg1({ url: "", assetId: "" });
     setBlogContent2(""); setBlogImg2({ url: "", assetId: "" });
     setBlogContent3(""); setBlogImg3({ url: "", assetId: "" });
+    setBlogContent4(""); setBlogImg4({ url: "", assetId: "" }); // New
+    setBlogContent5(""); setBlogImg5({ url: "", assetId: "" }); // New
+    setBlogContent6(""); setBlogImg6({ url: "", assetId: "" }); // New
     setBlogFeatured(false); setBlogMetaTitle(""); setBlogMetaDesc(""); setBlogKeywords("");
     setShowBlogForm(true);
   };
@@ -186,26 +199,36 @@ export default function AdminPanel() {
     setBlogContent1(blog.content1 || ""); setBlogImg1({ url: blog.img1Url || "", assetId: "" });
     setBlogContent2(blog.content2 || ""); setBlogImg2({ url: blog.img2Url || "", assetId: "" });
     setBlogContent3(blog.content3 || ""); setBlogImg3({ url: blog.img3Url || "", assetId: "" });
+    setBlogContent4(blog.content4 || ""); setBlogImg4({ url: blog.img4Url || "", assetId: "" }); // New
+    setBlogContent5(blog.content5 || ""); setBlogImg5({ url: blog.img5Url || "", assetId: "" }); // New
+    setBlogContent6(blog.content6 || ""); setBlogImg6({ url: blog.img6Url || "", assetId: "" }); // New
     setBlogFeatured(blog.isFeatured); setBlogMetaTitle(blog.metaTitle || ""); setBlogMetaDesc(blog.metaDesc || ""); setBlogKeywords(blog.keywords || "");
     setShowBlogForm(true);
   };
 
   const handleCategoryChange = (slug: string) => { setBlogCategory(slug); setBlogSubCategory(""); };
 
-  const handleSaveBlog = async () => {
+   const handleSaveBlog = async () => {
     if (!blogTitle) return alert("Title is required!");
     
-    // 👇 FIX 4: Record<string, any> hata diya
+    // 👇 YEH LINE ADD KARNI HAI (Slug generate karne ke liye)
+    const slugString = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
     const blogData: ActionData = {
+      // 👇 YEH BHI ADD KARNI HAI
+      slug: { _type: 'slug', current: slugString } as unknown as string,
       title: blogTitle, category: blogCategory, subCategory: blogSubCategory, isFeatured: blogFeatured, desc: blogDesc,
       content1: blogContent1, content2: blogContent2, content3: blogContent3,
+      content4: blogContent4, content5: blogContent5, content6: blogContent6,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords
     };
 
-    // Add image references if new image was uploaded
     if (blogImg1.assetId) blogData.img1 = { _type: 'image', asset: { _ref: blogImg1.assetId, _type: 'reference' } };
     if (blogImg2.assetId) blogData.img2 = { _type: 'image', asset: { _ref: blogImg2.assetId, _type: 'reference' } };
     if (blogImg3.assetId) blogData.img3 = { _type: 'image', asset: { _ref: blogImg3.assetId, _type: 'reference' } };
+    if (blogImg4.assetId) blogData.img4 = { _type: 'image', asset: { _ref: blogImg4.assetId, _type: 'reference' } };
+    if (blogImg5.assetId) blogData.img5 = { _type: 'image', asset: { _ref: blogImg5.assetId, _type: 'reference' } };
+    if (blogImg6.assetId) blogData.img6 = { _type: 'image', asset: { _ref: blogImg6.assetId, _type: 'reference' } };
 
     if (!editingId) { blogData.date = new Date().toISOString().split('T')[0]; blogData.views = 0; }
 
@@ -231,7 +254,6 @@ export default function AdminPanel() {
     if (!catName) return alert("Category name zaroori hai!");
     const slugString = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     
-    // 👇 FIX 5: Record<string, any> hata diya
     const data: ActionData = {
       name: catName, slug: { _type: 'slug', current: slugString } as unknown as string, emoji: catEmoji || "📁",
       metaTitle: catMetaTitle, metaDesc: catMetaDesc
@@ -256,7 +278,6 @@ export default function AdminPanel() {
     if (!subCatName || !selectedParentCat) return alert("Sab bharo!");
     const slugString = subCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     
-    // 👇 FIX 6: Record<string, any> hata diya
     const data: ActionData = {
       parentId: selectedParentCat, name: subCatName, slug: { _type: 'slug', current: slugString } as unknown as string,
       emoji: subCatEmoji || "📁", desc: subCatDesc, metaTitle: subCatMetaTitle, metaDesc: subCatMetaDesc
@@ -373,6 +394,39 @@ export default function AdminPanel() {
                   <label className="text-xs text-gray-500 font-semibold">Upload Image 3</label>
                   <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setBlogImg3)} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20"/>
                   {blogImg3.url && <img src={blogImg3.url} alt="Img 3" className="h-20 rounded object-cover mt-1" />}
+                </div>
+              </div>
+
+              {/* QUILL PART 4 + IMAGE UPLOAD */}
+              <div className="space-y-3 pt-4 border-t border-gray-100">
+                <p className="text-xs text-[#6D28D9] font-bold">📝 Part 4 (Optional)</p>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden"><ReactQuill theme="snow" value={blogContent4} onChange={setBlogContent4} modules={quillModules} className="h-40 mb-12" /></div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Upload Image 4</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setBlogImg4)} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20"/>
+                  {blogImg4.url && <img src={blogImg4.url} alt="Img 4" className="h-20 rounded object-cover mt-1" />}
+                </div>
+              </div>
+
+              {/* QUILL PART 5 + IMAGE UPLOAD */}
+              <div className="space-y-3 pt-4 border-t border-gray-100">
+                <p className="text-xs text-[#6D28D9] font-bold">📝 Part 5 (Optional)</p>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden"><ReactQuill theme="snow" value={blogContent5} onChange={setBlogContent5} modules={quillModules} className="h-40 mb-12" /></div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Upload Image 5</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setBlogImg5)} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20"/>
+                  {blogImg5.url && <img src={blogImg5.url} alt="Img 5" className="h-20 rounded object-cover mt-1" />}
+                </div>
+              </div>
+
+              {/* QUILL PART 6 + IMAGE UPLOAD */}
+              <div className="space-y-3 pt-4 border-t border-gray-100">
+                <p className="text-xs text-[#6D28D9] font-bold">📝 Part 6 (Optional)</p>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden"><ReactQuill theme="snow" value={blogContent6} onChange={setBlogContent6} modules={quillModules} className="h-40 mb-12" /></div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-gray-500 font-semibold">Upload Image 6</label>
+                  <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setBlogImg6)} className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20"/>
+                  {blogImg6.url && <img src={blogImg6.url} alt="Img 6" className="h-20 rounded object-cover mt-1" />}
                 </div>
               </div>
 

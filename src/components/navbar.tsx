@@ -1,8 +1,8 @@
 "use client";
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // 👈 Imported Next.js Image
-import { Search, Menu, X } from 'lucide-react';
+import Image from 'next/image';
+import { Search, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface NavbarProps {
@@ -13,7 +13,10 @@ export default function Navbar({ categories }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
   const router = useRouter();
+  const trackRef = useRef<HTMLDivElement>(null);
 
   const utilityLinks = [
     { name: "All Categories", href: "/categories" },
@@ -26,10 +29,37 @@ export default function Navbar({ categories }: NavbarProps) {
     e.preventDefault();
     if (query.trim()) {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-      setQuery(""); 
+      setQuery("");
       setMobileSearchOpen(false);
       setMobileOpen(false);
     }
+  };
+
+  const updateScrollState = () => {
+    if (!trackRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = trackRef.current;
+    setCanScrollLeft(scrollLeft > 5);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 5);
+  };
+
+  useEffect(() => {
+    updateScrollState();
+    const el = trackRef.current;
+    if (el) {
+      el.addEventListener('scroll', updateScrollState, { passive: true });
+      return () => el.removeEventListener('scroll', updateScrollState);
+    }
+  }, [categories]);
+
+  const scroll = (dir: 'left' | 'right') => {
+    if (!trackRef.current) return;
+    const current = trackRef.current.scrollLeft;
+    const itemWidth = trackRef.current.firstElementChild?.clientWidth || 140;
+    const showCount = Math.floor(trackRef.current.clientWidth / itemWidth);
+    const newPos = dir === 'left'
+      ? Math.max(0, current - itemWidth * showCount)
+      : current + itemWidth * showCount;
+    trackRef.current.scrollTo({ left: newPos, behavior: 'smooth' });
   };
 
   return (
@@ -43,7 +73,6 @@ export default function Navbar({ categories }: NavbarProps) {
         </button>
 
         <Link href="/" className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0">
-          {/* 🛠️ Optimized with Next.js Image Component */}
           <Image 
             src="/logo.jpg" 
             alt="Living In West Logo" 
@@ -88,14 +117,45 @@ export default function Navbar({ categories }: NavbarProps) {
         </div>
       )}
 
-      {/* LINE 2: Main Categories */}
+      {/* LINE 2: Category Slider — Shows 6, Slide for More */}
       <div className="hidden lg:block border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-center gap-8 h-10">
-          {categories.map((cat) => (
-            <Link key={cat.slug} href={`/category/${cat.slug}`} className="text-xs uppercase tracking-[0.2em] text-gray-500 hover:text-gray-900 transition-colors font-semibold">
-              {cat.name}
-            </Link>
-          ))}
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center h-10">
+
+            {/* Left Arrow */}
+            <button
+              onClick={() => scroll('left')}
+              className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-all mr-2 ${!canScrollLeft ? 'opacity-0 pointer-events-none' : ''}`}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Scrollable Track */}
+            <div
+              ref={trackRef}
+              className="flex-1 flex items-center overflow-x-auto"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {categories.map((cat) => (
+                <Link
+                  key={cat.slug}
+                  href={`/category/${cat.slug}`}
+                  className="flex-shrink-0 px-5 h-10 flex items-center justify-center text-xs uppercase tracking-[0.2em] text-gray-500 hover:text-gray-900 transition-colors font-semibold whitespace-nowrap"
+                >
+                  {cat.name}
+                </Link>
+              ))}
+            </div>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => scroll('right')}
+              className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-all ml-2 ${!canScrollRight ? 'opacity-0 pointer-events-none' : ''}`}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+
+          </div>
         </div>
       </div>
 
@@ -110,7 +170,7 @@ export default function Navbar({ categories }: NavbarProps) {
         </div>
       </div>
 
-      {/* Mobile Menu - 🛠️ Fixed Height and Scroll Issue */}
+      {/* Mobile Menu */}
       {mobileOpen && (
         <div className="lg:hidden bg-white border-t border-gray-100 py-4 px-6 shadow-lg absolute top-16 left-0 right-0 z-40 h-[calc(100vh-4rem)] overflow-y-auto pb-24">
           <div className="flex flex-col gap-4">

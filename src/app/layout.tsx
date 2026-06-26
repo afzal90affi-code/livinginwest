@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/navbar"; 
 import Footer from "@/components/footer"; 
 import { client } from "@/lib/sanityClient"; 
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });
@@ -13,8 +14,8 @@ export const metadata: Metadata = {
   description: "Explore the latest in lifestyle, travel, food, automotive, and world news.",
 };
 
-// 👇 [0...6] LAGA DO, YE SIRF 6 CATEGORIES LAAYEGA
-const NAV_CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) [0...6] {
+// 👇 [0...6] hata diya — ab SARI categories aayengi slider + dropdown ke liye
+const NAV_CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
   name, "slug": slug.current
 }`;
 
@@ -27,6 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Navbar categories={navCategories} />
         <main className="min-h-screen">{children}</main>
         <Footer />
+        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID!} />
       </body>
     </html>
   );

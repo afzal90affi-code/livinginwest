@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { client } from "@/lib/sanityClient";
 import { urlFor } from "@/lib/sanityImage";
 
+export const dynamic = 'force-dynamic';
+
 // 👇 Types define kiye
 interface CategoryData {
   _id: string;
