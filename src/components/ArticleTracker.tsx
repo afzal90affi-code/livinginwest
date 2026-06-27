@@ -1,6 +1,12 @@
-// components/ArticleTracker.tsx
 "use client";
 import { useEffect, useRef } from 'react';
+
+// 👇 Window pe gtag ka type declare kiya (any hata diya)
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
+}
 
 interface Props {
   title: string;
@@ -24,8 +30,9 @@ export default function ArticleTracker({ title, category }: Props) {
         if (percent >= m && !tracked.current[m]) {
           tracked.current[m] = true;
           
-          if (typeof window !== 'undefined' && 'gtag' in window) {
-            (window as any).gtag("event", "article_read", {
+          // 👇 ab (window as any) nahi, properly typed
+          if (typeof window !== 'undefined' && window.gtag) {
+            window.gtag("event", "article_read", {
               event_category: "engagement",
               event_label: title,
               article_category: category,
