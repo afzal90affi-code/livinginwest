@@ -1,0 +1,8 @@
+// blog.js, category.js, subcategory.js — teeno mein
+{
+  name: 'sortOrder',
+  title: 'Sort Order',
+  type: 'number',
+  validation: Rule => Rule.integer(),
+  initialValue: 0
+}

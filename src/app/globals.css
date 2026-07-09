@@ -3,6 +3,205 @@
 @tailwind utilities;
 
 /* @import hata diya gaya hai, ab ye layout.tsx ke CSS variables se aayega */
-* { font-family: var(--font-inter), sans-serif; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background-color: #FAFAFA;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: var(--font-inter), sans-serif;
+}
+
+body {
+  font-family: var(--font-inter), sans-serif;
+}
+
 .font-playfair { font-family: var(--font-playfair), serif; }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-clamp: 2; }
+
+/* ===== QUILL BLOG CONTENT FIX ===== */
+/* Quill ka jo HTML output aata hai usko theek karne ke liye */
+
+.blog-read {
+  font-size: 16px;
+  line-height: 1.85;
+  color: #1a1a1a;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* Quill ke andar wali images ko block banao — text upar niche na ho, neeche aaye */
+.blog-read img {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+  border-radius: 8px;
+  object-fit: cover;
+  float: none !important;
+}
+
+/* Quill image ke wrapper <p> tag — extra spacing hatao */
+.blog-read p:has(img) {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  line-height: 0 !important;
+}
+
+/* Quill paragraphs — proper spacing */
+.blog-read p {
+  margin-bottom: 1.2rem;
+  max-width: 100%;
+  text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Quill alignment classes */
+.blog-read .ql-align-left,
+.blog-read [style*="text-align: left"] { text-align: left !important; }
+
+.blog-read .ql-align-center,
+.blog-read [style*="text-align: center"] { text-align: center !important; }
+
+.blog-read .ql-align-right,
+.blog-read [style*="text-align: right"] { text-align: right !important; }
+
+.blog-read .ql-align-justify,
+.blog-read [style*="text-align: justify"] { text-align: justify !important; }
+
+.blog-read .ql-align-left img,
+.blog-read .ql-align-center img,
+.blog-read .ql-align-right img,
+.blog-read [style*="text-align: left"] img,
+.blog-read [style*="text-align: center"] img,
+.blog-read [style*="text-align: right"] img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.blog-read .ql-align-center img,
+.blog-read [style*="text-align: center"] img {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.blog-read .ql-align-right img,
+.blog-read [style*="text-align: right"] img {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.blog-read .ql-align-left img,
+.blog-read [style*="text-align: left"] img {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* Quill headings */
+.blog-read h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+}
+
+.blog-read h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 1.8rem;
+  margin-bottom: 0.8rem;
+  line-height: 1.3;
+}
+
+.blog-read h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+  line-height: 1.4;
+}
+
+/* Quill lists */
+.blog-read ul,
+.blog-read ol {
+  margin-bottom: 1.2rem;
+  padding-left: 1.5rem;
+}
+
+.blog-read li {
+  margin-bottom: 0.4rem;
+}
+
+/* Quill blockquotes */
+.blog-read blockquote {
+  border-left: 3px solid #1e3a8a;
+  padding-left: 1.2rem;
+  margin: 1.5rem 0;
+  color: #555;
+  font-style: italic;
+}
+
+/* Quill links */
+.blog-read a {
+  color: #1e3a8a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.blog-read a:hover {
+  color: #000;
+}
+
+/* Quill code blocks */
+.blog-read pre {
+  background: #f5f5f5;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  font-size: 14px;
+}
+
+.blog-read code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Quill horizontal rules */
+.blog-read hr {
+  border: none;
+  border-top: 1px solid #e5e5e5;
+  margin: 2rem 0;
+}
+
+/* Quill bold & italic */
+.blog-read strong {
+  font-weight: 700;
+}
+
+.blog-read em {
+  font-style: italic;
+}
+
+/* Last paragraph ka extra margin hatao */
+.blog-read p:last-child {
+  margin-bottom: 0;
+}

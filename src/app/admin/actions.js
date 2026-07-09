@@ -1,6 +1,17 @@
 'use server';
 
 import { client, writeClient } from '@/lib/sanity/client';
+import { cookies } from 'next/headers';
+
+// ======== AUTH HELPER ========
+const checkAuth = () => {
+  try {
+    const cookieStore = cookies();
+    return cookieStore.get('admin_auth')?.value === 'true';
+  } catch {
+    return false;
+  }
+};
 
 // ======== IMAGE UPLOAD FUNCTION ========
 export async function uploadImage(formData) {
@@ -22,13 +33,11 @@ export async function uploadImage(formData) {
   }
 }
 
-// ======== FETCH FUNCTIONS (Objects ko Strings mein convert karna) ========
+// ======== FETCH FUNCTIONS ========
 
 export async function getCategories() {
   try {
-    // "slug.current" se slug object ko string banaya
-    // "coalesce" se image object ka URL nikaala, aur agar purana string data ho toh wahi use kiya
-    return await client.fetch(`*[_type == "category"] | order(name asc){
+    return await client.fetch(`*[_type == "category"] | order(sortOrder asc){
       ...,
       "slug": slug.current,
       "imageUrl": coalesce(image.asset->url, image)
@@ -38,7 +47,7 @@ export async function getCategories() {
 
 export async function getSubcategories() {
   try {
-    return await client.fetch(`*[_type == "subcategory"] | order(name asc){
+    return await client.fetch(`*[_type == "subcategory"] | order(sortOrder asc){
       ...,
       "slug": slug.current,
       "imageUrl": coalesce(image.asset->url, image)
@@ -48,15 +57,71 @@ export async function getSubcategories() {
 
 export async function getBlogs() {
   try {
-    return await client.fetch(`*[_type == "blog"] | order(date desc){
+    return await client.fetch(`*[_type == "blog"] | order(sortOrder asc){
       ...,
       "category": coalesce(category->slug.current, category),
       "subCategory": coalesce(subCategory->slug.current, subCategory),
       "img1Url": coalesce(img1.asset->url, img1),
       "img2Url": coalesce(img2.asset->url, img2),
-      "img3Url": coalesce(img3.asset->url, img3)
+      "img3Url": coalesce(img3.asset->url, img3),
+      "img4Url": coalesce(img4.asset->url, img4),
+      "img5Url": coalesce(img5.asset->url, img5),
+      "img6Url": coalesce(img6.asset->url, img6)
     }`);
   } catch (error) { console.error(error); return []; }
+}
+
+// ======== REORDER FUNCTION ========
+export async function reorderItem(type, id, direction, parentId) {
+  try {
+    let filter = `[_type == "${type}"]`;
+    const params = {};
+
+    if (type === 'subcategory' && parentId) {
+      filter = `[_type == "subcategory" && parentId == $parentId]`;
+      params.parentId = parentId;
+    }
+
+    const items = await client.fetch(
+      `*${filter} | order(sortOrder asc) { _id, sortOrder }`,
+      params
+    );
+
+    if (items.length === 0) return { success: false, error: 'No items found' };
+
+    // Agar kisi bhi item ka sortOrder null hai toh pehle normalize karo
+    const needsNorm = items.some(it => it.sortOrder == null);
+    if (needsNorm) {
+      const tx = writeClient.transaction();
+      items.forEach((it, i) => {
+        tx.patch(it._id, { set: { sortOrder: i * 10 } });
+      });
+      await tx.commit();
+      items.forEach((it, i) => { it.sortOrder = i * 10; });
+    }
+
+    const currentIndex = items.findIndex(it => it._id === id);
+    if (currentIndex === -1) return { success: false, error: 'Item not found' };
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) {
+      return { success: false, error: 'Already at boundary' };
+    }
+
+    const currentOrder = items[currentIndex].sortOrder;
+    const targetOrder = items[targetIndex].sortOrder;
+
+    // YAHAN writeClient use kiya — client nahi
+    const tx = writeClient.transaction();
+    tx.patch(items[currentIndex]._id, { set: { sortOrder: targetOrder } });
+    tx.patch(items[targetIndex]._id, { set: { sortOrder: currentOrder } });
+    await tx.commit();
+
+    return { success: true };
+  } catch (error) {
+    console.error('Reorder error:', error);
+    return { success: false, error: String(error) };
+  }
 }
 
 // ======== CATEGORY CRUD ========
@@ -114,4 +179,4 @@ export async function saveBlog(data, editingId) {
 export async function deleteBlog(id) {
   try { await writeClient.delete(id); return { success: true }; } 
   catch (error) { return { success: false, error: error.message }; }
-}       
+}
