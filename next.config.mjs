@@ -4,10 +4,12 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'cdn.sanity.io',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**', // Allows all paths on this domain
       },
     ],
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

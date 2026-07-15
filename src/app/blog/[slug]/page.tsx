@@ -5,6 +5,7 @@ import { ArrowLeft, Calendar, ArrowRight } from 'lucide-react';
 import BlogAudioPlayer from '@/components/BlogAudioPlayer';
 import Comments from '../Comments';
 import ArticleTracker from '@/components/ArticleTracker';
+import { ShareMenu, ShareCardButton } from '@/components/share';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ interface BlogData {
   img6Url?: string;
   imgOrientations?: Record<string, string>;
   isPublished?: boolean;
+  isMoreStory?: boolean;
   content1?: string;
   content2?: string;
   content3?: string;
@@ -32,10 +34,9 @@ interface BlogData {
   content6?: string;
 }
 
-// ===== QUILL IMAGE FIX: Alignment ke liye style ko preserve karte hain =====
+// ===== QUILL IMAGE FIX =====
 const cleanQuillHtml = (html: string): string => {
   if (!html) return "";
-
   let normalizedHtml = html.replace(
     /style="([^"]*text-align:\s*(left|center|right|justify)[^"]*)"/gi,
     (_match, style: string, align: string) => `class="ql-align-${align.toLowerCase()}" style="${style}"`
@@ -48,13 +49,11 @@ const cleanQuillHtml = (html: string): string => {
       .filter(Boolean)
       .filter((prop: string) => /^(float|text-align|width|max-width|margin|display)\s*:/i.test(prop))
       .join('; ');
-
     return allowedStyles ? `${start}style="${allowedStyles}"` : start;
   });
 };
 
 export default async function BlogDetail({ params }: { params: { slug: string } }) {
-
   const blogQuery = `*[_type == "blog" && slug.current == $slug][0] {
     _id, title, "slug": slug.current, category, subCategory, desc, date,
     "mainImageUrl": img1.asset->url,
@@ -83,21 +82,24 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     );
   }
 
-  // ===== FETCH SAME CATEGORY BLOGS (5, excluding current) =====
+  // Fetch Same Category Blogs
   const catBlogsQuery = `*[_type == "blog" && coalesce(category->slug.current, category) == $cat && slug.current != $slug && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
-    _id, title, "slug": slug.current, category, subCategory, desc, date,
-    "mainImageUrl": img1.asset->url
+    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url
   }`;
   const catBlogs: BlogData[] = await client.fetch(catBlogsQuery, { cat: blog.category, slug: params.slug }, { cache: 'no-store' });
 
-  // ===== FETCH RECOMMENDED BLOGS (5, excluding current & same category) =====
+  // Fetch Recommended Blogs (Different Category)
   const recBlogsQuery = `*[_type == "blog" && slug.current != $slug && coalesce(category->slug.current, category) != $cat && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
-    _id, title, "slug": slug.current, category, subCategory, desc, date,
-    "mainImageUrl": img1.asset->url
+    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url
   }`;
   const recBlogs: BlogData[] = await client.fetch(recBlogsQuery, { cat: blog.category, slug: params.slug }, { cache: 'no-store' });
 
-  // Audio ke liye bhi clean text (HTML tags hata ke)
+  // Fetch Short Stories (isMoreStory == true)
+  const shortStoriesQuery = `*[_type == "blog" && isMoreStory == true && slug.current != $slug && isPublished != false] | order(date desc) [0...4] {
+    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url
+  }`;
+  const shortStories: BlogData[] = await client.fetch(shortStoriesQuery, { slug: params.slug }, { cache: 'no-store' });
+
   const fullBlogText = [blog.content1, blog.content2, blog.content3, blog.content4, blog.content5, blog.content6]
     .filter(Boolean)
     .map(c => cleanQuillHtml(c || '').replace(/<[^>]*>/g, '').trim())
@@ -106,21 +108,25 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
   const isVertical = (key: string) => blog.imgOrientations?.[key] === 'vertical';
 
-  // ===== BLOG CARD COMPONENT =====
-  const BlogCard = ({ b }: { b: BlogData }) => (
-    <Link href={`/blog/${b.slug}`} className="group block">
-      <div className="relative aspect-[3/2] overflow-hidden bg-gray-50 mb-3">
-        {b.mainImageUrl
-          ? <Image src={b.mainImageUrl} alt={b.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 50vw, 250px" />
-          : <div className="w-full h-full flex items-center justify-center text-gray-200 text-3xl">📝</div>
-        }
+  // ===== REUSABLE SWIPEABLE CARD =====
+  const SwipeCard = ({ b, widthClass }: { b: BlogData, widthClass: string }) => (
+    <div className={`${widthClass} snap-start flex flex-col`}>
+      <Link href={`/blog/${b.slug}`} className="group block">
+        <div className="relative aspect-[3/2] overflow-hidden bg-gray-50 mb-3 rounded-sm">
+          {b.mainImageUrl
+            ? <Image src={b.mainImageUrl} alt={b.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="280px" />
+            : <div className="w-full h-full flex items-center justify-center text-gray-200 text-xl">📝</div>
+          }
+        </div>
+        <p className="text-[9px] uppercase tracking-[0.2em] text-[#1e3a8a] font-bold mb-1">{b.subCategory || b.category}</p>
+        <h4 className="text-[15px] leading-[1.3] font-playfair font-bold text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{b.title}</h4>
+        {b.date && <p className="text-[10px] text-gray-400 mt-1.5">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
+      </Link>
+      <div className="flex items-center justify-between mt-2 border-t border-gray-100 pt-2">
+        <span className="text-[10px] text-gray-400 uppercase tracking-widest">Share</span>
+        <ShareCardButton title={b.title} />
       </div>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-[#1e3a8a] font-semibold mb-1">{b.subCategory || b.category}</p>
-      <h3 className="text-[15px] leading-[1.4] font-playfair font-semibold text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{b.title}</h3>
-      {b.date && (
-        <p className="text-[10px] text-gray-400 mt-1.5">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-      )}
-    </Link>
+    </div>
   );
 
   return (
@@ -157,17 +163,17 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </p>
         )}
         <div className="flex items-center justify-center gap-3 pb-8 border-b border-gray-100">
-          <div className="w-8 h-8 rounded-full bg-[#1e3a8a] flex items-center justify-center">
-            <span className="text-white text-[9px] font-bold">LW</span>
+          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center">
+            <span className="text-white text-[11px] font-bold">LW</span>
           </div>
           <div className="text-left">
-            <p className="text-[12px] font-semibold text-gray-900">Living In West</p>
-            <p className="text-[10px] text-gray-400">Editorial</p>
+            <p className="text-[13px] font-semibold text-gray-900">By Living In West</p>
+            <p className="text-[11px] text-gray-500">Editorial Team</p>
           </div>
         </div>
       </div>
 
-      {/* ===== HERO IMAGE (FULL BLEED) ===== */}
+      {/* ===== HERO IMAGE ===== */}
       {blog.mainImageUrl && (
         <div className="w-full max-w-[100vw] my-10 md:my-14">
           <div className="relative w-full max-w-[1000px] mx-auto aspect-[3/2] overflow-hidden bg-gray-50">
@@ -183,11 +189,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
       {/* ===== ARTICLE BODY ===== */}
       <article className="w-full max-w-[760px] mx-auto px-5 md:px-0 pt-10 md:pt-14 pb-10 md:pb-20">
-
-        {/* Content 1 — CLEAN HTML */}
         {blog.content1 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content1) }} />}
-
-        {/* Image 2 */}
+        
         {blog.img2Url && (
           <div className={`my-10 md:my-14 ${isVertical('2') ? 'max-w-[420px] mx-auto' : 'relative left-1/2 -translate-x-1/2 w-[100vw] max-w-[1200px]'}`}>
             <div className={`relative overflow-hidden bg-gray-50 ${isVertical('2') ? 'aspect-[4/5]' : 'aspect-[3/2] mx-5 md:mx-10'}`}>
@@ -197,19 +200,15 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
         )}
 
-        {/* Content 2 — CLEAN HTML */}
         {blog.content2 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content2) }} />}
 
         <div className="flex items-center justify-center my-12 md:my-16">
-          <div className="w-14 h-px bg-gray-300" />
-          <span className="mx-4 text-gray-300 text-[10px]">✦</span>
-          <div className="w-14 h-px bg-gray-300" />
+          <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
         </div>
         <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
           <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
         </div>
 
-        {/* Image 3 */}
         {blog.img3Url && (
           <div className={`my-10 md:my-14 ${isVertical('3') ? 'max-w-[420px] mx-auto' : 'relative left-1/2 -translate-x-1/2 w-[100vw] max-w-[1200px]'}`}>
             <div className={`relative overflow-hidden bg-gray-50 ${isVertical('3') ? 'aspect-[4/5]' : 'aspect-[3/2] mx-5 md:mx-10'}`}>
@@ -219,10 +218,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
         )}
 
-        {/* Content 3 — CLEAN HTML */}
         {blog.content3 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content3) }} />}
 
-        {/* Image 4 */}
         {blog.img4Url && (
           <div className={`my-10 md:my-14 ${isVertical('4') ? 'max-w-[420px] mx-auto' : 'relative left-1/2 -translate-x-1/2 w-[100vw] max-w-[1200px]'}`}>
             <div className={`relative overflow-hidden bg-gray-50 ${isVertical('4') ? 'aspect-[4/5]' : 'aspect-[3/2] mx-5 md:mx-10'}`}>
@@ -232,19 +229,15 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
         )}
 
-        {/* Content 4 — CLEAN HTML */}
         {blog.content4 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content4) }} />}
 
         <div className="flex items-center justify-center my-12 md:my-16">
-          <div className="w-14 h-px bg-gray-300" />
-          <span className="mx-4 text-gray-300 text-[10px]">✦</span>
-          <div className="w-14 h-px bg-gray-300" />
+          <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
         </div>
         <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
           <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
         </div>
 
-        {/* Image 5 */}
         {blog.img5Url && (
           <div className={`my-10 md:my-14 ${isVertical('5') ? 'max-w-[420px] mx-auto' : 'relative left-1/2 -translate-x-1/2 w-[100vw] max-w-[1200px]'}`}>
             <div className={`relative overflow-hidden bg-gray-50 ${isVertical('5') ? 'aspect-[4/5]' : 'aspect-[3/2] mx-5 md:mx-10'}`}>
@@ -254,10 +247,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
         )}
 
-        {/* Content 5 — CLEAN HTML */}
         {blog.content5 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content5) }} />}
 
-        {/* Image 6 */}
         {blog.img6Url && (
           <div className={`my-10 md:my-14 ${isVertical('6') ? 'max-w-[420px] mx-auto' : 'relative left-1/2 -translate-x-1/2 w-[100vw] max-w-[1200px]'}`}>
             <div className={`relative overflow-hidden bg-gray-50 ${isVertical('6') ? 'aspect-[4/5]' : 'aspect-[3/2] mx-5 md:mx-10'}`}>
@@ -267,123 +258,88 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
         )}
 
-        {/* Content 6 — CLEAN HTML */}
         {blog.content6 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content6) }} />}
 
-        {/* End */}
+        {/* ARTICLE END & SHARE */}
         <div className="mt-16 md:mt-24 flex flex-col items-center">
           <div className="w-10 h-px bg-gray-300 mb-5" />
-          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-300 font-mono">— end —</p>
+          <p className="text-[10px] uppercase tracking-[0.4em] text-gray-300 font-mono mb-8">— end —</p>
+          <ShareMenu />
         </div>
-
       </article>
 
-      {/* ================================================ */}
-      {/* ===== MORE FROM [CATEGORY] — 5 BLOGS ========= */}
-      {/* ================================================ */}
-      {catBlogs.length > 0 && (
-        <div className="border-t border-gray-100">
+      {/* ===== COMMENTS SECTION (Moved at the end of blog read) ===== */}
+      <div className="border-t border-gray-100 bg-[#FAFAFA]">
+        <div className="max-w-[680px] mx-auto px-5 md:px-0 py-12 md:py-16">
+          <Comments blogId={blog._id} />
+        </div>
+      </div>
+
+      {/* ===== SHORT STORIES (Swipeable Business Insider Style) ===== */}
+      {shortStories.length > 0 && (
+        <div className="border-t border-gray-100 bg-white">
           <div className="max-w-[1000px] mx-auto px-5 md:px-10 py-14 md:py-20">
-            <div className="flex items-end justify-between mb-10">
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold block mb-2">Quick Reads</span>
+                <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 leading-tight">
+                  Short Stories
+                </h2>
+              </div>
+            </div>
+            <div className="flex overflow-x-auto gap-6 md:gap-8 pb-4 snap-x snap-mandatory scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
+              {shortStories.map((b) => (
+                <SwipeCard key={b._id} b={b} widthClass="min-w-[260px] max-w-[260px]" />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MORE FROM [CATEGORY] (Swipeable Business Insider Style) ===== */}
+      {catBlogs.length > 0 && (
+        <div className="border-t border-gray-100 bg-[#FAFAFA]">
+          <div className="max-w-[1000px] mx-auto px-5 md:px-10 py-14 md:py-20">
+            <div className="flex items-end justify-between mb-8">
               <div>
                 <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold block mb-2">More Stories</span>
                 <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 leading-tight">
                   More from {blog.category}
                 </h2>
               </div>
-              <Link href={`/category/${blog.category}`} className="hidden md:flex items-center gap-1.5 text-[11px] uppercase tracking-[0.15em] text-[#1e3a8a] hover:text-black transition-colors font-medium pb-1">
-                View All <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-              {/* First blog — BIG */}
-              <div className="md:row-span-2">
-                <Link href={`/blog/${catBlogs[0].slug}`} className="group block h-full">
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 mb-4">
-                    {catBlogs[0].mainImageUrl
-                      ? <Image src={catBlogs[0].mainImageUrl} alt={catBlogs[0].title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 500px" />
-                      : <div className="w-full h-full flex items-center justify-center text-gray-200 text-4xl">📝</div>
-                    }
-                  </div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-[#1e3a8a] font-semibold mb-1.5">{catBlogs[0].subCategory || catBlogs[0].category}</p>
-                  <h3 className="text-[20px] md:text-[24px] leading-[1.3] font-playfair font-bold text-gray-900 group-hover:text-[#1e3a8a] transition-colors">{catBlogs[0].title}</h3>
-                  {catBlogs[0].desc && <p className="text-[13px] text-gray-500 leading-[1.6] mt-2 line-clamp-2">{catBlogs[0].desc}</p>}
-                  {catBlogs[0].date && <p className="text-[10px] text-gray-400 mt-2">{new Date(catBlogs[0].date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>}
-                </Link>
-              </div>
-
-              {/* Remaining 4 blogs — SMALL */}
-              {catBlogs.slice(1).map((b) => (
-                <div key={b._id} className="flex gap-4">
-                  <div className="w-28 md:w-32 flex-shrink-0">
-                    <Link href={`/blog/${b.slug}`} className="block">
-                      <div className="relative aspect-[3/2] overflow-hidden bg-gray-50">
-                        {b.mainImageUrl
-                          ? <Image src={b.mainImageUrl} alt={b.title} fill className="object-cover" sizes="128px" />
-                          : <div className="w-full h-full flex items-center justify-center text-gray-200 text-xl">📝</div>
-                        }
-                      </div>
-                    </Link>
-                  </div>
-                  <div className="flex-1 min-w-0 py-0.5">
-                    <Link href={`/blog/${b.slug}`} className="group block">
-                      <p className="text-[9px] uppercase tracking-[0.2em] text-[#1e3a8a] font-semibold mb-0.5">{b.subCategory || b.category}</p>
-                      <h4 className="text-[14px] leading-[1.35] font-playfair font-semibold text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{b.title}</h4>
-                      {b.date && <p className="text-[10px] text-gray-400 mt-1">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
-                    </Link>
-                  </div>
-                </div>
+            <div className="flex overflow-x-auto gap-6 md:gap-8 pb-4 snap-x snap-mandatory scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
+              {catBlogs.map((b) => (
+                <SwipeCard key={b._id} b={b} widthClass="min-w-[280px] max-w-[280px]" />
               ))}
             </div>
-
-            <Link href={`/category/${blog.category}`} className="md:hidden flex items-center justify-center gap-1.5 mt-8 py-3 border border-gray-200 rounded-xl text-[11px] uppercase tracking-[0.15em] text-[#1e3a8a] hover:bg-gray-50 transition-colors font-medium">
-              View All from {blog.category} <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
         </div>
       )}
 
-      {/* ================================================ */}
-      {/* ===== RECOMMENDED FOR YOU — 5 BLOGS =========== */}
-      {/* ================================================ */}
+      {/* ===== RECOMMENDED FOR YOU (Swipeable Business Insider Style) ===== */}
       {recBlogs.length > 0 && (
-        <div className="border-t border-gray-100 bg-gray-50/50">
+        <div className="border-t border-gray-100 bg-white">
           <div className="max-w-[1000px] mx-auto px-5 md:px-10 py-14 md:py-20">
-            <div className="flex items-end justify-between mb-10">
+            <div className="flex items-end justify-between mb-8">
               <div>
                 <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold block mb-2">Explore</span>
                 <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 leading-tight">
                   Recommended for You
                 </h2>
               </div>
-              <Link href="/" className="hidden md:flex items-center gap-1.5 text-[11px] uppercase tracking-[0.15em] text-[#1e3a8a] hover:text-black transition-colors font-medium pb-1">
-                Browse All <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
+            <div className="flex overflow-x-auto gap-6 md:gap-8 pb-4 snap-x snap-mandatory scrollbar-hide -mx-5 px-5 md:mx-0 md:px-0">
               {recBlogs.map((b) => (
-                <BlogCard key={b._id} b={b} />
+                <SwipeCard key={b._id} b={b} widthClass="min-w-[280px] max-w-[280px]" />
               ))}
             </div>
-
-            <Link href="/" className="md:hidden flex items-center justify-center gap-1.5 mt-8 py-3 border border-gray-200 rounded-xl text-[11px] uppercase tracking-[0.15em] text-[#1e3a8a] hover:bg-white transition-colors font-medium">
-              Browse All Stories <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
         </div>
       )}
 
-      {/* ===== COMMENTS ===== */}
-      <div className="border-t border-gray-100">
-        <div className="max-w-[680px] mx-auto px-5 md:px-0 py-12 md:py-16">
-          <Comments blogId={blog._id} />
-        </div>
-      </div>
-
       {/* ===== FOOTER MINI ===== */}
-      <div className="border-t border-gray-100">
+      <div className="border-t border-gray-100 bg-white">
         <div className="max-w-[680px] mx-auto px-5 md:px-0 py-8 flex items-center justify-between">
           <Link href="/" className="text-[11px] uppercase tracking-[0.2em] text-gray-400 hover:text-[#1e3a8a] transition-colors">
             ← Back to Home
@@ -391,7 +347,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           <p className="text-[10px] text-gray-300 font-mono">LIVING IN WEST © {new Date().getFullYear()}</p>
         </div>
       </div>
-
     </main>
   );
 }

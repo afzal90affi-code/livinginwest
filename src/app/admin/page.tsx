@@ -71,7 +71,7 @@ interface Subcategory {
 
 interface ImageState { url: string; assetId: string; }
 type SanityImageRef = { _type: 'image'; asset: { _ref: string; _type: 'reference' } };
-type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef | Record<string, string>>;
+type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef | Record<string, string> | null>;
 
 // ======== HELPERS ========
 const sanitizeQuill = (html: string): string => {
@@ -255,25 +255,50 @@ export default function AdminPanel() {
 
   const handleCategoryChange = (slug: string) => { setBlogCategory(slug); setBlogSubCategory(""); };
 
-  const handleSaveBlog = async () => {
+   const handleSaveBlog = async () => {
     if (!blogTitle) return alert("Title required!");
     const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    // Yeh object un sabhi fields ka data lega jo form mein hai
     const d: ActionData = {
       slug: { _type: 'slug', current: sl } as unknown as string,
-      title: blogTitle, category: blogCategory, subCategory: blogSubCategory,
-      isFeatured: blogFeatured, isPublished: blogPublished, desc: blogDesc,
-      content1: blogContent1, content2: blogContent2, content3: blogContent3,
-      content4: blogContent4, content5: blogContent5, content6: blogContent6,
-      metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
+      title: blogTitle, 
+      category: blogCategory, 
+      subCategory: blogSubCategory,
+      isFeatured: blogFeatured, 
+      isPublished: blogPublished, 
+      desc: blogDesc,
+      content1: blogContent1, 
+      content2: blogContent2, 
+      content3: blogContent3,
+      content4: blogContent4, 
+      content5: blogContent5, 
+      content6: blogContent6,
+      metaTitle: blogMetaTitle, 
+      metaDesc: blogMetaDesc, 
+      keywords: blogKeywords,
       imgOrientations: imgOrientations
     };
-    if (blogImg1.assetId) d.img1 = { _type: 'image', asset: { _ref: blogImg1.assetId, _type: 'reference' } };
-    if (blogImg2.assetId) d.img2 = { _type: 'image', asset: { _ref: blogImg2.assetId, _type: 'reference' } };
-    if (blogImg3.assetId) d.img3 = { _type: 'image', asset: { _ref: blogImg3.assetId, _type: 'reference' } };
-    if (blogImg4.assetId) d.img4 = { _type: 'image', asset: { _ref: blogImg4.assetId, _type: 'reference' } };
-    if (blogImg5.assetId) d.img5 = { _type: 'image', asset: { _ref: blogImg5.assetId, _type: 'reference' } };
-    if (blogImg6.assetId) d.img6 = { _type: 'image', asset: { _ref: blogImg6.assetId, _type: 'reference' } };
-    if (!editingId) { d.date = new Date().toISOString().split('T')[0]; d.views = 0; }
+
+    // 🛡️ IMAGE LOGIC: Naya image ho, purana ho, ya delete kiya ho - sab handle hoga
+    const imgStates = [blogImg1, blogImg2, blogImg3, blogImg4, blogImg5, blogImg6];
+    imgStates.forEach((img, index) => {
+      const key = `img${index + 1}`;
+      if (img.assetId) {
+        // Agar naya image upload hua hai
+        d[key] = { _type: 'image', asset: { _ref: img.assetId, _type: 'reference' } };
+      } else if (!img.url && editingId) {
+        // Agar image delete kiya gaya hai (url khali hai aur hum edit mode mein hain)
+        d[key] = null; 
+      }
+      // Agar purana image waise hi rehna hai (url hai, assetId khali hai), toh hum d[key] set nahi karenge, taaki patch usko chhod de
+    });
+
+    if (!editingId) { 
+      d.date = new Date().toISOString().split('T')[0]; 
+      d.views = 0; 
+    }
+    
     const r = await saveBlog(d, editingId);
     if (r.success) { setShowBlogForm(false); fetchData(); } else alert("Error: " + r.error);
   };

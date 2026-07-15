@@ -20,7 +20,7 @@ interface Blog {
   _id: string;
   title?: string;
   slug?: string;
-  categoryName?: string;
+  categoryName?: any; // 👇 Handle string, object, or array
   desc?: string;
   mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
   date?: string;
@@ -45,6 +45,7 @@ interface MappedBlog {
   desc: string;
   img: string;
   date: string;
+  timestamp: number;
   isFeatured: boolean;
   isEditorsPick: boolean;
   isMoreStory: boolean;
@@ -75,6 +76,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
   const [weather, setWeather] = useState({ temp: "--", condition: "" });
   const [externalNews, setExternalNews] = useState<ExternalNews[]>([]);
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
+  
   // 👇 INDESTRUCTIBLE SLUG EXTRACTOR
   const categories: MappedCategory[] = initialCategories.map((c: Category) => {
     let catSlug = 'category';
@@ -99,14 +101,31 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
   const blogs: MappedBlog[] = initialBlogs.map((b: Blog) => {
     const blogSlug = b.slug || "";
+    const blogDate = b.date ? new Date(b.date) : new Date(0); 
+    
+    // 🛡️ SMART CATEGORY EXTRACTOR (Handles String, Object, Array)
+    let blogCat = "general";
+    const catField = b.categoryName;
+    
+    if (typeof catField === 'string') {
+      blogCat = catField;
+    } else if (Array.isArray(catField) && catField.length > 0) {
+      // Agar categories ka array hai
+      blogCat = catField.map(c => typeof c === 'string' ? c : (c?.name || c?.title || "")).join(', ');
+    } else if (catField && typeof catField === 'object') {
+      // Agar single object hai
+      blogCat = catField.name || catField.title || "general";
+    }
+
     return { 
       id: b._id, 
       title: b.title || "Untitled", 
       slug: blogSlug, 
-      category: b.categoryName || "general", 
+      category: blogCat.trim(), 
       desc: b.desc || '', 
       img: b.mainImage ? urlFor(b.mainImage).width(800).height(1000).auto('format').url() : `https://picsum.photos/seed/blog-${b._id}/800/1000.jpg`, 
-      date: b.date ? new Date(b.date).toLocaleDateString() : "", 
+      date: b.date ? blogDate.toLocaleDateString() : "", 
+      timestamp: blogDate.getTime(), 
       isFeatured: b.isFeatured === true,
       isEditorsPick: b.isEditorsPick === true,
       isMoreStory: b.isMoreStory === true 
@@ -219,44 +238,57 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </section>
       )}
 
-      {/* ===== EDITOR&apos;S PICK ===== */}
-      <section className="py-16 bg-white border-t border-gray-200">
+      {/* ===== EDITOR'S PICK ===== */}
+      <section className="py-12 md:py-16 bg-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-6">
-          <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">Editor&apos;s Pick</h2>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
+          <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 pb-3">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Editor&apos;s Pick</h2>
+            <span className="hidden md:block text-xs text-gray-500 uppercase tracking-widest font-semibold">Curated Insights</span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
             {editorLeft && (
-              <Link href={`/blog/${editorLeft.slug}`} className="md:col-span-7 group block">
-                <div className="aspect-[4/3] overflow-hidden bg-gray-100 relative mb-4">
-                  <Image src={editorLeft.img} alt={editorLeft.title} fill className="object-contain group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 60vw" />
+              <Link href={`/blog/${editorLeft.slug}`} className="lg:col-span-7 group block">
+                <div className="aspect-[16/10] overflow-hidden bg-gray-100 relative mb-5">
+                  <Image src={editorLeft.img} alt={editorLeft.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" sizes="(max-width: 1024px) 100vw, 60vw" />
                 </div>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">{editorLeft.category}</span>
-                <h3 className="font-playfair text-2xl md:text-3xl font-bold mt-2 leading-tight text-gray-900 group-hover:text-gray-600 transition-colors">{editorLeft.title}</h3>
-                <p className="text-sm text-gray-500 mt-2 line-clamp-2">{editorLeft.desc}</p>
+                <span className="text-[11px] uppercase tracking-widest text-red-600 font-bold mb-2 inline-block">{editorLeft.category}</span>
+                <h3 className="font-playfair text-3xl md:text-4xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-2">{editorLeft.title}</h3>
+                <p className="text-base text-gray-600 mt-3 line-clamp-2 leading-relaxed">{editorLeft.desc}</p>
+                <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+                  <span className="font-semibold text-gray-900">By Staff Writer</span>
+                  <span>•</span>
+                  <span>5 min read</span>
+                </div>
               </Link>
             )}
-            <div className="md:col-span-5 flex flex-col justify-between gap-6">
-              <div className="grid grid-rows-2 gap-6">
+
+            <div className="lg:col-span-5 flex flex-col justify-between gap-8">
+              <div className="flex flex-col gap-6 divide-y divide-gray-100">
                 {editorRight.map((blog) => (
-                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group block">
-                    <div className="aspect-[16/9] overflow-hidden bg-gray-100 relative mb-4">
-                      <Image src={blog.img} alt={blog.title} fill className="object-contain group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 40vw" />
+                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
+                    <div className="w-28 md:w-32 h-24 md:h-28 shrink-0 overflow-hidden bg-gray-100 relative">
+                      <Image src={blog.img} alt={blog.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out" sizes="128px" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">{blog.category}</span>
-                    <h3 className="font-playfair text-xl font-bold mt-2 leading-tight text-gray-900 group-hover:text-gray-600 transition-colors">{blog.title}</h3>
+                    <div className="flex-1 flex flex-col justify-center">
+                      <span className="text-[10px] uppercase tracking-widest text-red-600 font-bold mb-1">{blog.category}</span>
+                      <h3 className="font-playfair text-lg md:text-xl font-bold leading-snug text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3">{blog.title}</h3>
+                    </div>
                   </Link>
                 ))}
               </div>
               
-              {/* 💰 AD SLOT 2: IN-CONTENT INLINE ADS (High conversion rate) */}
-              <div className="w-full min-h-[120px] bg-gray-50 border border-gray-200/60 flex items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase mt-4">
-                [Advertisement - In-Feed Banner]
+              {/* 💰 AD SLOT 2 */}
+              <div className="w-full min-h-[250px] bg-gray-50 border border-gray-200 flex flex-col items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase mt-6 py-4">
+                <span className="mb-2 text-gray-300 text-[8px]">Advertisement</span>
+                <div className="w-full h-[200px] bg-gray-100 flex items-center justify-center">[ In-Feed Banner 300x250 ]</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== TOPICS ===== */}
+      {/* ===== TOPICS / CATEGORIES ===== */}
       <section className="py-16 bg-[#FAFAFA] border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-10 border-b border-gray-200 pb-4 text-center">Explore Topics</h2>
@@ -294,8 +326,102 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </div>
       </section>
 
+      {/* ===== ALL CATEGORY-WISE BLOGS ===== */}
+      <section className="py-12 md:py-16 bg-white border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col gap-16 md:gap-24">
+            {categories.map((cat) => {
+              // 🛡️ SMART MATCHING: Checks if blog category includes the category name
+              const catBlogs = blogs
+                .filter(b => b.category.toLowerCase().includes(cat.name.toLowerCase()))
+                .sort((a, b) => b.timestamp - a.timestamp);
+              
+              const mainBlog = catBlogs[0];
+              const sideBlogs = catBlogs.slice(1, 4);
+
+              return (
+                <div key={cat.id} className="category-block">
+                  <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 pb-3">
+                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">
+                      {cat.name}
+                    </h2>
+                    <Link href={`/category/${cat.slug}`} className="text-xs text-gray-500 hover:text-gray-900 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
+                      View All <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
+                    {mainBlog ? (
+                      <Link href={`/blog/${mainBlog.slug}`} className="lg:col-span-7 group block">
+                        <div className="aspect-[16/10] overflow-hidden bg-gray-100 relative mb-5">
+                          <Image 
+                            src={mainBlog.img} 
+                            alt={mainBlog.title} 
+                            fill 
+                            className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" 
+                            sizes="(max-width: 1024px) 100vw, 60vw" 
+                          />
+                        </div>
+                        <h3 className="font-playfair text-2xl md:text-3xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-2">
+                          {mainBlog.title}
+                        </h3>
+                        <p className="text-base text-gray-600 mt-3 line-clamp-2 leading-relaxed">
+                          {mainBlog.desc}
+                        </p>
+                        <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+                          <span className="font-semibold text-gray-900">By Staff Writer</span>
+                          <span>•</span>
+                          <span>{mainBlog.date}</span>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="lg:col-span-7 group block">
+                        <div className="aspect-[16/10] overflow-hidden bg-gray-50 border border-dashed border-gray-300 relative mb-5 flex items-center justify-center text-gray-400 text-sm">
+                          No articles published yet.
+                        </div>
+                        <h3 className="font-playfair text-2xl md:text-3xl font-bold leading-tight text-gray-400">
+                          Coming Soon
+                        </h3>
+                      </div>
+                    )}
+
+                    <div className="lg:col-span-5 flex flex-col gap-6 divide-y divide-gray-100">
+                      {sideBlogs.length > 0 ? sideBlogs.map((blog) => (
+                        <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
+                          <div className="w-28 md:w-32 h-24 md:h-28 shrink-0 overflow-hidden bg-gray-100 relative">
+                            <Image 
+                              src={blog.img} 
+                              alt={blog.title} 
+                              fill 
+                              className="object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out" 
+                              sizes="128px" 
+                            />
+                          </div>
+                          <div className="flex-1 flex flex-col justify-center">
+                            <h3 className="font-playfair text-lg md:text-xl font-bold leading-snug text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3">
+                              {blog.title}
+                            </h3>
+                            <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-1">
+                              {blog.date}
+                            </span>
+                          </div>
+                        </Link>
+                      )) : (
+                        <div className="flex items-center justify-center h-full text-gray-400 text-xs uppercase tracking-widest">
+                          More stories coming soon.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* ===== MORE STORIES ===== */}
-      <section className="py-16 bg-white border-t border-gray-200">
+      <section className="py-16 bg-[#FAFAFA] border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">More Stories</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
@@ -313,33 +439,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </div>
       </section>
 
-      {/* ===== WORLD NEWS WITH FIXES ===== */}
-      <section className="py-16 bg-[#FAFAFA] border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">World News</h2>
-          {externalNews.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-gray-200 rounded-lg text-gray-400 text-xs">Add GNEWS API Key in .env.local to load news.</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {externalNews.map((news) => (
-                <a href={news.slug} key={news.id} target="_blank" rel="noopener noreferrer" className="group block border-b border-gray-100 pb-4">
-                  <div className="aspect-video overflow-hidden mb-3 bg-gray-100 relative">
-                    <Image 
-                      src={news.img || "/fallback-news.jpg"} 
-                      alt={news.title} 
-                      fill 
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">{news.category}</span>
-                  <h3 className="font-playfair text-lg font-bold mt-1 leading-tight text-gray-900 group-hover:text-gray-600 line-clamp-2">{news.title}</h3>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+      
 
     </div>
   );

@@ -28,8 +28,9 @@ export default function Navbar({ categories }: NavbarProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      // URL mein query bhej rahe hain
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-      setQuery("");
+      setQuery(""); // Search box clear kar diya
       setMobileSearchOpen(false);
       setMobileOpen(false);
     }
@@ -87,9 +88,9 @@ export default function Navbar({ categories }: NavbarProps) {
         </Link>
 
         <div className="flex items-center gap-4">
+          {/* Desktop Search Form */}
           <form onSubmit={handleSearch} className="hidden md:flex items-center">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <div className="relative flex items-center">
               <input 
                 id="search-query"
                 name="q"
@@ -97,10 +98,15 @@ export default function Navbar({ categories }: NavbarProps) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="SEARCH STORIES..." 
-                className="w-48 lg:w-64 pl-10 pr-4 py-2 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-[0.15em] text-gray-700 focus:outline-none focus:border-gray-900 focus:bg-white transition-colors placeholder:text-gray-400"
+                className="w-48 lg:w-64 pl-4 pr-10 py-2 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-[0.15em] text-gray-700 focus:outline-none focus:border-gray-900 focus:bg-white transition-colors placeholder:text-gray-400"
               />
+              {/* Ab Search icon ek button ban gaya hai */}
+              <button type="submit" aria-label="Search" className="absolute right-3 text-gray-400 hover:text-gray-900 transition-colors">
+                <Search className="w-4 h-4" />
+              </button>
             </div>
           </form>
+
           <button onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setMobileOpen(false); }} className="md:hidden text-gray-900">
             <Search className="w-5 h-5" />
           </button>
@@ -111,18 +117,29 @@ export default function Navbar({ categories }: NavbarProps) {
       {mobileSearchOpen && (
         <div className="md:hidden bg-white border-b border-gray-100 px-6 py-4">
           <form onSubmit={handleSearch} className="flex items-center relative">
-            <Search className="absolute left-3 w-4 h-4 text-gray-400" />
-            <input id="search-query-mobile" name="q" type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="SEARCH STORIES..." className="w-full pl-10 pr-4 py-3 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-widest focus:outline-none focus:border-gray-900" autoFocus />
+            <input 
+              id="search-query-mobile" 
+              name="q" 
+              type="text" 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="SEARCH STORIES..." 
+              className="w-full pl-4 pr-10 py-3 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-widest focus:outline-none focus:border-gray-900" 
+              autoFocus 
+            />
+            {/* Mobile search button */}
+            <button type="submit" aria-label="Search" className="absolute right-3 text-gray-400 hover:text-gray-900">
+              <Search className="w-4 h-4" />
+            </button>
           </form>
         </div>
       )}
 
-      {/* LINE 2: Category Slider — Shows 6, Slide for More */}
+      {/* LINE 2: Category Slider */}
       <div className="hidden lg:block border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center h-10">
 
-            {/* Left Arrow */}
             <button
               onClick={() => scroll('left')}
               className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-all mr-2 ${!canScrollLeft ? 'opacity-0 pointer-events-none' : ''}`}
@@ -130,7 +147,6 @@ export default function Navbar({ categories }: NavbarProps) {
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
 
-            {/* Scrollable Track */}
             <div
               ref={trackRef}
               className="flex-1 flex items-center overflow-x-auto"
@@ -147,7 +163,6 @@ export default function Navbar({ categories }: NavbarProps) {
               ))}
             </div>
 
-            {/* Right Arrow */}
             <button
               onClick={() => scroll('right')}
               className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-all ml-2 ${!canScrollRight ? 'opacity-0 pointer-events-none' : ''}`}

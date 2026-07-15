@@ -89,7 +89,6 @@ export async function reorderItem(type, id, direction, parentId) {
 
     if (items.length === 0) return { success: false, error: 'No items found' };
 
-    // Agar kisi bhi item ka sortOrder null hai toh pehle normalize karo
     const needsNorm = items.some(it => it.sortOrder == null);
     if (needsNorm) {
       const tx = writeClient.transaction();
@@ -111,7 +110,6 @@ export async function reorderItem(type, id, direction, parentId) {
     const currentOrder = items[currentIndex].sortOrder;
     const targetOrder = items[targetIndex].sortOrder;
 
-    // YAHAN writeClient use kiya — client nahi
     const tx = writeClient.transaction();
     tx.patch(items[currentIndex]._id, { set: { sortOrder: targetOrder } });
     tx.patch(items[targetIndex]._id, { set: { sortOrder: currentOrder } });
@@ -166,12 +164,35 @@ export async function deleteSubcategory(id) {
 export async function saveBlog(data, editingId) {
   try {
     if (editingId) {
-      await writeClient.patch(editingId).set(data).commit();
+      // 🟢 Sirf unhi fields ko update karega jo 'data' mein hain
+      const unsetKeys = [];
+      for (let i = 1; i <= 6; i++) {
+        if (data[`img${i}`] === null) {
+          unsetKeys.push(`img${i}`);
+          delete data[`img${i}`]; // data object se null hata do
+        }
+      }
+
+      // writeClient use karna zaroori hai write permissions ke liye
+      const patchRequest = writeClient.patch(editingId).set(data);
+      
+      // Agar koi image delete hui hai toh usko unset karo
+      if (unsetKeys.length > 0) {
+        patchRequest.unset(unsetKeys);
+      }
+      
+      await patchRequest.commit();
+
     } else {
-      await writeClient.create({ _type: 'blog', ...data });
+      // 🆕 Naya blog banane ke liye
+      await writeClient.create({
+        _type: "blog",
+        ...data,
+      });
     }
     return { success: true };
   } catch (error) {
+    console.error("Save Blog Error:", error);
     return { success: false, error: error.message };
   }
 }
