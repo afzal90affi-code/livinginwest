@@ -62,13 +62,30 @@ export function ShareMenu() {
   );
 }
 
-// Chhota Share button (Stories list wala)
-export function ShareCardButton({ title }: { title: string }) {
-  const handleShare = () => {
+// Chhota Share button ke liye Props define kiye hain
+interface ShareCardButtonProps {
+  title: string;
+  url?: string;
+}
+
+// Chhota Share button (Hero, Editors Pick, Category Blogs wala)
+export function ShareCardButton({ title, url }: ShareCardButtonProps) {
+  const handleShare = async () => {
+    const shareUrl = url ? `${window.location.origin}${url}` : window.location.href;
+    
     if (navigator.share) {
-      navigator.share({ title }).catch(() => {});
+      try {
+        await navigator.share({ title, url: shareUrl });
+      } catch (error) {
+        // User cancelled share, do nothing
+      }
+    } else {
+      // Fallback for desktop: Copy link
+      navigator.clipboard.writeText(shareUrl);
+      alert('Link copied to clipboard!');
     }
   };
+
   return (
     <button onClick={handleShare} className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold">
       <Share2 className="w-3 h-3" /> Share

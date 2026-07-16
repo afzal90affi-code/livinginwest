@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Cloud, Clock } from 'lucide-react';
 import { urlFor } from "@/lib/sanityImage";
+import { ShareCardButton } from '@/components/share';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,8 @@ interface Blog {
   _id: string;
   title?: string;
   slug?: string;
-  categoryName?: any; // 👇 Handle string, object, or array
+  categoryName?: any; 
+  category?: any; // 👇 Added to handle slug or object
   desc?: string;
   mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
   date?: string;
@@ -103,18 +105,16 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     const blogSlug = b.slug || "";
     const blogDate = b.date ? new Date(b.date) : new Date(0); 
     
-    // 🛡️ SMART CATEGORY EXTRACTOR (Handles String, Object, Array)
+    // 🛡️ SMART CATEGORY EXTRACTOR (Handles String, Object, Array, Slug, Name)
     let blogCat = "general";
-    const catField = b.categoryName;
+    const catField = b.categoryName || b.category; // Check whichever is available
     
     if (typeof catField === 'string') {
       blogCat = catField;
     } else if (Array.isArray(catField) && catField.length > 0) {
-      // Agar categories ka array hai
-      blogCat = catField.map(c => typeof c === 'string' ? c : (c?.name || c?.title || "")).join(', ');
+      blogCat = catField.map(c => typeof c === 'string' ? c : (c?.name || c?.title || c?.current || "")).join(', ');
     } else if (catField && typeof catField === 'object') {
-      // Agar single object hai
-      blogCat = catField.name || catField.title || "general";
+      blogCat = catField.name || catField.title || catField.current || "general";
     }
 
     return { 
@@ -194,7 +194,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </div>
       </div>
 
-      {/* 💰 AD SLOT 1: HIGH PAYING TOP LEADERBOARD (Above the fold) */}
+      {/* 💰 AD SLOT 1 */}
       <div className="max-w-7xl mx-auto px-6 my-4">
         <div className="w-full min-h-[90px] bg-gray-50 border border-gray-200/60 flex items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase">
           [Advertisement - Top Leaderboard Banner]
@@ -209,7 +209,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
               {heroNews.map((hero, index) => (
                 <div key={hero.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
                   <Link href={`/blog/${hero.slug}`} className="block w-full h-full group">
-                   <Image src={hero.img} alt={hero.title} fill className="object-contain group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 50vw" priority={index === 0} />
+                   <Image src={hero.img} alt={hero.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 50vw" priority={index === 0} />
                   </Link>
                 </div>
               ))}
@@ -331,9 +331,15 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col gap-16 md:gap-24">
             {categories.map((cat) => {
-              // 🛡️ SMART MATCHING: Checks if blog category includes the category name
+              // 🛡️ SUPER SMART MATCHING: Checks name, slug, and case-insensitive
               const catBlogs = blogs
-                .filter(b => b.category.toLowerCase().includes(cat.name.toLowerCase()))
+                .filter(b => {
+                  const blogCat = b.category.toLowerCase().trim();
+                  const catName = cat.name.toLowerCase().trim();
+                  const catSlug = cat.slug.toLowerCase().trim();
+                  
+                  return blogCat === catName || blogCat === catSlug || blogCat.includes(catName) || blogCat.includes(catSlug);
+                })
                 .sort((a, b) => b.timestamp - a.timestamp);
               
               const mainBlog = catBlogs[0];
@@ -439,7 +445,33 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </div>
       </section>
 
-      
+      {/* ===== WORLD NEWS WITH FIXES ===== */}
+      <section className="py-16 bg-white border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">World News</h2>
+          {externalNews.length === 0 ? (
+            <div className="text-center py-12 border border-dashed border-gray-200 rounded-lg text-gray-400 text-xs">Add GNEWS API Key in .env.local to load news.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {externalNews.map((news) => (
+                <a href={news.slug} key={news.id} target="_blank" rel="noopener noreferrer" className="group block border-b border-gray-100 pb-4">
+                  <div className="aspect-video overflow-hidden mb-3 bg-gray-100 relative">
+                    <Image 
+                      src={news.img || "/fallback-news.jpg"} 
+                      alt={news.title} 
+                      fill 
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                    />
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">{news.category}</span>
+                  <h3 className="font-playfair text-lg font-bold mt-1 leading-tight text-gray-900 group-hover:text-gray-600 line-clamp-2">{news.title}</h3>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
     </div>
   );
