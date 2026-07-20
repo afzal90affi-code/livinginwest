@@ -12,9 +12,11 @@ const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfa
 export const metadata: Metadata = {
   title: "Living In West - Premium Lifestyle & News",
   description: "Explore the latest in lifestyle, travel, food, automotive, and world news.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
-// 👇 [0...6] hata diya — ab SARI categories aayengi slider + dropdown ke liye
 const NAV_CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
   name, "slug": slug.current
 }`;

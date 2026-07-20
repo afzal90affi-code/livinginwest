@@ -1,119 +1,19 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 
 import {
   getCategories, getSubcategories, getBlogs,
-  saveCategory, deleteCategory,
+  saveCategory, deleteCategory, saveBlog,
   saveSubcategory, deleteSubcategory,
-  saveBlog, deleteBlog,
-  uploadImage,
-  reorderItem
+  deleteBlog, uploadImage, reorderItem
 } from './actions';
 
-const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
-import 'react-quill-new/dist/quill.snow.css';
-
-// ======== INTERFACES ========
-interface Blog {
-  _id: string;
-  title: string;
-  category: string;
-  subCategory?: string;
-  desc?: string;
-  isFeatured: boolean;
-  isPublished?: boolean;
-  content1?: string;
-  content2?: string;
-  content3?: string;
-  content4?: string;
-  content5?: string;
-  content6?: string;
-  img1Url?: string;
-  img2Url?: string;
-  img3Url?: string;
-  img4Url?: string;
-  img5Url?: string;
-  img6Url?: string;
-  imgOrientations?: Record<string, string>;
-  metaTitle?: string;
-  metaDesc?: string;
-  keywords?: string;
-  date?: string;
-  views?: number;
-  sortOrder?: number | null;
-}
-
-interface Category {
-  _id: string;
-  name: string;
-  slug: string | { current: string };
-  emoji?: string;
-  imageUrl?: string;
-  metaTitle?: string;
-  metaDesc?: string;
-  sortOrder?: number | null;
-}
-
-interface Subcategory {
-  _id: string;
-  parentId: string;
-  name: string;
-  slug: string | { current: string };
-  emoji?: string;
-  desc?: string;
-  imageUrl?: string;
-  metaTitle?: string;
-  metaDesc?: string;
-  sortOrder?: number | null;
-}
+import BlogForm, { getSlug, type Blog, type Category, type Subcategory } from './BlogForm';
 
 interface ImageState { url: string; assetId: string; }
 type SanityImageRef = { _type: 'image'; asset: { _ref: string; _type: 'reference' } };
 type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef | Record<string, string> | null>;
-
-// ======== HELPERS ========
-const sanitizeQuill = (html: string): string => {
-  if (!html) return "";
-
-  return html
-    .replace(/(<img[^>]*?)style="[^"]*"/gi, '$1')
-    .replace(/font-size\s*:\s*[^;"]+[;"]?/gi, '')
-    .replace(/font-family\s*:\s*[^;"]+[;"]?/gi, '')
-    .replace(/line-height\s*:\s*[^;"]+[;"]?/gi, '')
-    .replace(/color\s*:\s*rgb\([^)]+\)[;"]?/gi, '')
-    .replace(/color\s*:\s*#[a-fA-F0-9]+[;"]?/gi, '')
-    .replace(/background\s*:\s*[^;"]+[;"]?/gi, '')
-    .replace(/style="([^"]*)"/gi, (_match, style: string) => {
-      const alignMatch = style.match(/text-align\s*:\s*(left|center|right|justify)/i);
-      const cleanedStyle = style
-        .split(';')
-        .map((part: string) => part.trim())
-        .filter(Boolean)
-        .filter((part: string) => /^text-align\s*:/i.test(part))
-        .join('; ');
-
-      return cleanedStyle ? `style="${cleanedStyle}"` : '';
-    })
-    .replace(/class="([^"]*)"/gi, (_match, className: string) => {
-      const preservedClasses = className
-        .split(/\s+/)
-        .filter((name: string) => /^ql-align-(left|center|right|justify)$/i.test(name))
-        .join(' ');
-
-      return preservedClasses ? `class="${preservedClasses}"` : '';
-    })
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-};
-
-const getWordCount = (html: string): number => { if (!html) return 0; const t = html.replace(/<[^>]*>/g, '').trim(); return t ? t.split(/\s+/).length : 0; };
-const getSlug = (slug: string | { current: string } | undefined): string => { if (!slug) return ""; if (typeof slug === 'string') return slug; return slug.current || ""; };
-
-const quillModules = { toolbar: [[{ 'header': [1, 2, 3, false] }], ['bold', 'italic', 'underline', 'strike'], [{ 'color': [] }, { 'background': [] }], [{ 'list': 'ordered' }, { 'list': 'bullet' }], [{ 'indent': '-1' }, { 'indent': '+1' }], [{ 'align': [] }], [{ 'font': ['serif', 'monospace'] }], [{ 'size': ['small', false, 'large', 'huge'] }], ['link', 'image', 'blockquote', 'code-block'], ['clean']] };
-const quillFormats = ['header', 'font', 'size', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'list', 'bullet', 'indent', 'align', 'link', 'image', 'blockquote', 'code-block', 'clean'];
-const contentParts = [{ key: '1', label: 'Part 1', optional: false }, { key: '2', label: 'Part 2', optional: false }, { key: '3', label: 'Part 3', optional: false }, { key: '4', label: 'Part 4', optional: true }, { key: '5', label: 'Part 5', optional: true }, { key: '6', label: 'Part 6', optional: true }];
 
 // ======== MAIN COMPONENT ========
 export default function AdminPanel() {
@@ -121,7 +21,6 @@ export default function AdminPanel() {
   const [loginPass, setLoginPass] = useState("");
   const [tab, setTab] = useState("dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activePart, setActivePart] = useState("1");
 
   const [blogList, setBlogList] = useState<Blog[]>([]);
   const [catList, setCatList] = useState<Category[]>([]);
@@ -130,36 +29,12 @@ export default function AdminPanel() {
   const [reorderingType, setReorderingType] = useState<string | null>(null);
 
   const [showBlogForm, setShowBlogForm] = useState(false);
+  const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
+  
   const [showCatForm, setShowCatForm] = useState(false);
   const [showSubCatForm, setShowSubCatForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [editingSubCatId, setEditingSubCatId] = useState<string | null>(null);
-
-  const [blogTitle, setBlogTitle] = useState("");
-  const [blogCategory, setBlogCategory] = useState("");
-  const [blogSubCategory, setBlogSubCategory] = useState("");
-  const [blogDesc, setBlogDesc] = useState("");
-  const [blogContent1, setBlogContent1] = useState("");
-  const [blogContent2, setBlogContent2] = useState("");
-  const [blogContent3, setBlogContent3] = useState("");
-  const [blogContent4, setBlogContent4] = useState("");
-  const [blogContent5, setBlogContent5] = useState("");
-  const [blogContent6, setBlogContent6] = useState("");
-  const [blogImg1, setBlogImg1] = useState<ImageState>({ url: "", assetId: "" });
-  const [blogImg2, setBlogImg2] = useState<ImageState>({ url: "", assetId: "" });
-  const [blogImg3, setBlogImg3] = useState<ImageState>({ url: "", assetId: "" });
-  const [blogImg4, setBlogImg4] = useState<ImageState>({ url: "", assetId: "" });
-  const [blogImg5, setBlogImg5] = useState<ImageState>({ url: "", assetId: "" });
-  const [blogImg6, setBlogImg6] = useState<ImageState>({ url: "", assetId: "" });
-  const [blogFeatured, setBlogFeatured] = useState(false);
-  const [blogPublished, setBlogPublished] = useState(false);
-  const [blogMetaTitle, setBlogMetaTitle] = useState("");
-  const [blogMetaDesc, setBlogMetaDesc] = useState("");
-  const [blogKeywords, setBlogKeywords] = useState("");
-
-  // IMAGE ORIENTATIONS STATE
-  const [imgOrientations, setImgOrientations] = useState<Record<string, string>>({});
 
   const [catName, setCatName] = useState("");
   const [catEmoji, setCatEmoji] = useState("");
@@ -176,24 +51,12 @@ export default function AdminPanel() {
   const [subCatMetaTitle, setSubCatMetaTitle] = useState("");
   const [subCatMetaDesc, setSubCatMetaDesc] = useState("");
 
-  const contentSetters: Record<string, any> = { '1': setBlogContent1, '2': setBlogContent2, '3': setBlogContent3, '4': setBlogContent4, '5': setBlogContent5, '6': setBlogContent6 };
-  const contentValues: Record<string, string> = { '1': blogContent1, '2': blogContent2, '3': blogContent3, '4': blogContent4, '5': blogContent5, '6': blogContent6 };
-  const imgSetters: Record<string, any> = { '1': setBlogImg1, '2': setBlogImg2, '3': setBlogImg3, '4': setBlogImg4, '5': setBlogImg5, '6': setBlogImg6 };
-  const imgValues: Record<string, ImageState> = { '1': blogImg1, '2': blogImg2, '3': blogImg3, '4': blogImg4, '5': blogImg5, '6': blogImg6 };
-
-  const totalWords = Object.values(contentValues).reduce((s, c) => s + getWordCount(c), 0);
-  const availableSubCats = subCatList.filter(s => s.parentId === getSlug(catList.find(c => getSlug(c.slug) === blogCategory)?.slug));
   const filteredSubCats = selectedParentCat ? subCatList.filter(s => s.parentId === selectedParentCat) : [];
   const sortFilteredSubCats = sortParentCat ? subCatList.filter(s => s.parentId === sortParentCat) : [];
   const totalViews = blogList.reduce((s, b) => s + (b.views || 0), 0);
   const totalPublished = blogList.filter(b => b.isPublished).length;
   const totalDrafts = blogList.filter(b => !b.isPublished).length;
   const totalFeatured = blogList.filter(b => b.isFeatured).length;
-
-  // Set orientation helper
-  const setOrientation = (key: string, val: string) => {
-    setImgOrientations(prev => ({ ...prev, [key]: val }));
-  };
 
   const handleImageUpload = async (e: any, setter: any) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -208,10 +71,9 @@ export default function AdminPanel() {
     try {
       const [cats, subs, blogs] = await Promise.all([getCategories(), getSubcategories(), getBlogs()]);
       setCatList(cats); setSubCatList(subs); setBlogList(blogs);
-      if (cats.length > 0 && !blogCategory) setBlogCategory(getSlug(cats[0].slug));
     } catch (e) { console.error(e); }
     setLoadingData(false);
-  }, [blogCategory]);
+  }, []);
 
   useEffect(() => { if (isLoggedIn) fetchData(); }, [isLoggedIn, fetchData]);
   useEffect(() => { if (localStorage.getItem("admin_auth") === "true") setIsLoggedIn(true); }, []);
@@ -228,80 +90,8 @@ export default function AdminPanel() {
   };
 
   // ======== BLOG FUNCTIONS ========
-  const resetBlogForm = () => {
-    setEditingId(null); setBlogTitle(""); setBlogCategory(catList.length > 0 ? getSlug(catList[0].slug) : ""); setBlogSubCategory(""); setBlogDesc("");
-    setBlogContent1(""); setBlogContent2(""); setBlogContent3(""); setBlogContent4(""); setBlogContent5(""); setBlogContent6("");
-    setBlogImg1({ url: "", assetId: "" }); setBlogImg2({ url: "", assetId: "" }); setBlogImg3({ url: "", assetId: "" });
-    setBlogImg4({ url: "", assetId: "" }); setBlogImg5({ url: "", assetId: "" }); setBlogImg6({ url: "", assetId: "" });
-    setBlogFeatured(false); setBlogPublished(false); setBlogMetaTitle(""); setBlogMetaDesc(""); setBlogKeywords("");
-    setImgOrientations({});
-    setActivePart("1");
-  };
-
-  const openAddBlog = () => { resetBlogForm(); setShowBlogForm(true); };
-
-  const openEditBlog = (b: Blog) => {
-    setEditingId(b._id); setBlogTitle(b.title); setBlogCategory(b.category || ""); setBlogSubCategory(b.subCategory || ""); setBlogDesc(b.desc || "");
-    setBlogContent1(b.content1 || ""); setBlogContent2(b.content2 || ""); setBlogContent3(b.content3 || "");
-    setBlogContent4(b.content4 || ""); setBlogContent5(b.content5 || ""); setBlogContent6(b.content6 || "");
-    setBlogImg1({ url: b.img1Url || "", assetId: "" }); setBlogImg2({ url: b.img2Url || "", assetId: "" });
-    setBlogImg3({ url: b.img3Url || "", assetId: "" }); setBlogImg4({ url: b.img4Url || "", assetId: "" });
-    setBlogImg5({ url: b.img5Url || "", assetId: "" }); setBlogImg6({ url: b.img6Url || "", assetId: "" });
-    setBlogFeatured(b.isFeatured); setBlogPublished(b.isPublished || false);
-    setImgOrientations(b.imgOrientations || {});
-    setBlogMetaTitle(b.metaTitle || ""); setBlogMetaDesc(b.metaDesc || ""); setBlogKeywords(b.keywords || "");
-    setActivePart("1"); setShowBlogForm(true);
-  };
-
-  const handleCategoryChange = (slug: string) => { setBlogCategory(slug); setBlogSubCategory(""); };
-
-   const handleSaveBlog = async () => {
-    if (!blogTitle) return alert("Title required!");
-    const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    
-    // Yeh object un sabhi fields ka data lega jo form mein hai
-    const d: ActionData = {
-      slug: { _type: 'slug', current: sl } as unknown as string,
-      title: blogTitle, 
-      category: blogCategory, 
-      subCategory: blogSubCategory,
-      isFeatured: blogFeatured, 
-      isPublished: blogPublished, 
-      desc: blogDesc,
-      content1: blogContent1, 
-      content2: blogContent2, 
-      content3: blogContent3,
-      content4: blogContent4, 
-      content5: blogContent5, 
-      content6: blogContent6,
-      metaTitle: blogMetaTitle, 
-      metaDesc: blogMetaDesc, 
-      keywords: blogKeywords,
-      imgOrientations: imgOrientations
-    };
-
-    // 🛡️ IMAGE LOGIC: Naya image ho, purana ho, ya delete kiya ho - sab handle hoga
-    const imgStates = [blogImg1, blogImg2, blogImg3, blogImg4, blogImg5, blogImg6];
-    imgStates.forEach((img, index) => {
-      const key = `img${index + 1}`;
-      if (img.assetId) {
-        // Agar naya image upload hua hai
-        d[key] = { _type: 'image', asset: { _ref: img.assetId, _type: 'reference' } };
-      } else if (!img.url && editingId) {
-        // Agar image delete kiya gaya hai (url khali hai aur hum edit mode mein hain)
-        d[key] = null; 
-      }
-      // Agar purana image waise hi rehna hai (url hai, assetId khali hai), toh hum d[key] set nahi karenge, taaki patch usko chhod de
-    });
-
-    if (!editingId) { 
-      d.date = new Date().toISOString().split('T')[0]; 
-      d.views = 0; 
-    }
-    
-    const r = await saveBlog(d, editingId);
-    if (r.success) { setShowBlogForm(false); fetchData(); } else alert("Error: " + r.error);
-  };
+  const openAddBlog = () => { setEditingBlog(null); setShowBlogForm(true); };
+  const openEditBlog = (b: Blog) => { setEditingBlog(b); setShowBlogForm(true); };
 
   const handleDeleteBlog = async (id: string) => { if (!confirm("Delete this blog?")) return; const r = await deleteBlog(id); if (r.success) fetchData(); };
 
@@ -318,7 +108,7 @@ export default function AdminPanel() {
     const sl = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const d: ActionData = { name: catName, slug: { _type: 'slug', current: sl } as unknown as string, emoji: catEmoji || "📁", metaTitle: catMetaTitle, metaDesc: catMetaDesc };
     if (catImg.assetId) d.image = { _type: 'image', asset: { _ref: catImg.assetId, _type: 'reference' } };
-    const r = await saveCategory(d, editingCatId);
+    const r = await saveCategory(d, editingCatId || undefined);
     if (r.success) { setShowCatForm(false); fetchData(); } else alert("Error: " + r.error);
   };
   const handleDeleteCategory = async (id: string) => { if (!confirm("Delete?")) return; const r = await deleteCategory(id); if (r.success) fetchData(); };
@@ -331,7 +121,7 @@ export default function AdminPanel() {
     const sl = subCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const d: ActionData = { parentId: selectedParentCat, name: subCatName, slug: { _type: 'slug', current: sl } as unknown as string, emoji: subCatEmoji || "📁", desc: subCatDesc, metaTitle: subCatMetaTitle, metaDesc: subCatMetaDesc };
     if (subCatImg.assetId) d.image = { _type: 'image', asset: { _ref: subCatImg.assetId, _type: 'reference' } };
-    const r = await saveSubcategory(d, editingSubCatId);
+    const r = await saveSubcategory(d, editingSubCatId || undefined);
     if (r.success) { setShowSubCatForm(false); fetchData(); } else alert("Error: " + r.error);
   };
   const handleDeleteSubCategory = async (id: string) => { if (!confirm("Delete?")) return; const r = await deleteSubcategory(id); if (r.success) fetchData(); };
@@ -629,7 +419,7 @@ export default function AdminPanel() {
                       <div key={blog._id} className={`flex items-center gap-4 px-6 py-4 transition-all ${reorderingType === 'blog' ? 'opacity-40 pointer-events-none' : 'hover:bg-gray-50'}`}>
                         <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-400 font-mono flex-shrink-0">{i + 1}</div>
                         <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                          {blog.img1Url ? <img src={blog.img1Url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">📝</div>}
+                          {blog.imgUrls?.[0] ? <img src={blog.imgUrls[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">📝</div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">{blog.title}</p>
@@ -654,153 +444,15 @@ export default function AdminPanel() {
         </main>
       </div>
 
-      {/* ===== BLOG MODAL ===== */}
-      {showBlogForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center z-50 pt-6 overflow-y-auto pb-6">
-          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-5xl shadow-2xl mx-4 my-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 md:px-8 py-5 rounded-t-2xl z-10 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{editingId ? "Edit Blog" : "Create New Blog"}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Fill in the details below</p>
-              </div>
-              <button onClick={() => setShowBlogForm(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all text-sm">✕</button>
-            </div>
-            <div className="px-6 md:px-8 py-6 space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} placeholder="Blog Title *" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-                <input type="text" value={blogDesc} onChange={(e) => setBlogDesc(e.target.value)} placeholder="Short Summary" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <select value={blogCategory} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900">
-                  {catList.map((c) => <option key={c._id} value={getSlug(c.slug)}>{c.emoji} {c.name}</option>)}
-                </select>
-                <select value={blogSubCategory} onChange={(e) => setBlogSubCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900 disabled:opacity-50" disabled={availableSubCats.length === 0}>
-                  {availableSubCats.length > 0 ? (<><option value="">-- Sub-Category --</option>{availableSubCats.map((s) => <option key={s._id} value={getSlug(s.slug)}>{s.emoji} {s.name}</option>)}</>) : (<option value="">No sub-categories</option>)}
-                </select>
-              </div>
-
-              {/* PUBLISH + FEATURED TOGGLES */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${blogPublished ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
-                  <div>
-                    <p className={`text-sm font-medium ${blogPublished ? 'text-green-800' : 'text-gray-900'}`}>{blogPublished ? '🟢 Published' : '🟡 Draft'}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Toggle to change status</p>
-                  </div>
-                  <button type="button" onClick={() => setBlogPublished(!blogPublished)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogPublished ? 'bg-green-500' : 'bg-gray-300'}`}>
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${blogPublished ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-                <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${blogFeatured ? 'bg-[#6D28D9]/5 border-[#6D28D9]/20' : 'bg-gray-50 border-gray-100'}`}>
-                  <div>
-                    <p className={`text-sm font-medium ${blogFeatured ? 'text-[#6D28D9]' : 'text-gray-900'}`}>⭐ Featured Article</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Show on homepage hero</p>
-                  </div>
-                  <button type="button" onClick={() => setBlogFeatured(!blogFeatured)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogFeatured ? 'bg-[#6D28D9]' : 'bg-gray-300'}`}>
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${blogFeatured ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* CONTENT PARTS */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <div className="flex overflow-x-auto bg-gray-50 border-b border-gray-200">
-                  {contentParts.map((p) => (
-                    <button key={p.key} onClick={() => setActivePart(p.key)} className={`flex-shrink-0 px-5 py-3 text-xs font-semibold whitespace-nowrap transition-all border-b-2 -mb-px ${activePart === p.key ? 'bg-white text-[#6D28D9] border-[#6D28D9]' : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-white/50'}`}>
-                      {p.label} {p.optional && <span className="text-gray-300 ml-1">(opt)</span>}
-                    </button>
-                  ))}
-                </div>
-                <div className="p-5 space-y-5">
-                  <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                    <ReactQuill theme="snow" value={contentValues[activePart]} onChange={(val) => contentSetters[activePart](sanitizeQuill(val))} modules={quillModules} formats={quillFormats} className="blog-editor-custom" />
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-gray-400">
-                    <span>Part {activePart} · <strong className="text-gray-600">{getWordCount(contentValues[activePart])} words</strong></span>
-                    <span>Total: <strong className="text-gray-600">{totalWords} words</strong></span>
-                  </div>
-
-                  {/* IMAGE UPLOAD + ORIENTATION SELECTOR */}
-                  <div className="border border-dashed border-gray-200 rounded-xl p-4 hover:border-[#6D28D9]/50 transition-colors">
-                    <label className="flex items-center gap-2 text-xs text-gray-500 font-medium mb-3 cursor-pointer">📷 Upload Image {activePart}</label>
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, imgSetters[activePart])} className="text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20 file:cursor-pointer" />
-
-                    {imgValues[activePart]?.url && (
-                      <div className="mt-4 space-y-3">
-                        {/* Preview */}
-                        <div className="relative group">
-                          <img
-                            src={imgValues[activePart].url}
-                            alt=""
-                            className={`rounded-lg object-cover border border-gray-200 ${
-                              imgOrientations[activePart] === 'vertical'
-                                ? 'h-48 w-auto max-w-xs mx-auto'
-                                : 'h-36 w-full'
-                            }`}
-                          />
-                          <button onClick={() => imgSetters[activePart]({ url: "", assetId: "" })} className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                        </div>
-
-                        {/* Orientation Buttons */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mr-1">Layout:</span>
-                          <button
-                            type="button"
-                            onClick={() => setOrientation(activePart, 'horizontal')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold border-2 transition-all ${
-                              (!imgOrientations[activePart] || imgOrientations[activePart] === 'horizontal')
-                                ? 'border-[#6D28D9] bg-[#6D28D9]/10 text-[#6D28D9]'
-                                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
-                            }`}
-                          >
-                            {/* Horizontal Icon */}
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="1" y="4" width="16" height="10" rx="2" />
-                              <line x1="5" y1="1" x2="5" y2="4" /><line x1="13" y1="1" x2="13" y2="4" />
-                              <line x1="5" y1="14" x2="5" y2="17" /><line x1="13" y1="14" x2="13" y2="17" />
-                            </svg>
-                            Horizontal
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setOrientation(activePart, 'vertical')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold border-2 transition-all ${
-                              imgOrientations[activePart] === 'vertical'
-                                ? 'border-[#6D28D9] bg-[#6D28D9]/10 text-[#6D28D9]'
-                                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
-                            }`}
-                          >
-                            {/* Vertical Icon */}
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="4" y="1" width="10" height="16" rx="2" />
-                              <line x1="1" y1="5" x2="4" y2="5" /><line x1="1" y1="13" x2="4" y2="13" />
-                              <line x1="14" y1="5" x2="17" y2="5" /><line x1="14" y1="13" x2="17" y2="13" />
-                            </svg>
-                            Vertical
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* SEO */}
-              <div className="border border-gray-200 rounded-xl p-5">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">🔍 SEO Optimization</h3>
-                <div className="space-y-3">
-                  <input type="text" value={blogMetaTitle} onChange={(e) => setBlogMetaTitle(e.target.value)} placeholder="Meta Title" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-                  <textarea value={blogMetaDesc} onChange={(e) => setBlogMetaDesc(e.target.value)} placeholder="Meta Description" rows={2} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all resize-none" />
-                  <input type="text" value={blogKeywords} onChange={(e) => setBlogKeywords(e.target.value)} placeholder="Keywords (comma separated)" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-                </div>
-              </div>
-            </div>
-            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 md:px-8 py-5 rounded-b-2xl flex gap-3">
-              <button onClick={() => setShowBlogForm(false)} className="flex-1 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
-              <button onClick={handleSaveBlog} className="flex-1 py-3 bg-[#6D28D9] text-white rounded-xl text-sm font-semibold hover:bg-[#5B21B6] transition-all hover:shadow-lg hover:shadow-[#6D28D9]/20 active:scale-[0.98]">{editingId ? "✓ Update" : "🚀 Publish"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ===== BLOG FORM MODAL (Extracted) ===== */}
+      <BlogForm 
+        showForm={showBlogForm} 
+        onClose={() => setShowBlogForm(false)} 
+        initialData={editingBlog} 
+        catList={catList} 
+        subCatList={subCatList} 
+        onSaved={fetchData} 
+      />
 
       {/* ===== CATEGORY MODAL ===== */}
       {showCatForm && (

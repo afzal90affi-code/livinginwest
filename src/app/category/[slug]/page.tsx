@@ -145,7 +145,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
           {/* Title & Description */}
           <div>
-            <h1 className="font-playfair text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight border-b-4 border-red-600 inline-block pb-2">
+            <h1 className="font-playfair text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight border-b-4 border-blue-600 inline-block pb-2">
               {category.name}
             </h1>
             <p className="mt-5 text-gray-500 text-lg max-w-2xl">
@@ -156,7 +156,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           {/* Stats */}
           <div className="flex items-center gap-6 mt-8">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 font-bold">
-              <div className="w-2 h-2 rounded-full bg-red-600"></div>
+              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
               {blogs.length} Articles
             </div>
             {subcategories.length > 0 && (
@@ -172,7 +172,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
       {/* ===== MAIN CONTENT ===== */}
       <div className="max-w-7xl mx-auto px-6 py-10 md:py-12">
 
-        {/* ===== SUBCATEGORIES SECTION ===== */}
+        {/* ===== SUBCATEGORIES SECTION (Stylish Pills) ===== */}
         {subcategories.length > 0 && (
           <div className="mb-12">
             <div className="flex items-center justify-between mb-5 px-6 md:px-0">
@@ -190,29 +190,38 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                   <Link 
                     href={`/subcategories/${sub.slug}`} 
                     key={sub._id} 
-                    className="group flex items-center gap-3 bg-white border border-gray-200 hover:border-gray-900 rounded-md px-4 py-3 transition-all duration-300 shadow-sm hover:shadow-md flex-shrink-0"
+                    className="group flex items-center gap-2.5 bg-white border border-gray-200 hover:border-gray-900 rounded-full pl-4 pr-3 py-2 transition-all duration-300 shadow-sm hover:shadow-md flex-shrink-0"
                   >
+                    {/* Image ya Dot Indicator (No more first letter!) */}
                     {subImg ? (
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-1 ring-gray-200">
+                      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-1 ring-gray-200">
                         <Image 
                           src={subImg} 
                           alt={sub.name} 
-                          width={32} 
-                          height={32} 
+                          width={24} 
+                          height={24} 
                           className="w-full h-full object-cover" 
                         />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-gray-900 text-xs font-bold">
-                          {sub.name.charAt(0)}
-                        </span>
-                      </div>
+                      <div className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0 transition-colors group-hover:bg-gray-900"></div>
                     )}
                     
-                    <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 whitespace-nowrap transition-colors">
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 whitespace-nowrap transition-colors">
                       {sub.name}
                     </span>
+
+                    {/* Arrow Icon */}
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="w-4 h-4 text-gray-300 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
                   </Link>
                 );
               })}
@@ -262,7 +271,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                     <div className="flex flex-col flex-1">
                       {/* Meta Info: Category & Read Time */}
                       <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-widest font-bold">
-                        <span className="text-red-600">
+                        <span className="text-blue-600">
                           {blog.categoryName}
                         </span>
                         {blog.readTime && (

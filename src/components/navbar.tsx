@@ -28,9 +28,8 @@ export default function Navbar({ categories }: NavbarProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      // URL mein query bhej rahe hain
       router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-      setQuery(""); // Search box clear kar diya
+      setQuery("");
       setMobileSearchOpen(false);
       setMobileOpen(false);
     }
@@ -100,7 +99,6 @@ export default function Navbar({ categories }: NavbarProps) {
                 placeholder="SEARCH STORIES..." 
                 className="w-48 lg:w-64 pl-4 pr-10 py-2 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-[0.15em] text-gray-700 focus:outline-none focus:border-gray-900 focus:bg-white transition-colors placeholder:text-gray-400"
               />
-              {/* Ab Search icon ek button ban gaya hai */}
               <button type="submit" aria-label="Search" className="absolute right-3 text-gray-400 hover:text-gray-900 transition-colors">
                 <Search className="w-4 h-4" />
               </button>
@@ -127,7 +125,6 @@ export default function Navbar({ categories }: NavbarProps) {
               className="w-full pl-4 pr-10 py-3 bg-[#FAFAFA] border border-gray-200 text-xs uppercase tracking-widest focus:outline-none focus:border-gray-900" 
               autoFocus 
             />
-            {/* Mobile search button */}
             <button type="submit" aria-label="Search" className="absolute right-3 text-gray-400 hover:text-gray-900">
               <Search className="w-4 h-4" />
             </button>
@@ -135,7 +132,7 @@ export default function Navbar({ categories }: NavbarProps) {
         </div>
       )}
 
-      {/* LINE 2: Category Slider */}
+      {/* LINE 2: Category Slider (Desktop) */}
       <div className="hidden lg:block border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center h-10">
@@ -174,7 +171,7 @@ export default function Navbar({ categories }: NavbarProps) {
         </div>
       </div>
 
-      {/* LINE 3: Utility Links */}
+      {/* LINE 3: Utility Links (Desktop) */}
       <div className="hidden lg:block">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-center gap-6 h-8">
           {utilityLinks.map((link) => (
@@ -187,18 +184,52 @@ export default function Navbar({ categories }: NavbarProps) {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="lg:hidden bg-white border-t border-gray-100 py-4 px-6 shadow-lg absolute top-16 left-0 right-0 z-40 h-[calc(100vh-4rem)] overflow-y-auto pb-24">
-          <div className="flex flex-col gap-4">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-2 mb-1">Categories</p>
-            {categories.map((cat) => (
-              <Link key={cat.slug} href={`/category/${cat.slug}`} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-700 font-semibold py-2 border-b border-gray-50">
-                {cat.name}
-              </Link>
-            ))}
-            <div className="border-t border-gray-200 mt-4 pt-4">
-              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-1">Quick Links</p>
+        <div className="lg:hidden bg-white border-t border-gray-100 py-6 shadow-lg absolute top-16 left-0 right-0 z-40 h-[calc(100vh-4rem)] overflow-y-auto pb-24">
+          
+          {/* 🌟 Horizontal Swiping Categories for Mobile */}
+          <div className="mb-8">
+            <div className="px-6 mb-3 flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Categories</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => scroll('left')}
+                  className={`w-6 h-6 flex items-center justify-center rounded-sm border border-gray-200 text-gray-400 ${!canScrollLeft ? 'opacity-0 pointer-events-none' : ''}`}
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => scroll('right')}
+                  className={`w-6 h-6 flex items-center justify-center rounded-sm border border-gray-200 text-gray-400 ${!canScrollRight ? 'opacity-0 pointer-events-none' : ''}`}
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            <div
+              ref={trackRef} 
+              className="flex gap-3 overflow-x-auto px-6 pb-2"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {categories.map((cat) => (
+                <Link
+                  key={cat.slug}
+                  href={`/category/${cat.slug}`}
+                  onClick={() => setMobileOpen(false)}
+                  className="flex-shrink-0 px-4 py-2 bg-gray-100 text-gray-800 text-[11px] uppercase tracking-[0.15em] font-semibold rounded-full whitespace-nowrap hover:bg-gray-900 hover:text-white transition-colors"
+                >
+                  {cat.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Links List */}
+          <div className="px-6 border-t border-gray-200 pt-6">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-3">Quick Links</p>
+            <div className="flex flex-col gap-1">
               {utilityLinks.map((link) => (
-                <Link key={link.name} href={link.href} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-500 font-medium py-2 block border-b border-gray-50">
+                <Link key={link.name} href={link.href} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-500 font-medium py-3 border-b border-gray-50">
                   {link.name}
                 </Link>
               ))}

@@ -24,7 +24,66 @@ body {
 .font-playfair { font-family: var(--font-playfair), serif; }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-clamp: 2; }
 
-/* ===== QUILL BLOG CONTENT FIX ===== */
+/* ===== SWIPEABLE SCROLLBAR HIDE ===== */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; 
+  scrollbar-width: none; 
+}
+
+/* ===== STYLISH SWIPEABLE SCROLLBAR (For Mobile Sliders) ===== */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+  margin: 0 24px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ===== QUILL ADMIN EDITOR STYLING (Chote Buttons & Height) ===== */
+.blog-editor-custom .ql-editor {
+  min-height: 350px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.blog-editor-custom .ql-toolbar {
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.blog-editor-custom .ql-snow .ql-tooltip {
+  z-index: 50;
+}
+
+/* Quill Buttons chote karne ke liye */
+.blog-editor-custom .ql-snow.ql-toolbar button {
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+}
+
+.blog-editor-custom .ql-snow.ql-toolbar button svg, 
+.blog-editor-custom .ql-snow.ql-toolbar .ql-picker-label svg {
+  width: 14px;
+  height: 14px;
+}
+
+.blog-editor-custom .ql-snow.ql-toolbar .ql-picker {
+  font-size: 12px;
+}
+
+/* ===== QUILL BLOG CONTENT FIX (Frontend Blog Read Page) ===== */
 /* Quill ka jo HTML output aata hai usko theek karne ke liye */
 
 .blog-read {

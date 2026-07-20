@@ -57,16 +57,14 @@ export async function getSubcategories() {
 
 export async function getBlogs() {
   try {
+    // 🛠️ UPDATED: Ab 1 se 10 tak ke text aur images Array mein aayenge
     return await client.fetch(`*[_type == "blog"] | order(sortOrder asc){
       ...,
       "category": coalesce(category->slug.current, category),
       "subCategory": coalesce(subCategory->slug.current, subCategory),
-      "img1Url": coalesce(img1.asset->url, img1),
-      "img2Url": coalesce(img2.asset->url, img2),
-      "img3Url": coalesce(img3.asset->url, img3),
-      "img4Url": coalesce(img4.asset->url, img4),
-      "img5Url": coalesce(img5.asset->url, img5),
-      "img6Url": coalesce(img6.asset->url, img6)
+      "contents": [content1, content2, content3, content4, content5, content6, content7, content8, content9, content10],
+      "imgUrls": [coalesce(img1.asset->url, img1), coalesce(img2.asset->url, img2), coalesce(img3.asset->url, img3), coalesce(img4.asset->url, img4), coalesce(img5.asset->url, img5), coalesce(img6.asset->url, img6), coalesce(img7.asset->url, img7), coalesce(img8.asset->url, img8), coalesce(img9.asset->url, img9), coalesce(img10.asset->url, img10)],
+      "img1Url": coalesce(img1.asset->url, img1)
     }`);
   } catch (error) { console.error(error); return []; }
 }
@@ -166,7 +164,7 @@ export async function saveBlog(data, editingId) {
     if (editingId) {
       // 🟢 Sirf unhi fields ko update karega jo 'data' mein hain
       const unsetKeys = [];
-      for (let i = 1; i <= 6; i++) {
+      for (let i = 1; i <= 10; i++) {
         if (data[`img${i}`] === null) {
           unsetKeys.push(`img${i}`);
           delete data[`img${i}`]; // data object se null hata do
