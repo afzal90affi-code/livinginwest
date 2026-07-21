@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface NavbarProps {
@@ -17,6 +17,31 @@ export default function Navbar({ categories }: NavbarProps) {
   const [canScrollRight, setCanScrollRight] = useState(false);
   const router = useRouter();
   const trackRef = useRef<HTMLDivElement>(null);
+
+  // 🌍 Language State & Config
+  const [langOpen, setLangOpen] = useState(false);
+  const [selectedLang, setSelectedLang] = useState('English');
+  const langRef = useRef<HTMLDivElement>(null);
+  
+  const languages = [
+    { code: 'en', label: 'English' },
+    { code: 'es', label: 'Español' },
+    { code: 'fr', label: 'Français' },
+    { code: 'ur', label: 'اردو' },
+    { code: 'ar', label: 'العربية' },
+    { code: 'hi', label: 'हिन्दी' },
+  ];
+
+  // Close language dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(event.target as Node)) {
+        setLangOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const utilityLinks = [
     { name: "All Categories", href: "/categories" },
@@ -62,6 +87,20 @@ export default function Navbar({ categories }: NavbarProps) {
     trackRef.current.scrollTo({ left: newPos, behavior: 'smooth' });
   };
 
+  // 🌍 Google Translate Function
+  const handleLanguageChange = (code: string, label: string) => {
+    setSelectedLang(label);
+    setLangOpen(false);
+    
+    // Set cookie for Google Translate
+    const host = window.location.hostname;
+    document.cookie = `googtrans=/en/${code};path=/;domain=${host}`;
+    document.cookie = `googtrans=/en/${code};path=/;domain=.${host}`;
+    
+    // Reload page to apply translation
+    window.location.reload();
+  };
+
   return (
     <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
       
@@ -105,6 +144,36 @@ export default function Navbar({ categories }: NavbarProps) {
             </div>
           </form>
 
+          {/* 🌍 Language Selector Dropdown */}
+          <div className="relative" ref={langRef}>
+            <button 
+              onClick={() => setLangOpen(!langOpen)}
+              className="flex items-center gap-1.5 text-gray-700 hover:text-gray-900 transition-colors text-xs uppercase tracking-[0.15em] font-semibold"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="hidden md:inline">{selectedLang}</span>
+            </button>
+            
+            {langOpen && (
+              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 shadow-lg rounded-md z-50">
+                <ul className="py-1">
+                  {languages.map((lang) => (
+                    <li key={lang.code}>
+                      <button
+                        onClick={() => handleLanguageChange(lang.code, lang.label)}
+                        className="flex items-center justify-between w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        {lang.label}
+                        {selectedLang === lang.label && <Check className="w-3 h-3 text-green-600" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Search Toggle */}
           <button onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setMobileOpen(false); }} className="md:hidden text-gray-900">
             <Search className="w-5 h-5" />
           </button>
