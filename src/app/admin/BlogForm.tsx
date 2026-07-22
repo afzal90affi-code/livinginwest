@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
@@ -24,8 +25,8 @@ export interface Blog {
   date?: string;
   views?: number;
   sortOrder?: number | null;
-  writerName?: string;     // ✅ Added Writer Name
-  writerSocial?: string;   // ✅ Added Writer Social Link
+  writerName?: string;     
+  writerSocial?: string;   
 }
 
 export interface Category {
@@ -58,7 +59,6 @@ type ActionData = Record<string, string | boolean | number | undefined | SanityI
 
 export const getSlug = (slug: string | { current: string } | undefined): string => { if (!slug) return ""; if (typeof slug === 'string') return slug; return slug.current || ""; };
 
-// 🛠️ FIXED SANITIZE: Sirf images ki width/height hata raha hai, text styles safe hain
 const sanitizeQuill = (html: string): string => {
   if (!html) return "";
   return html.replace(/(<img[^>]*?)\s(width|height)="[^"]*"/gi, '$1');
@@ -108,7 +108,6 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [blogSubCategory, setBlogSubCategory] = useState("");
   const [blogDesc, setBlogDesc] = useState("");
   
-  // ✅ Writer State Added
   const [blogWriterName, setBlogWriterName] = useState("");
   const [blogWriterSocial, setBlogWriterSocial] = useState("");
 
@@ -122,6 +121,10 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [blogMetaDesc, setBlogMetaDesc] = useState("");
   const [blogKeywords, setBlogKeywords] = useState("");
 
+  // ✅ Embed States
+  const [embedType, setEmbedType] = useState("youtube");
+  const [embedInput, setEmbedInput] = useState("");
+
   const availableSubCats = subCatList.filter(s => s.parentId === getSlug(catList.find(c => getSlug(c.slug) === blogCategory)?.slug));
 
   useEffect(() => {
@@ -133,7 +136,6 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogSubCategory(initialData.subCategory || "");
         setBlogDesc(initialData.desc || "");
         
-        // ✅ Populate Writer Fields
         setBlogWriterName(initialData.writerName || "");
         setBlogWriterSocial(initialData.writerSocial || "");
         
@@ -160,7 +162,6 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogSubCategory(""); 
         setBlogDesc("");
         
-        // ✅ Clear Writer Fields
         setBlogWriterName("");
         setBlogWriterSocial("");
         
@@ -203,6 +204,33 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
     });
   };
 
+  // ✅ Handle Insert Embed Logic
+  const handleInsertEmbed = () => {
+    if (!embedInput) return alert("Please enter a URL or Embed Code");
+    
+    let embedHtml = "";
+    if (embedType === "youtube") {
+      // YouTube URL to Embed URL
+      const match = embedInput.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      const videoId = match ? match[1] : null;
+      
+      if (videoId) {
+        embedHtml = `<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; margin:20px 0; border-radius:12px;"><iframe src="https://www.youtube.com/embed/${videoId}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allowfullscreen></iframe></div><p></p>`;
+      } else {
+        return alert("Invalid YouTube URL");
+      }
+    } else {
+      // For Twitter/Insta/FB, allow pasting raw HTML/Script
+      embedHtml = `<div style="margin:20px 0;">${embedInput}</div><p></p>`;
+    }
+
+    const currentContent = blogContents[currentPartIndex] || "";
+    handleContentChange(currentPartIndex, currentContent + embedHtml);
+    
+    setEmbedInput("");
+    alert(`Embed added to the bottom of Part ${activePart}!`);
+  };
+
   const handleSavePart = async () => {
     if (!editingId) return alert("Please save the main blog details first (Click Publish/Update at the bottom). Then you can save individual parts.");
     
@@ -236,8 +264,8 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       isFeatured: blogFeatured, isPublished: blogPublished, desc: blogDesc,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
       imgOrientations: imgOrientations,
-      writerName: blogWriterName,       // ✅ Added to Save Payload
-      writerSocial: blogWriterSocial    // ✅ Added to Save Payload
+      writerName: blogWriterName,       
+      writerSocial: blogWriterSocial    
     };
 
     for(let i=0; i<10; i++) {
@@ -287,24 +315,12 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
             </select>
           </div>
 
-          {/* ✅ WRITER DETAILS SECTION ADDED HERE */}
+          {/* WRITER DETAILS SECTION */}
           <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">✍️ Writer / Author Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input 
-                type="text" 
-                value={blogWriterName} 
-                onChange={(e) => setBlogWriterName(e.target.value)} 
-                placeholder="Writer Name (e.g. John Doe)" 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" 
-              />
-              <input 
-                type="url" 
-                value={blogWriterSocial} 
-                onChange={(e) => setBlogWriterSocial(e.target.value)} 
-                placeholder="Social Link (https://twitter.com/...)" 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" 
-              />
+              <input type="text" value={blogWriterName} onChange={(e) => setBlogWriterName(e.target.value)} placeholder="Writer Name (e.g. John Doe)" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+              <input type="url" value={blogWriterSocial} onChange={(e) => setBlogWriterSocial(e.target.value)} placeholder="Social Link (https://twitter.com/...)" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
             </div>
           </div>
 
@@ -351,6 +367,28 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
                   style={{ minHeight: '350px' }}
                 />
               </div>
+
+              {/* ✅ EMBED INSERT SECTION */}
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Add Embed (YouTube, Twitter, Insta, FB)</h3>
+                <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                  <select value={embedType} onChange={(e) => setEmbedType(e.target.value)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none">
+                    <option value="youtube">YouTube URL</option>
+                    <option value="social">Social (Paste Raw HTML)</option>
+                  </select>
+                  <input 
+                    type="text" 
+                    value={embedInput} 
+                    onChange={(e) => setEmbedInput(e.target.value)} 
+                    placeholder={embedType === 'youtube' ? "https://youtube.com/watch?v=..." : "Paste blockquote & script code here..."} 
+                    className="flex-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-[#6D28D9]"
+                  />
+                  <button type="button" onClick={handleInsertEmbed} className="px-4 py-2 bg-[#6D28D9] text-white rounded-lg text-xs font-semibold whitespace-nowrap hover:bg-[#5B21B6] transition-colors">
+                    ➕ Insert to Part {activePart}
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between text-[11px] text-gray-400">
                 <span>Part {activePart} · <strong className="text-gray-600">{getWordCount(blogContents[currentPartIndex])} words</strong></span>
                 <span>Total: <strong className="text-gray-600">{blogContents.reduce((s, c) => s + getWordCount(c), 0)} words</strong></span>
@@ -394,7 +432,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
             </div>
           </div>
 
-          {/* SEO META SECTION INTACT */}
+          {/* SEO META SECTION */}
           <div className="border border-gray-200 rounded-xl p-5">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">🔍 SEO Optimization</h3>
             <div className="space-y-3">
