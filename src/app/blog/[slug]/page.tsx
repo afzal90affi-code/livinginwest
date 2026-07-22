@@ -33,6 +33,8 @@ interface BlogData {
   content4?: string;
   content5?: string;
   content6?: string;
+  writerName?: string;     // ✅ Writer Name Added
+  writerSocial?: string;   // ✅ Writer Social Added
 }
 
 // ===== QUILL IMAGE FIX =====
@@ -64,7 +66,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "img5Url": img5.asset->url,
     "img6Url": img6.asset->url,
     imgOrientations, isPublished,
-    content1, content2, content3, content4, content5, content6
+    content1, content2, content3, content4, content5, content6,
+    writerName, writerSocial // ✅ Fetching Writer Details
   }`;
 
   const blog: BlogData | null = await client.fetch(blogQuery, { slug: params.slug }, { cache: 'no-store' });
@@ -85,19 +88,19 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
   // Fetch Same Category Blogs
   const catBlogsQuery = `*[_type == "blog" && coalesce(category->slug.current, category) == $cat && slug.current != $slug && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
-    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url
+    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url, writerName, writerSocial
   }`;
   const catBlogs: BlogData[] = await client.fetch(catBlogsQuery, { cat: blog.category, slug: params.slug }, { cache: 'no-store' });
 
   // Fetch Recommended Blogs (Different Category)
   const recBlogsQuery = `*[_type == "blog" && slug.current != $slug && coalesce(category->slug.current, category) != $cat && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
-    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url
+    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url, writerName, writerSocial
   }`;
   const recBlogs: BlogData[] = await client.fetch(recBlogsQuery, { cat: blog.category, slug: params.slug }, { cache: 'no-store' });
 
   // Fetch Short Stories (isMoreStory == true)
   const shortStoriesQuery = `*[_type == "blog" && isMoreStory == true && slug.current != $slug && isPublished != false] | order(date desc) [0...4] {
-    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url
+    _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url, writerName, writerSocial
   }`;
   const shortStories: BlogData[] = await client.fetch(shortStoriesQuery, { slug: params.slug }, { cache: 'no-store' });
 
@@ -108,6 +111,25 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     .join(" ");
 
   const isVertical = (key: string) => blog.imgOrientations?.[key] === 'vertical';
+
+  // ✅ Helper function for Author Link
+  const renderAuthor = (b: BlogData) => {
+    const name = b.writerName || "Living In West";
+    if (b.writerSocial) {
+      return (
+        <a 
+          href={b.writerSocial} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="font-semibold text-gray-900 hover:text-[#6D28D9] hover:underline transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          By {name}
+        </a>
+      );
+    }
+    return <span className="font-semibold text-gray-900">By {name}</span>;
+  };
 
   // ===== REUSABLE SWIPEABLE CARD =====
   const SwipeCard = ({ b, widthClass }: { b: BlogData, widthClass: string }) => (
@@ -174,7 +196,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                 <span className="text-white text-[11px] font-bold">LW</span>
               </div>
               <div className="text-left">
-                <p className="text-[13px] font-semibold text-gray-900">By Living In West</p>
+                {/* ✅ Dynamic Writer Name at Top */}
+                {renderAuthor(blog)}
                 <p className="text-[11px] text-gray-500">Editorial Team</p>
               </div>
             </div>
@@ -277,6 +300,18 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
               <div className="w-10 h-px bg-gray-300 mb-5" />
               <p className="text-[10px] uppercase tracking-[0.4em] text-gray-300 font-mono mb-8">— end —</p>
               <ShareMenu />
+
+              {/* ✅ AUTHOR BIO AT THE BOTTOM */}
+              <div className="mt-12 md:mt-16 flex flex-col items-center text-center border-t border-gray-100 pt-10 w-full max-w-md">
+                <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center mb-3">
+                  <span className="text-white text-sm font-bold">LW</span>
+                </div>
+                <div className="text-[13px] font-semibold text-gray-900">
+                  {renderAuthor(blog)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5">Editorial Team</p>
+              </div>
+
             </div>
           </article>
 

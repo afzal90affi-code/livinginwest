@@ -29,6 +29,8 @@ interface Blog {
   isFeatured?: boolean;
   isEditorsPick?: boolean;
   isMoreStory?: boolean;
+  writerName?: string;     // ✅ Writer Name Added
+  writerSocial?: string;   // ✅ Writer Social Added
 }
 
 interface MappedCategory {
@@ -51,6 +53,8 @@ interface MappedBlog {
   isFeatured: boolean;
   isEditorsPick: boolean;
   isMoreStory: boolean;
+  writerName: string;      // ✅ Writer Name Added
+  writerSocial: string;    // ✅ Writer Social Added
 }
 
 interface ExternalNews {
@@ -126,9 +130,30 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
       timestamp: blogDate.getTime(), 
       isFeatured: b.isFeatured === true,
       isEditorsPick: b.isEditorsPick === true,
-      isMoreStory: b.isMoreStory === true 
+      isMoreStory: b.isMoreStory === true,
+      // ✅ Mapping Writer details
+      writerName: b.writerName || "Staff Writer",
+      writerSocial: b.writerSocial || ""
     };
   });
+
+  // ✅ Helper function for Author Link
+  const renderAuthor = (blog: MappedBlog) => {
+    if (blog.writerSocial) {
+      return (
+        <a 
+          href={blog.writerSocial} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="font-semibold text-gray-900 hover:text-[#6D28D9] hover:underline transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          By {blog.writerName}
+        </a>
+      );
+    }
+    return <span className="font-semibold text-gray-900">By {blog.writerName}</span>;
+  };
 
   const featuredFilter = blogs.filter((b: MappedBlog) => b.isFeatured);
   const heroNews = featuredFilter.length > 0 ? featuredFilter : blogs.slice(0, 3);
@@ -283,7 +308,8 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     
                     <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900">By Staff Writer</span>
+                        {/* ✅ Writer Name Dynamic Link */}
+                        {renderAuthor(editorLeft)}
                         <span>•</span>
                         <span>5 min read</span>
                       </div>
@@ -422,11 +448,14 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                             </Link>
                             <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-gray-900">By Staff Writer</span>
+                                {/* ✅ Writer Name Dynamic Link */}
+                                {renderAuthor(mainBlog)}
                                 <span>•</span>
                                 <span>{mainBlog.date}</span>
                               </div>
-                              <ShareCardButton title={mainBlog.title} url={`/blog/${mainBlog.slug}`} />
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <ShareCardButton title={mainBlog.title} url={`/blog/${mainBlog.slug}`} />
+                              </div>
                             </div>
                           </div>
                         ) : (
@@ -460,7 +489,9 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                                   <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-1">
                                     {blog.date}
                                   </span>
-                                  <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -507,7 +538,9 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                               {/* Footer with Date & Share */}
                               <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-50 mt-auto">
                                 <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{blog.date}</span>
-                                <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -539,7 +572,8 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     <h3 className="font-playfair text-lg font-bold mt-2 leading-tight text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">{blog.title}</h3>
                     <p className="text-sm text-gray-500 mt-1 line-clamp-1">{blog.desc}</p>
                     
-                    <div className="mt-2 border-t border-gray-100 pt-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-2 border-t border-gray-100 pt-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                      <span className="text-[10px] text-gray-500">{renderAuthor(blog)}</span>
                       <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
                     </div>
                   </Link>

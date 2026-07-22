@@ -24,6 +24,8 @@ export interface Blog {
   date?: string;
   views?: number;
   sortOrder?: number | null;
+  writerName?: string;     // ✅ Added Writer Name
+  writerSocial?: string;   // ✅ Added Writer Social Link
 }
 
 export interface Category {
@@ -59,20 +61,18 @@ export const getSlug = (slug: string | { current: string } | undefined): string 
 // 🛠️ FIXED SANITIZE: Sirf images ki width/height hata raha hai, text styles safe hain
 const sanitizeQuill = (html: string): string => {
   if (!html) return "";
-  // Quill images mein jo width attribute aata hai usko hata taaki CSS se 100% width ho sake
   return html.replace(/(<img[^>]*?)\s(width|height)="[^"]*"/gi, '$1');
 };
 
 const getWordCount = (html: string): number => { if (!html) return 0; const t = html.replace(/<[^>]*>/g, '').trim(); return t ? t.split(/\s+/).length : 0; };
 
-// 🛠️ QUILL MODULES: Default Font array use kiya hai jo Quill mein built-in hota hai
 const quillModules = {
   toolbar: [
     [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-    [{ 'font': [] }], // Default fonts
+    [{ 'font': [] }],
     [{ 'size': ['small', false, 'large', 'huge'] }],
     ['bold', 'italic', 'underline', 'strike'],
-    [{ 'color': [] }, { 'background': [] }], // Text Color & Highlight
+    [{ 'color': [] }, { 'background': [] }],
     [{ 'script': 'sub' }, { 'script': 'super' }],
     [{ 'list': 'ordered' }, { 'list': 'bullet' }],
     [{ 'indent': '-1' }, { 'indent': '+1' }],
@@ -108,6 +108,10 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [blogSubCategory, setBlogSubCategory] = useState("");
   const [blogDesc, setBlogDesc] = useState("");
   
+  // ✅ Writer State Added
+  const [blogWriterName, setBlogWriterName] = useState("");
+  const [blogWriterSocial, setBlogWriterSocial] = useState("");
+
   const [blogContents, setBlogContents] = useState<string[]>(Array(10).fill(""));
   const [blogImages, setBlogImages] = useState<ImageState[]>(Array(10).fill({ url: "", assetId: "" }));
   const [imgOrientations, setImgOrientations] = useState<Record<string, string>>({});
@@ -128,6 +132,10 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogCategory(initialData.category || (catList.length > 0 ? getSlug(catList[0].slug) : ""));
         setBlogSubCategory(initialData.subCategory || "");
         setBlogDesc(initialData.desc || "");
+        
+        // ✅ Populate Writer Fields
+        setBlogWriterName(initialData.writerName || "");
+        setBlogWriterSocial(initialData.writerSocial || "");
         
         const contents = Array(10).fill("");
         const images = Array(10).fill({ url: "", assetId: "" });
@@ -151,6 +159,11 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogCategory(catList.length > 0 ? getSlug(catList[0].slug) : ""); 
         setBlogSubCategory(""); 
         setBlogDesc("");
+        
+        // ✅ Clear Writer Fields
+        setBlogWriterName("");
+        setBlogWriterSocial("");
+        
         setBlogContents(Array(10).fill(""));
         setBlogImages(Array(10).fill({ url: "", assetId: "" }));
         setBlogFeatured(false); 
@@ -222,7 +235,9 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       title: blogTitle, category: blogCategory, subCategory: blogSubCategory,
       isFeatured: blogFeatured, isPublished: blogPublished, desc: blogDesc,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
-      imgOrientations: imgOrientations
+      imgOrientations: imgOrientations,
+      writerName: blogWriterName,       // ✅ Added to Save Payload
+      writerSocial: blogWriterSocial    // ✅ Added to Save Payload
     };
 
     for(let i=0; i<10; i++) {
@@ -256,11 +271,13 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900 transition-all text-sm">✕</button>
         </div>
+        
         <div className="px-6 md:px-8 py-6 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="text" value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} placeholder="Blog Title *" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
             <input type="text" value={blogDesc} onChange={(e) => setBlogDesc(e.target.value)} placeholder="Short Summary" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
           </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <select value={blogCategory} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900">
               {catList.map((c) => <option key={c._id} value={getSlug(c.slug)}>{c.emoji} {c.name}</option>)}
@@ -268,6 +285,27 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
             <select value={blogSubCategory} onChange={(e) => setBlogSubCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900 disabled:opacity-50" disabled={availableSubCats.length === 0}>
               {availableSubCats.length > 0 ? (<><option value="">-- Sub-Category --</option>{availableSubCats.map((s) => <option key={s._id} value={getSlug(s.slug)}>{s.emoji} {s.name}</option>)}</>) : (<option value="">No sub-categories</option>)}
             </select>
+          </div>
+
+          {/* ✅ WRITER DETAILS SECTION ADDED HERE */}
+          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">✍️ Writer / Author Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input 
+                type="text" 
+                value={blogWriterName} 
+                onChange={(e) => setBlogWriterName(e.target.value)} 
+                placeholder="Writer Name (e.g. John Doe)" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" 
+              />
+              <input 
+                type="url" 
+                value={blogWriterSocial} 
+                onChange={(e) => setBlogWriterSocial(e.target.value)} 
+                placeholder="Social Link (https://twitter.com/...)" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" 
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -301,7 +339,6 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
               ))}
             </div>
             <div className="p-5 space-y-5">
-              {/* QUILL EDITOR WITH MIN HEIGHT */}
               <div className="border border-gray-200 rounded-xl overflow-hidden bg-white flex flex-col" style={{ minHeight: '400px' }}>
                 <ReactQuill 
                   key={activePart}
@@ -367,6 +404,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
             </div>
           </div>
         </div>
+        
         <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 md:px-8 py-5 rounded-b-2xl flex gap-3 z-20">
           <button onClick={onClose} className="flex-1 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
           <button onClick={handleSaveBlog} className="flex-1 py-3 bg-[#6D28D9] text-white rounded-xl text-sm font-semibold hover:bg-[#5B21B6] transition-all hover:shadow-lg hover:shadow-[#6D28D9]/20 active:scale-[0.98]">{editingId ? "✓ Update" : "🚀 Publish"}</button>
