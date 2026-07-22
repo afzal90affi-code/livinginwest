@@ -29,8 +29,9 @@ interface Blog {
   isFeatured?: boolean;
   isEditorsPick?: boolean;
   isMoreStory?: boolean;
-  writerName?: string;     // ✅ Writer Name Added
-  writerSocial?: string;   // ✅ Writer Social Added
+  writerName?: string;
+  writerSocial?: string;
+  heroVideoUrl?: string; // ✅ Added
 }
 
 interface MappedCategory {
@@ -53,8 +54,9 @@ interface MappedBlog {
   isFeatured: boolean;
   isEditorsPick: boolean;
   isMoreStory: boolean;
-  writerName: string;      // ✅ Writer Name Added
-  writerSocial: string;    // ✅ Writer Social Added
+  writerName: string;
+  writerSocial: string;
+  heroVideoUrl: string; // ✅ Added
 }
 
 interface ExternalNews {
@@ -76,6 +78,13 @@ interface GNewsArticle {
   source?: { name?: string };
 }
 
+// ✅ Helper function to convert any YouTube URL to Embed URL
+const getYouTubeEmbedUrl = (url: string): string => {
+  if (!url) return "";
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  const videoId = match ? match[1] : null;
+  return videoId ? `https://www.youtube.com/embed/${videoId}?rel=0` : url;
+};
 
 export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: Category[], initialBlogs: Blog[] }) {
   const [nyTime, setNyTime] = useState("");
@@ -131,13 +140,12 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
       isFeatured: b.isFeatured === true,
       isEditorsPick: b.isEditorsPick === true,
       isMoreStory: b.isMoreStory === true,
-      // ✅ Mapping Writer details
       writerName: b.writerName || "Staff Writer",
-      writerSocial: b.writerSocial || ""
+      writerSocial: b.writerSocial || "",
+      heroVideoUrl: b.heroVideoUrl || "" // ✅ Mapped
     };
   });
 
-  // ✅ Helper function for Author Link
   const renderAuthor = (blog: MappedBlog) => {
     if (blog.writerSocial) {
       return (
@@ -162,7 +170,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
   const editorLeft = editorPicks.length > 0 ? editorPicks[0] : (blogs.length > 3 ? blogs[3] : null);
   const editorRight = editorPicks.length > 1 ? editorPicks.slice(1, 3) : blogs.slice(4, 6);
   
-  // 🛠️ More Stories mein ab 12 blogs dikhenge
   const moreStories = blogs.filter((b: MappedBlog) => b.isMoreStory).length > 0 ? blogs.filter((b: MappedBlog) => b.isMoreStory).slice(0, 12) : blogs.slice(0, 12);
   
   const catRow1 = categories.slice(0, 2); 
@@ -235,22 +242,34 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             <section className="py-4 md:py-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center">
                 
+                {/* ✅ VIDEO / IMAGE CONDITIONAL RENDERING */}
                 <div className="relative aspect-square md:aspect-[16/10] overflow-hidden bg-gray-100 border border-gray-100 rounded-lg shadow-sm">
                   {heroNews.map((hero, index) => (
                     <div key={hero.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
                       <Link href={`/blog/${hero.slug}`} className="block w-full h-full group">
-                       {hero.img ? (
-                         <Image 
-                           src={hero.img} 
-                           alt={hero.title} 
-                           fill 
-                           className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" 
-                           sizes="(max-width: 768px) 100vw, 40vw" 
-                           priority={index === 0} 
-                         />
-                       ) : (
-                         <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>
-                       )}
+                        {hero.heroVideoUrl ? (
+                          // 🎥 If Video URL exists, show Video Iframe
+                          <iframe 
+                            src={getYouTubeEmbedUrl(hero.heroVideoUrl)} 
+                            title={hero.title} 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                            className="w-full h-full border-0"
+                          ></iframe>
+                        ) : hero.img ? (
+                          // 🖼️ If no Video, show Image
+                          <Image 
+                            src={hero.img} 
+                            alt={hero.title} 
+                            fill 
+                            className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" 
+                            sizes="(max-width: 768px) 100vw, 40vw" 
+                            priority={index === 0} 
+                          />
+                        ) : (
+                          // 🚫 Fallback
+                          <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>
+                        )}
                       </Link>
                     </div>
                   ))}
@@ -308,7 +327,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     
                     <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
                       <div className="flex items-center gap-2">
-                        {/* ✅ Writer Name Dynamic Link */}
                         {renderAuthor(editorLeft)}
                         <span>•</span>
                         <span>5 min read</span>
@@ -427,7 +445,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                         </Link>
                       </div>
 
-                      {/* DESKTOP LAYOUT (Grid) */}
                       <div className="hidden lg:grid grid-cols-12 gap-10 lg:gap-12">
                         {mainBlog ? (
                           <div className="col-span-7 group block">
@@ -448,7 +465,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                             </Link>
                             <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
                               <div className="flex items-center gap-2">
-                                {/* ✅ Writer Name Dynamic Link */}
                                 {renderAuthor(mainBlog)}
                                 <span>•</span>
                                 <span>{mainBlog.date}</span>
@@ -503,7 +519,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                         </div>
                       </div>
 
-                      {/* MOBILE LAYOUT (Premium Swipeable Cards Style) */}
                       <div className="lg:hidden flex overflow-x-auto gap-5 pb-4 custom-scrollbar -mx-6 px-6 snap-x snap-mandatory">
                         {catBlogs.map((blog) => (
                           <div key={blog.id} className="w-[80%] min-w-[80%] snap-center flex-shrink-0 group">
@@ -526,7 +541,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                                   </div>
                                 </div>
                                 
-                                {/* Content */}
                                 <div className="p-4">
                                   <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
                                     {blog.title}
@@ -535,7 +549,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                                 </div>
                               </Link>
                               
-                              {/* Footer with Date & Share */}
                               <div className="flex items-center justify-between px-4 pb-4 pt-2 border-t border-gray-50 mt-auto">
                                 <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{blog.date}</span>
                                 <div onClick={(e) => e.stopPropagation()}>
@@ -588,16 +601,13 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
         {/* --- SIDEBAR ADS AREA (18%) --- */}
         <aside className="hidden lg:block w-[18%] py-4">
-          {/* Sticky wrapper so ads stay in view while scrolling */}
           <div className="sticky top-4 flex flex-col gap-6">
             
-            {/* Ad Slot 2 (Sidebar 1) */}
             <div className="w-full min-h-[600px] bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase py-4">
               <span className="mb-2 text-gray-300 text-[8px]">Advertisement</span>
               <div className="w-full h-[500px] bg-gray-100 flex items-center justify-center rounded">[ Sidebar Ad 300x600 ]</div>
             </div>
 
-            {/* Ad Slot 3 (Sidebar 2) */}
             <div className="w-full min-h-[250px] bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase py-4">
               <span className="mb-2 text-gray-300 text-[8px]">Advertisement</span>
               <div className="w-full h-[200px] bg-gray-100 flex items-center justify-center rounded">[ Sidebar Ad 300x250 ]</div>
@@ -605,10 +615,8 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
           </div>
         </aside>
-        {/* --- END SIDEBAR ADS --- */}
 
       </div>
-      {/* ===== END MAIN LAYOUT WRAPPER ===== */}
 
     </div>
   );

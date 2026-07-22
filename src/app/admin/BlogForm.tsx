@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
@@ -27,6 +26,7 @@ export interface Blog {
   sortOrder?: number | null;
   writerName?: string;     
   writerSocial?: string;   
+  heroVideoUrl?: string;   // ✅ Hero Video URL Added
 }
 
 export interface Category {
@@ -61,7 +61,10 @@ export const getSlug = (slug: string | { current: string } | undefined): string 
 
 const sanitizeQuill = (html: string): string => {
   if (!html) return "";
-  return html.replace(/(<img[^>]*?)\s(width|height)="[^"]*"/gi, '$1');
+  let cleanHtml = html.replace(/(<img[^>]*?)\s(width|height)="[^"]*"/gi, '$1');
+  cleanHtml = cleanHtml.replace(/<img(?![^>]*\sstyle=")/gi, '<img style="max-width:100%; height:auto; border-radius:8px; margin:15px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1);"');
+  cleanHtml = cleanHtml.replace(/(<img[^>]*?style=")([^"]*)"/gi, '$1max-width:100%; height:auto; border-radius:8px; margin:15px 0; box-shadow:0 4px 6px rgba(0,0,0,0.1); $2"');
+  return cleanHtml;
 };
 
 const getWordCount = (html: string): number => { if (!html) return 0; const t = html.replace(/<[^>]*>/g, '').trim(); return t ? t.split(/\s+/).length : 0; };
@@ -78,12 +81,12 @@ const quillModules = {
     [{ 'indent': '-1' }, { 'indent': '+1' }],
     [{ 'align': [] }],
     ['blockquote', 'code-block'],
-    ['link', 'image'],
+    ['link', 'image', 'video'],
     ['clean']
   ]
 };
 
-const quillFormats = ['header', 'font', 'size', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'script', 'list', 'bullet', 'indent', 'align', 'blockquote', 'code-block', 'link', 'image', 'clean'];
+const quillFormats = ['header', 'font', 'size', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'script', 'list', 'bullet', 'indent', 'align', 'blockquote', 'code-block', 'link', 'image', 'video', 'clean'];
 
 const contentParts = Array.from({ length: 10 }, (_, i) => ({
   key: String(i + 1),
@@ -107,6 +110,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [blogCategory, setBlogCategory] = useState("");
   const [blogSubCategory, setBlogSubCategory] = useState("");
   const [blogDesc, setBlogDesc] = useState("");
+  const [blogHeroVideo, setBlogHeroVideo] = useState(""); // ✅ Hero Video State
   
   const [blogWriterName, setBlogWriterName] = useState("");
   const [blogWriterSocial, setBlogWriterSocial] = useState("");
@@ -121,7 +125,6 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [blogMetaDesc, setBlogMetaDesc] = useState("");
   const [blogKeywords, setBlogKeywords] = useState("");
 
-  // ✅ Embed States
   const [embedType, setEmbedType] = useState("youtube");
   const [embedInput, setEmbedInput] = useState("");
 
@@ -135,6 +138,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogCategory(initialData.category || (catList.length > 0 ? getSlug(catList[0].slug) : ""));
         setBlogSubCategory(initialData.subCategory || "");
         setBlogDesc(initialData.desc || "");
+        setBlogHeroVideo(initialData.heroVideoUrl || ""); // ✅ Populate Hero Video
         
         setBlogWriterName(initialData.writerName || "");
         setBlogWriterSocial(initialData.writerSocial || "");
@@ -161,6 +165,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogCategory(catList.length > 0 ? getSlug(catList[0].slug) : ""); 
         setBlogSubCategory(""); 
         setBlogDesc("");
+        setBlogHeroVideo(""); // ✅ Clear Hero Video
         
         setBlogWriterName("");
         setBlogWriterSocial("");
@@ -204,24 +209,21 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
     });
   };
 
-  // ✅ Handle Insert Embed Logic
   const handleInsertEmbed = () => {
     if (!embedInput) return alert("Please enter a URL or Embed Code");
     
     let embedHtml = "";
     if (embedType === "youtube") {
-      // YouTube URL to Embed URL
-      const match = embedInput.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      const match = embedInput.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
       const videoId = match ? match[1] : null;
       
       if (videoId) {
-        embedHtml = `<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; margin:20px 0; border-radius:12px;"><iframe src="https://www.youtube.com/embed/${videoId}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" allowfullscreen></iframe></div><p></p>`;
+        embedHtml = `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 30px 0; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><iframe src="https://www.youtube.com/embed/${videoId}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe></div><p></p>`;
       } else {
         return alert("Invalid YouTube URL");
       }
     } else {
-      // For Twitter/Insta/FB, allow pasting raw HTML/Script
-      embedHtml = `<div style="margin:20px 0;">${embedInput}</div><p></p>`;
+      embedHtml = `<div style="width: 100%; max-width: 500px; margin: 30px auto; position: relative; overflow: hidden;">${embedInput}</div><p></p>`;
     }
 
     const currentContent = blogContents[currentPartIndex] || "";
@@ -265,7 +267,8 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
       imgOrientations: imgOrientations,
       writerName: blogWriterName,       
-      writerSocial: blogWriterSocial    
+      writerSocial: blogWriterSocial,
+      heroVideoUrl: blogHeroVideo      // ✅ Added to Save Payload
     };
 
     for(let i=0; i<10; i++) {
@@ -304,6 +307,19 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input type="text" value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} placeholder="Blog Title *" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
             <input type="text" value={blogDesc} onChange={(e) => setBlogDesc(e.target.value)} placeholder="Short Summary" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+          </div>
+
+          {/* ✅ HERO VIDEO URL FIELD */}
+          <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4">
+            <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">🎬 Hero Video URL (Optional)</label>
+            <input 
+              type="url" 
+              value={blogHeroVideo} 
+              onChange={(e) => setBlogHeroVideo(e.target.value)} 
+              placeholder="https://www.youtube.com/watch?v=..." 
+              className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" 
+            />
+            <p className="text-[10px] text-blue-600 mt-1.5">Paste URL here to show Video on Homepage Hero Slider instead of Image.</p>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -368,22 +384,24 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
                 />
               </div>
 
-              {/* ✅ EMBED INSERT SECTION */}
+              {/* EMBED INSERT SECTION */}
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Add Embed (YouTube, Twitter, Insta, FB)</h3>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Add Embed (Video or Social Post)</h3>
                 <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                  <select value={embedType} onChange={(e) => setEmbedType(e.target.value)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none">
-                    <option value="youtube">YouTube URL</option>
-                    <option value="social">Social (Paste Raw HTML)</option>
+                  <select value={embedType} onChange={(e) => setEmbedType(e.target.value)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none cursor-pointer">
+                    <option value="youtube">YouTube Video</option>
+                    <option value="facebook">Facebook Post</option>
+                    <option value="instagram">Instagram Post</option>
+                    <option value="twitter">Twitter / X Post</option>
                   </select>
                   <input 
                     type="text" 
                     value={embedInput} 
                     onChange={(e) => setEmbedInput(e.target.value)} 
-                    placeholder={embedType === 'youtube' ? "https://youtube.com/watch?v=..." : "Paste blockquote & script code here..."} 
+                    placeholder={embedType === 'youtube' ? "Paste YouTube URL (https://youtu.be/...)" : "Paste Raw HTML/Embed Code here..."} 
                     className="flex-1 w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-[#6D28D9]"
                   />
-                  <button type="button" onClick={handleInsertEmbed} className="px-4 py-2 bg-[#6D28D9] text-white rounded-lg text-xs font-semibold whitespace-nowrap hover:bg-[#5B21B6] transition-colors">
+                  <button type="button" onClick={handleInsertEmbed} className="px-4 py-2 bg-[#6D28D9] text-white rounded-lg text-xs font-semibold whitespace-nowrap hover:bg-[#5B21B6] transition-colors flex items-center gap-1">
                     ➕ Insert to Part {activePart}
                   </button>
                 </div>
