@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation'; // Edit button ke liye
+import { useRouter } from 'next/navigation';
 import { client } from '@/lib/sanityClient';
-import { publishDraft, deleteBlog } from './../actions'; // deleteBlog import kiya
+// 🛠️ یہاں ../actions درست کیا گیا ہے
+import { publishDraft, deleteBlog } from '../actions'; 
 
 interface DraftBlog {
   _id: string;
@@ -28,14 +29,12 @@ export default function AdminDrafts() {
   useEffect(() => {
     fetchDrafts();
 
-    // 🔔 براؤزر نوٹیفکیشن کی اجازت لیں
     if ("Notification" in window) {
       if (Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission();
       }
     }
 
-    // ⏱️ ہر 5 منٹ بعد چیک کریں کہ کوئی نئی ڈرافٹ تو نہیں آئی
     const interval = setInterval(async () => {
       const query = `*[_type == "blog" && isPublished == false] | order(date desc) { _id, title }`;
       const latestDrafts = await client.fetch(query);
@@ -77,7 +76,6 @@ export default function AdminDrafts() {
   };
 
   const handleEdit = (id: string) => {
-    // یہ آپ کو مین ایڈمن ڈیشبورڈ پر لے جائے گا جہاں بلاگ ایڈٹ ہو سکتا ہے
     router.push(`/admin?edit=${id}`);
   };
 
@@ -102,14 +100,12 @@ export default function AdminDrafts() {
             {drafts.map((blog) => (
               <div key={blog._id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 
-                {/* News Info */}
                 <div className="flex-1">
                   <span className="text-[10px] uppercase tracking-widest text-red-600 font-bold">{blog.category || 'News'}</span>
                   <h3 className="text-lg font-semibold text-gray-900 mt-1">{blog.title}</h3>
                   {blog.date && <p className="text-xs text-gray-400 mt-1">{blog.date}</p>}
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button 
                     onClick={() => handleEdit(blog._id)}
