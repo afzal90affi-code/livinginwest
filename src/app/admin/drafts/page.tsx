@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { client } from '@/lib/sanityClient';
-// 🛠️ یہاں ../actions درست کیا گیا ہے
 import { publishDraft, deleteBlog } from '../actions'; 
 
 interface DraftBlog {
