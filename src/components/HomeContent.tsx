@@ -237,71 +237,52 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         {/* --- MAIN CONTENT (82%) --- */}
         <div className="w-full lg:w-[82%] py-4 space-y-12 md:space-y-16">
           
-          {/* ===== HERO SLIDER ===== */}
-          {heroNews.length > 0 && (
-            <section className="py-4 md:py-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-center">
-                
-                {/* ✅ VIDEO / IMAGE CONDITIONAL RENDERING */}
-                <div className="relative aspect-square md:aspect-[16/10] overflow-hidden bg-gray-100 border border-gray-100 rounded-lg shadow-sm">
-                  {heroNews.map((hero, index) => (
-                    <div key={hero.id} className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
-                      <Link href={`/blog/${hero.slug}`} className="block w-full h-full group">
-                        {hero.heroVideoUrl ? (
-                          // 🎥 If Video URL exists, show Video Iframe
-                          <iframe 
-                            src={getYouTubeEmbedUrl(hero.heroVideoUrl)} 
-                            title={hero.title} 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowFullScreen
-                            className="w-full h-full border-0"
-                          ></iframe>
-                        ) : hero.img ? (
-                          // 🖼️ If no Video, show Image
-                          <Image 
-                            src={hero.img} 
-                            alt={hero.title} 
-                            fill 
-                            className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" 
-                            sizes="(max-width: 768px) 100vw, 40vw" 
-                            priority={index === 0} 
-                          />
-                        ) : (
-                          // 🚫 Fallback
-                          <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>
-                        )}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
+                    {/* ===== NEWS UPDATES COLUMN (Replaces Hero Slider) ===== */}
+          <section className="py-4 md:py-8">
+            <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 pb-3">
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Daily Updates</h2>
+              <Link href="/daily-news" className="text-xs text-gray-500 hover:text-gray-900 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
+                View All News <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
 
-                <div className="relative flex flex-col justify-center min-h-[200px]">
-                  {heroNews.map((hero, index) => (
-                    <div key={hero.id} className={`transition-opacity duration-1000 ease-in-out ${index === currentHeroIndex ? 'opacity-100 relative' : 'opacity-0 absolute inset-0 flex flex-col justify-center pointer-events-none'}`}>
-                      <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold mb-3">{hero.category}</span>
-                      <Link href={`/blog/${hero.slug}`}>
-                        <h1 className="font-playfair text-3xl md:text-5xl font-bold leading-[0.9] tracking-tight hover:text-gray-600 transition-colors">{hero.title}</h1>
-                      </Link>
-                      <p className="text-gray-500 text-sm md:text-base mt-4 leading-relaxed line-clamp-2">{hero.desc}</p>
-                      {hero.date && <p className="text-xs text-gray-400 mt-2">{hero.date}</p>}
-                      
-                      <div className="mt-5 flex items-center gap-6">
-                        <Link href={`/blog/${hero.slug}`} className="group inline-flex items-center gap-3 text-xs uppercase tracking-[0.2em] font-semibold hover:text-gray-600 transition-colors w-fit">Read Article <ArrowRight className="w-4 h-4 group-hover:translate-x-2 transition-transform duration-300" /></Link>
-                        <ShareCardButton title={hero.title} url={`/blog/${hero.slug}`} />
+            <div className="flex flex-col divide-y divide-gray-100">
+              {/* Showing latest 5 blogs sorted by date */}
+              {blogs.slice(0, 5).map((blog) => {
+                const dateObj = new Date(blog.timestamp);
+                const month = dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+                const day = dateObj.getDate();
+
+                return (
+                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex items-start gap-5 py-5">
+                    
+                    {/* 📅 Left Side: Date Box */}
+                    <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 border-r-2 border-gray-100 pr-4 text-center">
+                      <span className="text-[10px] font-bold text-[#1e3a8a] uppercase tracking-widest">{month}</span>
+                      <span className="text-3xl font-playfair font-bold text-gray-900 leading-none mt-1">{day}</span>
+                    </div>
+
+                    {/* 📰 Right Side: News Content */}
+                    <div className="flex-1">
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold mb-1.5 block">{blog.category}</span>
+                      <h3 className="text-lg md:text-xl font-bold leading-snug text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">
+                        {blog.title}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1.5 line-clamp-1 hidden md:block">{blog.desc}</p>
+                    </div>
+
+                    {/* 🖼️ Optional Thumbnail on the far right */}
+                    {blog.img && (
+                      <div className="hidden md:block w-28 h-24 relative overflow-hidden bg-gray-100 rounded-md flex-shrink-0">
+                        <Image src={blog.img} alt={blog.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" sizes="120px" />
                       </div>
-                    </div>
-                  ))}
-                  {heroNews.length > 1 && (
-                    <div className="flex items-center gap-2 mt-6">
-                      {heroNews.map((_, index) => (
-                        <button key={index} onClick={() => setCurrentHeroIndex(index)} className={`h-1 rounded-full transition-all duration-300 ${index === currentHeroIndex ? 'bg-gray-900 w-8' : 'bg-gray-300 w-4 hover:bg-gray-400'}`}></button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
+                    )}
+
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
           
           {/* ===== EDITOR'S PICK ===== */}
           <section className="py-12 md:py-16 bg-white border border-gray-100 rounded-xl shadow-sm">

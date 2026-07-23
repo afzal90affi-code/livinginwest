@@ -35,6 +35,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 1,
     },
+    // ✅ Daily News Page add kiya
+    {
+      url: 'https://livinginwest.com/daily-news', // 👈 Apni domain daalo
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
     ...blogEntries,
     ...catEntries,
   ]

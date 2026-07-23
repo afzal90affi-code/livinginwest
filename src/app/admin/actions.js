@@ -199,3 +199,15 @@ export async function deleteBlog(id) {
   try { await writeClient.delete(id); return { success: true }; } 
   catch (error) { return { success: false, error: error.message }; }
 }
+
+// ======== PUBLISH DRAFT FUNCTION (Auto News ke liye) ========
+export async function publishDraft(blogId) {
+  try {
+    // writeClient isliye use kar rahe hain taake iske pass write/delete ki permission ho
+    await writeClient.patch(blogId).set({ isPublished: true }).commit();
+    return { success: true };
+  } catch (error) {
+    console.error("Publish Draft Error:", error);
+    return { success: false, error: "Failed to publish draft" };
+  }
+}
