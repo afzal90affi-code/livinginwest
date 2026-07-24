@@ -6,6 +6,7 @@ import Footer from "@/components/footer";
 import { client } from "@/lib/sanityClient"; 
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script"; // 🌍 Google Translate Script ke liye add kiya
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });

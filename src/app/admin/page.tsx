@@ -76,10 +76,40 @@ export default function AdminPanel() {
   }, []);
 
   useEffect(() => { if (isLoggedIn) fetchData(); }, [isLoggedIn, fetchData]);
-  useEffect(() => { if (localStorage.getItem("admin_auth") === "true") setIsLoggedIn(true); }, []);
+  useEffect(() => {
+    const hasAdminCookie = document.cookie.split('; ').some((cookie) => cookie.startsWith('admin_auth=true'));
+    if (hasAdminCookie) setIsLoggedIn(true);
+  }, []);
 
-  const handleLogin = (e: any) => { e.preventDefault(); if (loginPass === "usman") { localStorage.setItem("admin_auth", "true"); setIsLoggedIn(true); } else alert("Wrong password!"); };
-  const handleLogout = () => { localStorage.removeItem("admin_auth"); setIsLoggedIn(false); };
+  const handleLogin = async (e: any) => {
+    e.preventDefault();
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: loginPass }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.error || 'Wrong password!');
+        return;
+      }
+
+      document.cookie = 'admin_auth=true; path=/; max-age=86400; SameSite=Lax';
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error(error);
+      alert('Login failed. Please try again.');
+    }
+  };
+
+  const handleLogout = () => {
+    document.cookie = 'admin_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    setIsLoggedIn(false);
+  };
 
   // ======== REORDER ========
   const handleMove = async (type: string, id: string, dir: 'up' | 'down', pid?: string) => {
