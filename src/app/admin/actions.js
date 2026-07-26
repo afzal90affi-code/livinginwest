@@ -57,7 +57,6 @@ export async function getSubcategories() {
 
 export async function getBlogs() {
   try {
-    // 🛠️ UPDATED: Ab 1 se 10 tak ke text aur images Array mein aayenge
     return await client.fetch(`*[_type == "blog"] | order(sortOrder asc){
       ...,
       "category": coalesce(category->slug.current, category),
@@ -162,19 +161,16 @@ export async function deleteSubcategory(id) {
 export async function saveBlog(data, editingId) {
   try {
     if (editingId) {
-      // 🟢 Sirf unhi fields ko update karega jo 'data' mein hain
       const unsetKeys = [];
       for (let i = 1; i <= 10; i++) {
         if (data[`img${i}`] === null) {
           unsetKeys.push(`img${i}`);
-          delete data[`img${i}`]; // data object se null hata do
+          delete data[`img${i}`];
         }
       }
 
-      // writeClient use karna zaroori hai write permissions ke liye
       const patchRequest = writeClient.patch(editingId).set(data);
       
-      // Agar koi image delete hui hai toh usko unset karo
       if (unsetKeys.length > 0) {
         patchRequest.unset(unsetKeys);
       }
@@ -182,7 +178,6 @@ export async function saveBlog(data, editingId) {
       await patchRequest.commit();
 
     } else {
-      // 🆕 Naya blog banane ke liye
       await writeClient.create({
         _type: "blog",
         ...data,
@@ -203,11 +198,93 @@ export async function deleteBlog(id) {
 // ======== PUBLISH DRAFT FUNCTION (Auto News ke liye) ========
 export async function publishDraft(blogId) {
   try {
-    // writeClient isliye use kar rahe hain taake iske pass write/delete ki permission ho
     await writeClient.patch(blogId).set({ isPublished: true }).commit();
     return { success: true };
   } catch (error) {
     console.error("Publish Draft Error:", error);
     return { success: false, error: "Failed to publish draft" };
+  }
+}
+
+// ======== IMAGE REPLACEMENT FUNCTIONS (Drafts Page) ========
+
+// 1. Pexels, Pixabay aur AI se images fetch karne wala function
+export async function getBlogImageOptions(blogId, title) {
+  try {
+    const options = [];
+    
+    // News ka title chota kar lein taake search better ho
+    const shortTitle = title.substring(0, 50);
+
+    // 1. Pexels se Image
+    if (process.env.PEXELS_API_KEY) {
+      try {
+        const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(shortTitle)}&per_page=3`, { headers: { Authorization: process.env.PEXELS_API_KEY }});
+        if (res.ok) {
+          const data = await res.json();
+          if (data.photos && data.photos.length > 0) {
+            data.photos.forEach(photo => {
+              options.push({ source: 'Pexels', url: photo.src.large2x });
+            });
+          }
+        }
+      } catch (e) { console.error("Pexels fetch failed:", e.message); }
+    }
+
+    // 2. Pixabay se Image
+    const pixabayKey = process.env.PIXABAY_API_KEY;
+    if (pixabayKey) {
+      try {
+        const cleanQuery = shortTitle.replace(/[^a-zA-Z0-9 ]/g, '');
+        const response = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${encodeURIComponent(cleanQuery)}&image_type=photo&per_page=3&safesearch=true`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.hits && data.hits.length > 0) {
+            data.hits.forEach(hit => {
+              options.push({ source: 'Pixabay', url: hit.largeImageURL });
+            });
+          }
+        }
+      } catch (e) { 
+        console.error("Pixabay fetch failed:", e.message); 
+      }
+    }
+
+    // 3. AI (Flux) se Image
+    const randomSeed = Math.floor(Math.random() * 1000000);
+    const aiPrompt = encodeURIComponent("photorealistic news photography: " + title);
+    options.push({ source: 'AI (Flux)', url: `https://image.pollinations.ai/prompt/${aiPrompt}?width=800&height=600&nologo=true&seed=${randomSeed}` });
+
+    return { success: true, options };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// 2. Selected image ko Sanity mein upload aur set karne wala function
+export async function applyBlogImage(blogId, imageUrl) {
+  try {
+    const imageRes = await fetch(imageUrl);
+    if (!imageRes.ok) throw new Error('Failed to fetch selected image');
+    
+    const arrayBuffer = await imageRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    const asset = await writeClient.assets.upload('image', buffer, {
+      filename: `blog-${blogId}.jpg`,
+      contentType: imageRes.headers.get('content-type') || 'image/jpeg'
+    });
+
+    await writeClient.patch(blogId).set({
+      img1: {
+        _type: 'image',
+        asset: { _type: 'reference', _ref: asset._id }
+      }
+    }).commit();
+
+    return { success: true, url: asset.url };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }

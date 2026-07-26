@@ -12,9 +12,9 @@ export const client = createClient({
 // Write client - create, update, delete ke liye (server actions mein use hoga)
 export const writeClient = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
-  apiVersion: '2024-01-01',
-  token: process.env.SANITY_API_TOKEN,
+  dataset: 'production',
+  apiVersion: '2023-05-03',
+  token: process.env.SANITY_WRITE_TOKEN, // یہ لائن لازمی ہے
   useCdn: false,
 });
 

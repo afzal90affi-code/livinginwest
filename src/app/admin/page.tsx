@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 
 import {
@@ -27,6 +27,10 @@ export default function AdminPanel() {
   const [subCatList, setSubCatList] = useState<Subcategory[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [reorderingType, setReorderingType] = useState<string | null>(null);
+
+  // Multiple Delete & Sort State
+  const [selectedBlogs, setSelectedBlogs] = useState<string[]>([]);
+  const [sortOption, setSortOption] = useState<'newest' | 'oldest'>('newest');
 
   const [showBlogForm, setShowBlogForm] = useState(false);
   const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
@@ -76,34 +80,36 @@ export default function AdminPanel() {
   }, []);
 
   useEffect(() => { if (isLoggedIn) fetchData(); }, [isLoggedIn, fetchData]);
+  
   useEffect(() => {
     const hasAdminCookie = document.cookie.split('; ').some((cookie) => cookie.startsWith('admin_auth=true'));
     if (hasAdminCookie) setIsLoggedIn(true);
   }, []);
 
+  // ✅ Date-wise Sorting Logic (Hooks sab se upar hone chahiye)
+  const sortedBlogs = useMemo(() => {
+    let blogsCopy = [...blogList];
+    if (sortOption === 'newest') {
+      blogsCopy.sort((a, b) => new Date(b.date || (b as any)._createdAt || 0).getTime() - new Date(a.date || (a as any)._createdAt || 0).getTime());
+    } else if (sortOption === 'oldest') {
+      blogsCopy.sort((a, b) => new Date(a.date || (a as any)._createdAt || 0).getTime() - new Date(b.date || (b as any)._createdAt || 0).getTime());
+    }
+    return blogsCopy;
+  }, [blogList, sortOption]);
+
   const handleLogin = async (e: any) => {
     e.preventDefault();
-
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: loginPass }),
       });
-
       const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        alert(data.error || 'Wrong password!');
-        return;
-      }
-
+      if (!res.ok || !data.success) { alert(data.error || 'Wrong password!'); return; }
       document.cookie = 'admin_auth=true; path=/; max-age=86400; SameSite=Lax';
       setIsLoggedIn(true);
-    } catch (error) {
-      console.error(error);
-      alert('Login failed. Please try again.');
-    }
+    } catch (error) { console.error(error); alert('Login failed. Please try again.'); }
   };
 
   const handleLogout = () => {
@@ -124,6 +130,33 @@ export default function AdminPanel() {
   const openEditBlog = (b: Blog) => { setEditingBlog(b); setShowBlogForm(true); };
 
   const handleDeleteBlog = async (id: string) => { if (!confirm("Delete this blog?")) return; const r = await deleteBlog(id); if (r.success) fetchData(); };
+
+  // Multiple Delete Handler
+  const handleBulkDelete = async () => {
+    if (selectedBlogs.length === 0) return alert("Please select blogs to delete.");
+    if (!confirm(`Delete ${selectedBlogs.length} selected blogs?`)) return;
+    
+    try {
+      await Promise.all(selectedBlogs.map(id => deleteBlog(id)));
+      setSelectedBlogs([]);
+      fetchData();
+      alert("Selected blogs deleted successfully!");
+    } catch (err) {
+      alert("Error deleting blogs.");
+    }
+  };
+
+  // Checkbox Handlers
+  const handleSelectBlog = (id: string) => {
+    setSelectedBlogs(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+  const handleSelectAll = () => {
+    if (selectedBlogs.length === sortedBlogs.length) {
+      setSelectedBlogs([]);
+    } else {
+      setSelectedBlogs(sortedBlogs.map(b => b._id));
+    }
+  };
 
   const quickTogglePublish = async (blog: Blog) => {
     const r = await saveBlog({ isPublished: !blog.isPublished }, blog._id);
@@ -156,7 +189,6 @@ export default function AdminPanel() {
   };
   const handleDeleteSubCategory = async (id: string) => { if (!confirm("Delete?")) return; const r = await deleteSubcategory(id); if (r.success) fetchData(); };
 
-  // ======== LOGIN ========
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -257,14 +289,44 @@ export default function AdminPanel() {
           {/* ========== BLOGS ========== */}
           {tab === "blogs" && (
             <div>
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900">Blogs <span className="text-gray-400 font-normal ml-2 text-base">({blogList.length})</span></h1>
-                <button onClick={openAddBlog} className="px-4 py-2.5 bg-[#6D28D9] text-white rounded-lg text-sm font-medium hover:bg-[#5B21B6] shadow-sm hover:shadow-md transition-all active:scale-[0.98]">+ New Blog</button>
+                
+                <div className="flex flex-wrap items-center gap-3">
+                  {selectedBlogs.length > 0 && (
+                    <button 
+                      onClick={handleBulkDelete}
+                      className="px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 shadow-sm transition-all flex items-center gap-2"
+                    >
+                      🗑️ Delete Selected ({selectedBlogs.length})
+                    </button>
+                  )}
+
+                  <select 
+                    value={sortOption} 
+                    onChange={(e) => setSortOption(e.target.value as 'newest' | 'oldest')}
+                    className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-[#6D28D9] cursor-pointer"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+
+                  <button onClick={openAddBlog} className="px-4 py-2.5 bg-[#6D28D9] text-white rounded-lg text-sm font-medium hover:bg-[#5B21B6] shadow-sm hover:shadow-md transition-all active:scale-[0.98]">+ New Blog</button>
+                </div>
               </div>
+
               <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto shadow-sm">
                 <table className="w-full text-sm text-left min-w-[700px]">
                   <thead className="border-b border-gray-100 text-gray-400 bg-gray-50/50">
                     <tr>
+                      <th className="p-4 w-12">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedBlogs.length === sortedBlogs.length && sortedBlogs.length > 0}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 cursor-pointer accent-[#6D28D9]"
+                        />
+                      </th>
                       <th className="p-4 font-semibold">Title</th>
                       <th className="p-4 font-semibold">Status</th>
                       <th className="p-4 font-semibold">Featured</th>
@@ -273,8 +335,16 @@ export default function AdminPanel() {
                     </tr>
                   </thead>
                   <tbody>
-                    {blogList.map((blog) => (
-                      <tr key={blog._id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    {sortedBlogs.map((blog) => (
+                      <tr key={blog._id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${selectedBlogs.includes(blog._id) ? 'bg-[#6D28D9]/5' : ''}`}>
+                        <td className="p-4">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedBlogs.includes(blog._id)}
+                            onChange={() => handleSelectBlog(blog._id)}
+                            className="w-4 h-4 cursor-pointer accent-[#6D28D9]"
+                          />
+                        </td>
                         <td className="p-4 font-medium text-gray-900 max-w-[250px] truncate">{blog.title}</td>
                         <td className="p-4">
                           <button onClick={() => quickTogglePublish(blog)} title="Click to toggle"

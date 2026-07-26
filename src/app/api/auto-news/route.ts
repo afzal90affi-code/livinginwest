@@ -13,50 +13,96 @@ const sanityClient = createClient({
   useCdn: false,
 });
 
-const parser = new RssParser({ timeout: 10000 });
+const parser = new RssParser({ 
+  timeout: 15000,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  }
+});
 
-// USA States & Business Government RSS Feeds
-const govFeeds = [
-  // Governors
-  'https://www.gov.ca.gov/feed/', // California
-  'https://gov.texas.gov/news/rss', // Texas
-  'https://www.governor.ny.gov/news/feed', // New York
-  'https://www.mass.gov/feeds/rss/governors-press-office', // Massachusetts ✅ New
-  'https://www.flgov.com/feed/', // Florida ✅ New
-  'https://dc.gov/feed/', // Washington D.C. ✅ New
+const newsFeeds = [
+  { url: 'https://www.whitehouse.gov/feed/', category: 'US Government' },
+  { url: 'https://www.nasa.gov/news-release/feed/', category: 'US Government' },
+  { url: 'https://www.gov.ca.gov/feed/', category: 'US Government' },
+  { url: 'https://www.uscis.gov/news/news-releases/rss', category: 'Immigration & Visas' },
+  { url: 'https://www.uscis.gov/news/alerts/rss', category: 'Immigration & Visas' },
+  { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Discounts & Offers' },
+  { url: 'https://www.techbargains.com/rss.xml', category: 'Discounts & Offers' },
+  { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Business' },
+  { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health' },
+  { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health' }
   
-  // Federal & Business
-  'https://www.usa.gov/rss/updates.xml', // USA.gov Federal Updates
-  'https://www.prnewswire.com/rss/business-technology-news.rss', // PR Newswire (Big Business PRs) ✅ New
-  'https://www.sba.gov/about-sba/sba-newsroom/press-releases-media-advisories/rss' // SBA Gov Business ✅ New
+  
 ];
-async function fetchGovNews() {
-  let allNews: { title: string, desc: string, url: string, source: string }[] = [];
-  for (const url of govFeeds) {
+
+async function fetchAllNews() {
+  let allNews: { title: string, desc: string, url: string, source: string, category: string, pubDate: string, rssImage: string }[] = [];
+  console.log("🌐 Fetching RSS Feeds from various sources (Gov, Visa, Deals)...");
+  
+  for (const feedObj of newsFeeds) {
     try {
-      const feed = await parser.parseURL(url);
+      const feed = await parser.parseURL(feedObj.url);
       feed.items.slice(0, 2).forEach(item => {
+        const rawDate = item.isoDate || item.pubDate || new Date().toISOString();
+        let formattedTime = "";
+        try {
+          formattedTime = new Date(rawDate).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          });
+        } catch { formattedTime = rawDate; }
+
+        // 🌟 RSS فیڈ سے اصلی تصویر تلاش کرنے کا لاجک
+        let rssImage = "";
+        if (item.enclosure && item.enclosure.url) {
+          rssImage = item.enclosure.url;
+        } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
+          rssImage = item['media:content'].$.url;
+        } else if (item.content) {
+          const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch && imgMatch[1]) {
+            rssImage = imgMatch[1];
+          }
+        }
+
         allNews.push({
           title: item.title || "",
           desc: item.contentSnippet || item.content || "",
           url: item.link || "",
-          source: feed.title || "US Government"
+          source: feed.title || "Living In West",
+          category: feedObj.category,
+          pubDate: formattedTime,
+          rssImage: rssImage 
         });
       });
     } catch (error) {
-      console.error(`Failed to fetch RSS from ${url}:`, error);
+      console.error(`❌ Failed to fetch RSS from ${feedObj.url}`);
     }
   }
-  return allNews.sort(() => 0.5 - Math.random()).slice(0, 3);
+  
+  const selectedNews = allNews.sort(() => 0.5 - Math.random()).slice(0, 5);
+  console.log(`✅ Total ${selectedNews.length} news articles selected for processing.`);
+  return selectedNews;
 }
 
-async function rewriteNews(title: string, desc: string) {
+async function rewriteNews(title: string, desc: string, category: string) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = `You are a professional news editor. Rewrite the following US Government news title and description to make it unique and SEO-friendly.
-    Original Title: "${title}"
-    Original Description: "${desc}"
-    Return STRICTLY in JSON format: {"newTitle": "...", "newDesc": "...", "imagePrompt": "a brief descriptive prompt for an AI image generator related to this news"}`;
+    
+    const prompt = `You are an expert news editor for "Living In West". You are writing an article for the "${category}" category.
+    
+    News Title: "${title}"
+    News Description: "${desc}"
+    
+    1. Rewrite the title to be catchy, unique, and SEO-friendly.
+    2. Write a comprehensive, 3-paragraph article expanding on the topic. Use <p> tags for paragraphs. If it's a deal, mention the value. If it's visa news, be clear and formal.
+    3. Create a highly descriptive image generation prompt that VISUALLY REPRESENTS THIS SPECIFIC STORY.
+    
+    Return STRICTLY in JSON format: 
+    {
+      "newTitle": "...", 
+      "newDesc": "...",
+      "imagePrompt": "..."
+    }`;
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -67,85 +113,186 @@ async function rewriteNews(title: string, desc: string) {
     return {
       title: parsed.newTitle || title,
       desc: parsed.newDesc || desc,
-      imagePrompt: parsed.imagePrompt || "breaking news concept"
+      imagePrompt: parsed.imagePrompt || `Photorealistic news photography about: ${title}`
     };
-  } catch (error) {
-    console.error('AI Error:', error);
-    return { title, desc, imagePrompt: "breaking news concept" };
+  } catch (error: any) {
+    console.error('❌ AI Rewrite Error:', error?.message || error);
+    return { title, desc, imagePrompt: `Photorealistic news photography about: ${title}` };
   }
 }
 
-// 🌟 نیا فنکشن: AI سے تصویر بنانا اور Sanity میں اپ لوڈ کرنا
+// 🌟 Pixabay سے تصویر کا URL لینے کا فنکشن
+async function fetchPixabayImage(query: string) {
+  const pixabayKey = process.env.PIXABAY_API_KEY;
+  if (!pixabayKey) {
+    console.log("⚠️ PIXABAY_API_KEY .env mein nahi mili!");
+    return null;
+  }
+  try {
+    // کوئیری کو صاف کرنا تاکہ URL ٹوٹ نہ جائے
+    const cleanQuery = query.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 100);
+    const res = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${encodeURIComponent(cleanQuery)}&image_type=photo&per_page=3&safesearch=true`);
+    const data = await res.json();
+    if (data.hits && data.hits.length > 0) {
+      console.log("✅ Pixabay se image mil gai!");
+      return data.hits[0].largeImageURL;
+    }
+    return null;
+  } catch (error) {
+    console.error("Pixabay Error:", error);
+    return null;
+  }
+}
+
+// انٹرنیٹ سے تصویر ڈاؤن لوڈ کر کے Sanity میں اپلوڈ کرنے کا فنکشن
+async function downloadAndUploadExistingImage(imageUrl: string, slug: string) {
+  try {
+    console.log(`   -> Downloading image from: ${imageUrl}`);
+    
+    // 🌟 یہاں headers شامل کیے گئے ہیں تاکہ Pixabay ڈاؤن لوڈ ہونے دیں
+    const imageRes = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!imageRes.ok) {
+      console.log(`❌ Image download failed. Status: ${imageRes.status}`);
+      throw new Error('Failed to fetch image');
+    }
+    
+    const arrayBuffer = await imageRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const asset = await sanityClient.assets.upload('image', buffer, {
+      filename: `${slug}.jpg`,
+      contentType: imageRes.headers.get('content-type') || 'image/jpeg'
+    });
+
+    return asset;
+  } catch (error: any) {
+    console.error('❌ Image Download Error:', error?.message || error);
+    return null;
+  }
+}
+
+// AI سے تصویر بنانے اور اپلوڈ کرنے کا فنکشن (Fallback)
 async function generateAndUploadImage(prompt: string, slug: string) {
   try {
-    // Pollinations AI سے تصویر بنائیں (بالکل مفت اور بغیر API Key کے)
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=600&nologo=true`;
+    const randomSeed = Math.floor(Math.random() * 1000000);
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=600&nologo=true&model=flux&seed=${randomSeed}`;
     
-    // تصویر کو ڈاؤن لوڈ کریں
+    console.log(`   -> Fetching AI image from Flux...`);
     const imageRes = await fetch(imageUrl);
     if (!imageRes.ok) throw new Error('Failed to fetch image from AI');
     
     const arrayBuffer = await imageRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Sanity میں تصویر اپ لوڈ کریں
     const asset = await sanityClient.assets.upload('image', buffer, {
       filename: `${slug}.jpg`,
       contentType: 'image/jpeg'
     });
 
-    return asset; // یہ اسٹےٹس کا رفرنس ہے
-  } catch (error) {
-    console.error('Image Generation Error:', error);
+    return asset;
+  } catch (error: any) {
+    console.error('❌ AI Image Generation Error:', error?.message || error);
     return null;
   }
 }
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const newsToProcess = await fetchGovNews();
-    if (newsToProcess.length === 0) return NextResponse.json({ message: 'No gov news found' });
+    console.log("=========================================");
+    console.log("🚀 Auto News API Started...");
+    console.log("=========================================");
 
-    for (const article of newsToProcess) {
-      const rewritten = await rewriteNews(article.title, article.desc);
+    const newsToProcess = await fetchAllNews();
+    
+    if (newsToProcess.length === 0) {
+      console.log("⚠️ No news found.");
+      return NextResponse.json({ message: 'No news found' });
+    }
+
+    let successCount = 0;
+
+    for (let i = 0; i < newsToProcess.length; i++) {
+      const article = newsToProcess[i];
+      console.log(`\n--- Processing Article ${i + 1} of ${newsToProcess.length} ---`);
+      console.log(`📄 Original Title: ${article.title} (Category: ${article.category})`);
+      
+      console.log("✍️ Rewriting with AI...");
+      const rewritten = await rewriteNews(article.title, article.desc, article.category);
+      console.log(`✅ New Title: ${rewritten.title}`);
+      
       const slugText = rewritten.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 60);
       
-      // تصویر بنائیں
-      const imageAsset = await generateAndUploadImage(rewritten.imagePrompt, slugText);
+      let imageAsset = null;
 
-      // ڈاکیومنٹ تیار کریں
+      // 1. صرف US Gov اور Business کی خبروں کی اصلی تصاویر لیں
+      if (article.rssImage && (article.category === 'US Government' || article.category === 'Business')) {
+        console.log("🖼️ Trying real RSS image...");
+        imageAsset = await downloadAndUploadExistingImage(article.rssImage, slugText);
+      } 
+      
+      // 2. اگر اصلی تصویر نہ ہو یا کیٹیگری دوسری ہو، تو Pixabay سے تصویر لیں
+      if (!imageAsset) {
+        console.log("🖼️ Trying Pixabay image...");
+        const pixabayUrl = await fetchPixabayImage(rewritten.title);
+        if (pixabayUrl) {
+          imageAsset = await downloadAndUploadExistingImage(pixabayUrl, slugText);
+        }
+      }
+      
+      // 3. اگر Pixabay بھی ناکام ہو جائے، تو AI سے تصویر بنائیں
+      if (!imageAsset) {
+        console.log("🎨 Generating safe AI image...");
+        imageAsset = await generateAndUploadImage(rewritten.imagePrompt, slugText);
+      }
+      
+      console.log(`🖼️ Image processed:`, imageAsset ? "Success" : "Failed");
+
       const docData: any = {
         _type: 'blog',
         title: rewritten.title,
         slug: { _type: 'slug', current: slugText },
-        desc: rewritten.desc,
-        category: 'US Government',
+        desc: rewritten.desc.replace(/<[^>]*>/g, '').substring(0, 150) + '...', 
+        category: article.category, 
         date: new Date().toISOString().split('T')[0],
-        content1: `<p>${rewritten.desc}</p><p>Source: <a href="${article.url}">${article.source}</a></p>`,
+        newsTime: article.pubDate,       // 🌟 ریلیز ٹائم
+        sourceUrl: article.url,          // 🌟 سورس کا لنک
+        sourceName: article.source,      // 🌟 سورس کا نام
+        content1: `${rewritten.desc}<p>Source: <a href="${article.url}">${article.source}</a></p>`, 
         isPublished: false,
         isFeatured: false,
       };
 
-      // اگر تصویر بن گئی ہو تو اسے img1 میں سیٹ کریں
+      // تصویر کو img1 فیلڈ میں سیو کرنا
       if (imageAsset) {
         docData.img1 = {
           _type: 'image',
-          asset: { _type: 'reference', _ref: imageAsset._id }
+          asset: { _type: 'reference', _ref: (imageAsset as any)._id }
         };
       }
 
+      console.log("💾 Saving to Sanity...");
       await sanityClient.create(docData);
+      console.log("🎉 Saved successfully!");
+      successCount++;
     }
 
-    return NextResponse.json({ success: true, message: `${newsToProcess.length} Gov news with AI images added to drafts!` });
+    console.log("\n=========================================");
+    console.log(`✅ All Done! ${successCount} news articles added to drafts!`);
+    console.log("=========================================");
 
-  } catch (error) {
-    console.error('Server Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: true, message: `${successCount} news with images added to drafts!` });
+
+  } catch (error: any) {
+    console.error("❌ Detailed Server Error:", error);
+    return NextResponse.json({ 
+      error: "Internal Server Error", 
+      details: error.message || "Unknown error",
+      stack: error.stack 
+    }, { status: 500 });
   }
 }

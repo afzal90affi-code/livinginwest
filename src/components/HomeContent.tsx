@@ -26,12 +26,13 @@ interface Blog {
   desc?: string;
   mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
   date?: string;
+  newsTime?: string; // ✅ Added newsTime
   isFeatured?: boolean;
   isEditorsPick?: boolean;
   isMoreStory?: boolean;
   writerName?: string;
   writerSocial?: string;
-  heroVideoUrl?: string; // ✅ Added
+  heroVideoUrl?: string;
 }
 
 interface MappedCategory {
@@ -51,12 +52,13 @@ interface MappedBlog {
   img: string;
   date: string;
   timestamp: number;
+  newsTime: string; // ✅ Added newsTime
   isFeatured: boolean;
   isEditorsPick: boolean;
   isMoreStory: boolean;
   writerName: string;
   writerSocial: string;
-  heroVideoUrl: string; // ✅ Added
+  heroVideoUrl: string;
 }
 
 interface ExternalNews {
@@ -78,7 +80,6 @@ interface GNewsArticle {
   source?: { name?: string };
 }
 
-// ✅ Helper function to convert any YouTube URL to Embed URL
 const getYouTubeEmbedUrl = (url: string): string => {
   if (!url) return "";
   const match = url.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
@@ -137,12 +138,13 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
       img: b.mainImage ? urlFor(b.mainImage).width(800).height(1000).auto('format').url() : "", 
       date: b.date ? blogDate.toLocaleDateString() : "", 
       timestamp: blogDate.getTime(), 
+      newsTime: b.newsTime || "", // ✅ Mapped newsTime
       isFeatured: b.isFeatured === true,
       isEditorsPick: b.isEditorsPick === true,
       isMoreStory: b.isMoreStory === true,
       writerName: b.writerName || "Staff Writer",
       writerSocial: b.writerSocial || "",
-      heroVideoUrl: b.heroVideoUrl || "" // ✅ Mapped
+      heroVideoUrl: b.heroVideoUrl || ""
     };
   });
 
@@ -224,20 +226,19 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </div>
       </div>
 
-      {/* AD SLOT 1 (Top Full Width Leaderboard) */}
+      {/* AD SLOT 1 */}
       <div className="max-w-7xl mx-auto px-6 my-4">
         <div className="w-full min-h-[90px] bg-gray-50 border border-gray-200/60 flex items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase">
           [Advertisement - Top Leaderboard Banner]
         </div>
       </div>
 
-      {/* ===== MAIN LAYOUT: 82% Content + 18% Sticky Sidebar Ads ===== */}
+      {/* ===== MAIN LAYOUT ===== */}
       <div className="max-w-7xl mx-auto px-6 flex flex-col lg:flex-row gap-8">
         
-        {/* --- MAIN CONTENT (82%) --- */}
         <div className="w-full lg:w-[82%] py-4 space-y-12 md:space-y-16">
           
-                    {/* ===== NEWS UPDATES COLUMN (Replaces Hero Slider) ===== */}
+          {/* ===== DAILY UPDATES ===== */}
           <section className="py-4 md:py-8">
             <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 pb-3">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Daily Updates</h2>
@@ -247,7 +248,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             </div>
 
             <div className="flex flex-col divide-y divide-gray-100">
-              {/* Showing latest 5 blogs sorted by date */}
               {blogs.slice(0, 5).map((blog) => {
                 const dateObj = new Date(blog.timestamp);
                 const month = dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
@@ -256,13 +256,13 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                 return (
                   <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex items-start gap-5 py-5">
                     
-                    {/* 📅 Left Side: Date Box */}
                     <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 border-r-2 border-gray-100 pr-4 text-center">
                       <span className="text-[10px] font-bold text-[#1e3a8a] uppercase tracking-widest">{month}</span>
                       <span className="text-3xl font-playfair font-bold text-gray-900 leading-none mt-1">{day}</span>
+                      {/* 🌟 خبر کا وقت یہاں شو ہوگا */}
+                      {blog.newsTime && <span className="text-[9px] text-gray-400 mt-1">{blog.newsTime.split(',')[1]}</span>}
                     </div>
 
-                    {/* 📰 Right Side: News Content */}
                     <div className="flex-1">
                       <span className="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold mb-1.5 block">{blog.category}</span>
                       <h3 className="text-lg md:text-xl font-bold leading-snug text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">
@@ -271,7 +271,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                       <p className="text-sm text-gray-500 mt-1.5 line-clamp-1 hidden md:block">{blog.desc}</p>
                     </div>
 
-                    {/* 🖼️ Optional Thumbnail on the far right */}
                     {blog.img && (
                       <div className="hidden md:block w-28 h-24 relative overflow-hidden bg-gray-100 rounded-md flex-shrink-0">
                         <Image src={blog.img} alt={blog.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" sizes="120px" />
@@ -284,6 +283,46 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             </div>
           </section>
           
+          {/* ===== DISCOUNTS & DEALS SECTION (New) ===== */}
+          {blogs.filter(b => b.category === 'Discounts & Offers').length > 0 && (
+            <section className="py-4 md:py-8">
+              <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 pb-3">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Discounts & Deals</h2>
+                <Link href="/category/Discounts%20%26%20Offers" className="text-xs text-gray-500 hover:text-gray-900 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
+                  View All Deals <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {blogs.filter(b => b.category === 'Discounts & Offers').slice(0, 4).map((blog) => (
+                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all">
+                    
+                    {blog.img && (
+                      <div className="relative aspect-[16/9] overflow-hidden bg-gray-100">
+                        <Image src={blog.img} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="300px" />
+                        <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Deal</div>
+                      </div>
+                    )}
+
+                    <div className="p-4 flex flex-col flex-1">
+                      <h3 className="text-lg font-bold leading-snug text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">
+                        {blog.title}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-2 line-clamp-2 flex-1">{blog.desc}</p>
+                      
+                      {blog.newsTime && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center text-[10px] text-gray-400 font-medium">
+                          <Clock className="w-3 h-3 mr-1.5" /> {blog.newsTime}
+                        </div>
+                      )}
+                    </div>
+
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* ===== EDITOR'S PICK ===== */}
           <section className="py-12 md:py-16 bg-white border border-gray-100 rounded-xl shadow-sm">
             <div className="px-6 md:px-10">
@@ -548,7 +587,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             </div>
           </section>
 
-          {/* ===== MORE STORIES (Increased to 12 items) ===== */}
+          {/* ===== MORE STORIES ===== */}
           <section className="py-16">
             <div>
               <h2 className="font-playfair text-3xl md:text-4xl font-bold tracking-tight mb-8 border-b border-gray-200 pb-4">More Stories</h2>
@@ -577,10 +616,8 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
           </section>
 
         </div>
-        {/* --- END MAIN CONTENT --- */}
 
-
-        {/* --- SIDEBAR ADS AREA (18%) --- */}
+        {/* --- SIDEBAR ADS --- */}
         <aside className="hidden lg:block w-[18%] py-4">
           <div className="sticky top-4 flex flex-col gap-6">
             
