@@ -21,23 +21,45 @@ const parser = new RssParser({
 });
 
 const newsFeeds = [
-  { url: 'https://www.whitehouse.gov/feed/', category: 'US Government' },
-  { url: 'https://www.nasa.gov/news-release/feed/', category: 'US Government' },
-  { url: 'https://www.gov.ca.gov/feed/', category: 'US Government' },
-  { url: 'https://www.uscis.gov/news/news-releases/rss', category: 'Immigration & Visas' },
-  { url: 'https://www.uscis.gov/news/alerts/rss', category: 'Immigration & Visas' },
-  { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Discounts & Offers' },
-  { url: 'https://www.techbargains.com/rss.xml', category: 'Discounts & Offers' },
-  { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Business' },
-  { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health' },
-  { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health' }
+  // 1. Daily West
+  { url: 'https://www.whitehouse.gov/feed/', category: 'Daily West', subcategory: 'US Government' },
+  { url: 'https://www.nasa.gov/news-release/feed/', category: 'Daily West', subcategory: 'NASA' },
+  { url: 'https://www.gov.ca.gov/feed/', category: 'Daily West', subcategory: 'CA Government' },
+  { url: 'https://www.uscis.gov/news/news-releases/rss', category: 'Daily West', subcategory: 'Immigration' },
+  { url: 'https://www.uscis.gov/news/alerts/rss', category: 'Daily West', subcategory: 'Immigration Alerts' },
   
-  
+  // 2. Trading & Finance
+  { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Trading & Finance', subcategory: 'Business' },
+
+  // 3. Promotions & Sales
+  { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Promotions & Sales', subcategory: 'Deals' },
+  { url: 'https://www.techbargains.com/rss.xml', category: 'Promotions & Sales', subcategory: 'Tech Bargains' },
+
+  // 4. Automotive
+  { url: 'https://pressroom.toyota.com/rss', category: 'Automotive', subcategory: 'Toyota' }, 
+  { url: 'https://hondanews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Honda' }, 
+  { url: 'https://usa.nissannews.com/rss', category: 'Automotive', subcategory: 'Nissan' }, 
+  { url: 'https://media.ford.com/rss/press_release.xml', category: 'Automotive', subcategory: 'Ford' }, 
+  { url: 'https://group.mercedes-benz.com/rss/press-releases.xml', category: 'Automotive', subcategory: 'Mercedes-Benz' }, 
+  { url: 'https://mitsubishinews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Mitsubishi' }, 
+  { url: 'https://www.hyundainews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Hyundai' }, 
+  { url: 'https://news.google.com/rss/search?q=Tesla+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'Tesla' },
+  { url: 'https://news.google.com/rss/search?q=BYD+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'BYD' },
+  { url: 'https://news.google.com/rss/search?q=Toyota+Canada+press+release+when:3d&hl=en-CA&gl=CA&ceid=CA:en', category: 'Automotive', subcategory: 'Toyota Canada' },
+
+  // 5. Entertainment
+  { url: 'https://news.google.com/rss/search?q=Hollywood+entertainment+news+when:1d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Hollywood' },
+  { url: 'https://news.google.com/rss/search?q=music+billboard+charts+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Music' },
+
+  // 6. Health
+  { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health', subcategory: 'WHO Alerts' },
+  { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health', subcategory: 'WHO News' },
+  { url: 'https://news.google.com/rss/search?q=health+medical+breakthrough+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Health', subcategory: 'Medical' },
 ];
 
 async function fetchAllNews() {
-  let allNews: { title: string, desc: string, url: string, source: string, category: string, pubDate: string, rssImage: string }[] = [];
-  console.log("🌐 Fetching RSS Feeds from various sources (Gov, Visa, Deals)...");
+  let allNews: { title: string, desc: string, url: string, source: string, category: string, subcategory: string, pubDate: string, rssImage: string }[] = [];
+  console.log("🌐 Fetching RSS Feeds from various sources...");
   
   for (const feedObj of newsFeeds) {
     try {
@@ -51,7 +73,6 @@ async function fetchAllNews() {
           });
         } catch { formattedTime = rawDate; }
 
-        // 🌟 RSS فیڈ سے اصلی تصویر تلاش کرنے کا لاجک
         let rssImage = "";
         if (item.enclosure && item.enclosure.url) {
           rssImage = item.enclosure.url;
@@ -70,6 +91,7 @@ async function fetchAllNews() {
           url: item.link || "",
           source: feed.title || "Living In West",
           category: feedObj.category,
+          subcategory: feedObj.subcategory || "",
           pubDate: formattedTime,
           rssImage: rssImage 
         });
@@ -79,7 +101,7 @@ async function fetchAllNews() {
     }
   }
   
-  const selectedNews = allNews.sort(() => 0.5 - Math.random()).slice(0, 5);
+  const selectedNews = allNews.sort(() => 0.5 - Math.random());
   console.log(`✅ Total ${selectedNews.length} news articles selected for processing.`);
   return selectedNews;
 }
@@ -121,7 +143,6 @@ async function rewriteNews(title: string, desc: string, category: string) {
   }
 }
 
-// 🌟 Pixabay سے تصویر کا URL لینے کا فنکشن
 async function fetchPixabayImage(query: string) {
   const pixabayKey = process.env.PIXABAY_API_KEY;
   if (!pixabayKey) {
@@ -129,7 +150,6 @@ async function fetchPixabayImage(query: string) {
     return null;
   }
   try {
-    // کوئیری کو صاف کرنا تاکہ URL ٹوٹ نہ جائے
     const cleanQuery = query.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 100);
     const res = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${encodeURIComponent(cleanQuery)}&image_type=photo&per_page=3&safesearch=true`);
     const data = await res.json();
@@ -144,12 +164,10 @@ async function fetchPixabayImage(query: string) {
   }
 }
 
-// انٹرنیٹ سے تصویر ڈاؤن لوڈ کر کے Sanity میں اپلوڈ کرنے کا فنکشن
 async function downloadAndUploadExistingImage(imageUrl: string, slug: string) {
   try {
     console.log(`   -> Downloading image from: ${imageUrl}`);
     
-    // 🌟 یہاں headers شامل کیے گئے ہیں تاکہ Pixabay ڈاؤن لوڈ ہونے دیں
     const imageRes = await fetch(imageUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -176,7 +194,6 @@ async function downloadAndUploadExistingImage(imageUrl: string, slug: string) {
   }
 }
 
-// AI سے تصویر بنانے اور اپلوڈ کرنے کا فنکشن (Fallback)
 async function generateAndUploadImage(prompt: string, slug: string) {
   try {
     const randomSeed = Math.floor(Math.random() * 1000000);
@@ -220,7 +237,22 @@ export async function GET(request: Request) {
       const article = newsToProcess[i];
       console.log(`\n--- Processing Article ${i + 1} of ${newsToProcess.length} ---`);
       console.log(`📄 Original Title: ${article.title} (Category: ${article.category})`);
-      
+
+      // 🛡️ Duplicate Check
+      try {
+        const existingCount = await sanityClient.fetch(
+          `count(*[_type == "blog" && content1 match $urlPattern])`,
+          { urlPattern: `*${article.url}*` }
+        );
+
+        if (existingCount > 0) {
+          console.log(`⏩ Skipping: This news has already been added to Sanity.`);
+          continue; 
+        }
+      } catch (err) {
+        console.error("Error checking for duplicates, proceeding anyway...", err);
+      }
+
       console.log("✍️ Rewriting with AI...");
       const rewritten = await rewriteNews(article.title, article.desc, article.category);
       console.log(`✅ New Title: ${rewritten.title}`);
@@ -229,13 +261,13 @@ export async function GET(request: Request) {
       
       let imageAsset = null;
 
-      // 1. صرف US Gov اور Business کی خبروں کی اصلی تصاویر لیں
-      if (article.rssImage && (article.category === 'US Government' || article.category === 'Business')) {
+      // 1. صرف Daily West اور Trading & Finance کی اصلی تصاویر لیں
+      if (article.rssImage && (article.category === 'Daily West' || article.category === 'Trading & Finance')) {
         console.log("🖼️ Trying real RSS image...");
         imageAsset = await downloadAndUploadExistingImage(article.rssImage, slugText);
       } 
       
-      // 2. اگر اصلی تصویر نہ ہو یا کیٹیگری دوسری ہو، تو Pixabay سے تصویر لیں
+      // 2. اگر اصلی تصویر نہ ہو، تو Pixabay سے تصویر لیں
       if (!imageAsset) {
         console.log("🖼️ Trying Pixabay image...");
         const pixabayUrl = await fetchPixabayImage(rewritten.title);
@@ -244,7 +276,7 @@ export async function GET(request: Request) {
         }
       }
       
-      // 3. اگر Pixabay بھی ناکام ہو جائے، تو AI سے تصویر بنائیں
+      // 3. اگر Pixabay ناکام ہو جائے، تو AI سے تصویر بنائیں
       if (!imageAsset) {
         console.log("🎨 Generating safe AI image...");
         imageAsset = await generateAndUploadImage(rewritten.imagePrompt, slugText);
@@ -258,16 +290,16 @@ export async function GET(request: Request) {
         slug: { _type: 'slug', current: slugText },
         desc: rewritten.desc.replace(/<[^>]*>/g, '').substring(0, 150) + '...', 
         category: article.category, 
-        date: new Date().toISOString().split('T')[0],
-        newsTime: article.pubDate,       // 🌟 ریلیز ٹائم
-        sourceUrl: article.url,          // 🌟 سورس کا لنک
-        sourceName: article.source,      // 🌟 سورس کا نام
+        subCategory: article.subcategory || undefined, // ✅ Subcategory add ki
+        date: new Date(article.pubDate).toISOString(), // ✅ Time Ago fix karne ke liye original date
+        newsTime: article.pubDate,       
+        sourceUrl: article.url,          
+        sourceName: article.source,      
         content1: `${rewritten.desc}<p>Source: <a href="${article.url}">${article.source}</a></p>`, 
         isPublished: false,
         isFeatured: false,
       };
 
-      // تصویر کو img1 فیلڈ میں سیو کرنا
       if (imageAsset) {
         docData.img1 = {
           _type: 'image',

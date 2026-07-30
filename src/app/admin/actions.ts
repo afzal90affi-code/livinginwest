@@ -14,27 +14,26 @@ const checkAuth = () => {
 };
 
 // ======== IMAGE UPLOAD FUNCTION ========
-export async function uploadImage(formData) {
+export async function uploadImage(formData: FormData) {
   try {
     const file = formData.get('file');
     if (!file) return { success: false, error: 'No file provided' };
 
-    const arrayBuffer = await file.arrayBuffer();
+    const arrayBuffer = await (file as File).arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
     const asset = await writeClient.assets.upload('image', buffer, {
-      filename: file.name,
+      filename: (file as File).name,
     });
     
     return { success: true, url: asset.url, assetId: asset._id };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
     return { success: false, error: error.message || 'Image upload failed' };
   }
 }
 
 // ======== FETCH FUNCTIONS ========
-
 export async function getCategories() {
   try {
     return await client.fetch(`*[_type == "category"] | order(sortOrder asc){
@@ -69,10 +68,10 @@ export async function getBlogs() {
 }
 
 // ======== REORDER FUNCTION ========
-export async function reorderItem(type, id, direction, parentId) {
+export async function reorderItem(type: string, id: string, direction: string, parentId?: string) {
   try {
     let filter = `[_type == "${type}"]`;
-    const params = {};
+    const params: any = {};
 
     if (type === 'subcategory' && parentId) {
       filter = `[_type == "subcategory" && parentId == $parentId]`;
@@ -86,17 +85,17 @@ export async function reorderItem(type, id, direction, parentId) {
 
     if (items.length === 0) return { success: false, error: 'No items found' };
 
-    const needsNorm = items.some(it => it.sortOrder == null);
+    const needsNorm = items.some((it: any) => it.sortOrder == null);
     if (needsNorm) {
       const tx = writeClient.transaction();
-      items.forEach((it, i) => {
+      items.forEach((it: any, i: number) => {
         tx.patch(it._id, { set: { sortOrder: i * 10 } });
       });
       await tx.commit();
-      items.forEach((it, i) => { it.sortOrder = i * 10; });
+      items.forEach((it: any, i: number) => { it.sortOrder = i * 10; });
     }
 
-    const currentIndex = items.findIndex(it => it._id === id);
+    const currentIndex = items.findIndex((it: any) => it._id === id);
     if (currentIndex === -1) return { success: false, error: 'Item not found' };
 
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
@@ -113,14 +112,14 @@ export async function reorderItem(type, id, direction, parentId) {
     await tx.commit();
 
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Reorder error:', error);
     return { success: false, error: String(error) };
   }
 }
 
 // ======== CATEGORY CRUD ========
-export async function saveCategory(data, editingId) {
+export async function saveCategory(data: any, editingId?: string) {
   try {
     if (editingId) {
       await writeClient.patch(editingId).set(data).commit();
@@ -128,18 +127,18 @@ export async function saveCategory(data, editingId) {
       await writeClient.create({ _type: 'category', ...data });
     }
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-export async function deleteCategory(id) {
+export async function deleteCategory(id: string) {
   try { await writeClient.delete(id); return { success: true }; } 
-  catch (error) { return { success: false, error: error.message }; }
+  catch (error: any) { return { success: false, error: error.message }; }
 }
 
 // ======== SUBCATEGORY CRUD ========
-export async function saveSubcategory(data, editingId) {
+export async function saveSubcategory(data: any, editingId?: string) {
   try {
     if (editingId) {
       await writeClient.patch(editingId).set(data).commit();
@@ -147,18 +146,18 @@ export async function saveSubcategory(data, editingId) {
       await writeClient.create({ _type: 'subcategory', ...data });
     }
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-export async function deleteSubcategory(id) {
+export async function deleteSubcategory(id: string) {
   try { await writeClient.delete(id); return { success: true }; } 
-  catch (error) { return { success: false, error: error.message }; }
+  catch (error: any) { return { success: false, error: error.message }; }
 }
 
 // ======== BLOG CRUD ========
-export async function saveBlog(data, editingId) {
+export async function saveBlog(data: any, editingId?: string) {
   try {
     if (editingId) {
       const unsetKeys = [];
@@ -184,23 +183,23 @@ export async function saveBlog(data, editingId) {
       });
     }
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Save Blog Error:", error);
     return { success: false, error: error.message };
   }
 }
 
-export async function deleteBlog(id) {
+export async function deleteBlog(id: string) {
   try { await writeClient.delete(id); return { success: true }; } 
-  catch (error) { return { success: false, error: error.message }; }
+  catch (error: any) { return { success: false, error: error.message }; }
 }
 
 // ======== PUBLISH DRAFT FUNCTION (Auto News ke liye) ========
-export async function publishDraft(blogId) {
+export async function publishDraft(blogId: string) {
   try {
     await writeClient.patch(blogId).set({ isPublished: true }).commit();
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Publish Draft Error:", error);
     return { success: false, error: "Failed to publish draft" };
   }
@@ -208,12 +207,23 @@ export async function publishDraft(blogId) {
 
 // ======== IMAGE REPLACEMENT FUNCTIONS (Drafts Page) ========
 
-// 1. Pexels, Pixabay aur AI se images fetch karne wala function
-export async function getBlogImageOptions(blogId, title) {
+// TypeScript Types define karne se sab errors khatam ho jayenge
+interface ImageOption {
+  source: string;
+  url: string;
+}
+
+interface ActionResult {
+  success: boolean;
+  error?: string;
+  options?: ImageOption[];
+  url?: string;
+}
+
+// 1. Pexels, Pixabay, Unsplash aur AI se images fetch karne wala function
+export async function getBlogImageOptions(blogId: string, title: string): Promise<ActionResult> {
   try {
-    const options = [];
-    
-    // News ka title chota kar lein taake search better ho
+    const options: ImageOption[] = [];
     const shortTitle = title.substring(0, 50);
 
     // 1. Pexels se Image
@@ -223,12 +233,12 @@ export async function getBlogImageOptions(blogId, title) {
         if (res.ok) {
           const data = await res.json();
           if (data.photos && data.photos.length > 0) {
-            data.photos.forEach(photo => {
+            data.photos.forEach((photo: any) => {
               options.push({ source: 'Pexels', url: photo.src.large2x });
             });
           }
         }
-      } catch (e) { console.error("Pexels fetch failed:", e.message); }
+      } catch (e: any) { console.error("Pexels fetch failed:", e.message); }
     }
 
     // 2. Pixabay se Image
@@ -237,33 +247,46 @@ export async function getBlogImageOptions(blogId, title) {
       try {
         const cleanQuery = shortTitle.replace(/[^a-zA-Z0-9 ]/g, '');
         const response = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${encodeURIComponent(cleanQuery)}&image_type=photo&per_page=3&safesearch=true`);
-        
         if (response.ok) {
           const data = await response.json();
           if (data.hits && data.hits.length > 0) {
-            data.hits.forEach(hit => {
+            data.hits.forEach((hit: any) => {
               options.push({ source: 'Pixabay', url: hit.largeImageURL });
             });
           }
         }
-      } catch (e) { 
-        console.error("Pixabay fetch failed:", e.message); 
-      }
+      } catch (e: any) { console.error("Pixabay fetch failed:", e.message); }
     }
 
-    // 3. AI (Flux) se Image
+    // 3. Unsplash se Image
+    const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
+    if (unsplashKey) {
+      try {
+        const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(shortTitle)}&per_page=3&client_id=${unsplashKey}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results && data.results.length > 0) {
+            data.results.forEach((img: any) => {
+              options.push({ source: 'Unsplash', url: img.urls.regular });
+            });
+          }
+        }
+      } catch (e: any) { console.error("Unsplash fetch failed:", e.message); }
+    }
+
+    // 4. AI (Flux) se Image
     const randomSeed = Math.floor(Math.random() * 1000000);
     const aiPrompt = encodeURIComponent("photorealistic news photography: " + title);
     options.push({ source: 'AI (Flux)', url: `https://image.pollinations.ai/prompt/${aiPrompt}?width=800&height=600&nologo=true&seed=${randomSeed}` });
 
     return { success: true, options };
-  } catch (error) {
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
 // 2. Selected image ko Sanity mein upload aur set karne wala function
-export async function applyBlogImage(blogId, imageUrl) {
+export async function applyBlogImage(blogId: string, imageUrl: string): Promise<ActionResult> {
   try {
     const imageRes = await fetch(imageUrl);
     if (!imageRes.ok) throw new Error('Failed to fetch selected image');
@@ -284,7 +307,7 @@ export async function applyBlogImage(blogId, imageUrl) {
     }).commit();
 
     return { success: true, url: asset.url };
-  } catch (error) {
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 }

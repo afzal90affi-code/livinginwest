@@ -6,7 +6,7 @@ import Footer from "@/components/footer";
 import { client } from "@/lib/sanityClient"; 
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script"; // 🌍 Google Translate Script ke liye add kiya
-import "./globals.css";
+import MarketTicker from "@/components/MarketTicker"; // ✅ MarketTicker import kiya
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });
@@ -47,6 +47,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }
           `}
         </Script>
+
+        {/* ✅ Yahan MarketTicker add kiya gaya hai (Navbar ke upar) */}
+        <MarketTicker />
 
         <Navbar categories={navCategories} />
         <main className="min-h-screen">{children}</main>

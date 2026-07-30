@@ -4,11 +4,11 @@ import { client } from "@/lib/sanityClient";
 import { urlFor } from "@/lib/sanityImage";
 import { ShareCardButton } from '@/components/share';
 import type { Metadata } from 'next';
-import { Clock } from 'lucide-react'; // Read time icon ke liye
+import { Clock } from 'lucide-react';
+import MarketTicker from '@/components/MarketTicker'; // ✅ مارکیٹ ٹککر امپورٹ کریں
 
 export const dynamic = 'force-dynamic';
 
-// 👇 Types define kiye
 interface CategoryData {
   _id: string;
   name: string;
@@ -86,9 +86,9 @@ async function getSubcategories(slug: string): Promise<SubcategoryData[]> {
   return subcats;
 }
 
-// Us category ke blogs fetch karna
+// Us category ke blogs fetch karna (Case-Insensitive Query)
 async function getBlogsByCategory(slug: string): Promise<BlogData[]> {
-  const blogs = await client.fetch(`*[_type == "blog" && category == $slug] | order(date desc){
+  const blogs = await client.fetch(`*[_type == "blog" && isPublished == true && lower(category) == lower($slug)] | order(date desc){
     _id, title, "slug": slug.current, "categoryName": category, desc, "mainImage": img1, date, author, readTime
   }`, { slug });
   return blogs;
@@ -169,6 +169,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         </div>
       </div>
 
+
       {/* ===== MAIN CONTENT ===== */}
       <div className="max-w-7xl mx-auto px-6 py-10 md:py-12">
 
@@ -192,7 +193,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                     key={sub._id} 
                     className="group flex items-center gap-2.5 bg-white border border-gray-200 hover:border-gray-900 rounded-full pl-4 pr-3 py-2 transition-all duration-300 shadow-sm hover:shadow-md flex-shrink-0"
                   >
-                    {/* Image ya Dot Indicator (No more first letter!) */}
+                    {/* Image ya Dot Indicator */}
                     {subImg ? (
                       <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-1 ring-gray-200">
                         <Image 
@@ -229,7 +230,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
           </div>
         )}
 
-        {/* ===== BLOGS SECTION (Business Insider Style) ===== */}
+        {/* ===== BLOGS SECTION ===== */}
         <div>
           <div className="flex items-center justify-between mb-8 border-b border-gray-200 pb-3">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900 uppercase tracking-tight">
@@ -250,7 +251,7 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                 return (
                   <div key={blog._id} className="group flex flex-col">
                     
-                    {/* Image Section (Square Shape) */}
+                    {/* Image Section */}
                     <Link href={`/blog/${blog.slug}`} className="block">
                       <div className="relative overflow-hidden bg-gray-100 aspect-square mb-4">
                         {blogImg ? (
@@ -269,7 +270,6 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
                     {/* Content Section */}
                     <div className="flex flex-col flex-1">
-                      {/* Meta Info: Category & Read Time */}
                       <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-widest font-bold">
                         <span className="text-blue-600">
                           {blog.categoryName}
@@ -282,21 +282,18 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                         )}
                       </div>
 
-                      {/* Title (Blog Name) */}
                       <Link href={`/blog/${blog.slug}`}>
                         <h3 className="font-playfair text-xl md:text-2xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-1 transition-all">
                           {blog.title}
                         </h3>
                       </Link>
 
-                      {/* Short Summary (Description) */}
                       {blog.desc && (
                         <p className="text-gray-500 mt-3 text-sm leading-relaxed line-clamp-2">
                           {blog.desc}
                         </p>
                       )}
 
-                      {/* Footer / Actions (Date + Share) */}
                       <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
                         <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
                           {blog.date && formatDate(blog.date)}
