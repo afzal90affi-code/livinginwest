@@ -6,7 +6,8 @@ import {
   getCategories, getSubcategories, getBlogs,
   saveCategory, deleteCategory, saveBlog,
   saveSubcategory, deleteSubcategory,
-  deleteBlog, uploadImage, reorderItem
+  deleteBlog, uploadImage, reorderItem,
+  getSubscribers // ✅ سبسکرائبرز کا فنکشن امپورٹ کیا گیا
 } from './actions';
 
 import BlogForm, { getSlug, type Blog, type Category, type Subcategory } from './BlogForm';
@@ -55,6 +56,9 @@ export default function AdminPanel() {
   const [subCatMetaTitle, setSubCatMetaTitle] = useState("");
   const [subCatMetaDesc, setSubCatMetaDesc] = useState("");
 
+  // ✅ سبسکرائبرز کے لیے نیا اسٹیٹ
+  const [subscribers, setSubscribers] = useState<any[]>([]);
+
   const filteredSubCats = selectedParentCat ? subCatList.filter(s => s.parentId === selectedParentCat) : [];
   const sortFilteredSubCats = sortParentCat ? subCatList.filter(s => s.parentId === sortParentCat) : [];
   const totalViews = blogList.reduce((s, b) => s + (b.views || 0), 0);
@@ -70,11 +74,15 @@ export default function AdminPanel() {
     else alert("Upload failed: " + r.error);
   };
 
+  // ✅ fetchData میں سبسکرائبرز کی لسٹ بھی شامل کر دی گئی ہے
   const fetchData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [cats, subs, blogs] = await Promise.all([getCategories(), getSubcategories(), getBlogs()]);
-      setCatList(cats); setSubCatList(subs); setBlogList(blogs);
+      const [cats, subs, blogs, subsEmails] = await Promise.all([getCategories(), getSubcategories(), getBlogs(), getSubscribers()]);
+      setCatList(cats); 
+      setSubCatList(subs); 
+      setBlogList(blogs);
+      setSubscribers(subsEmails); // ✅ یہ لائن اضافہ کی گئی
     } catch (e) { console.error(e); }
     setLoadingData(false);
   }, []);
@@ -86,7 +94,6 @@ export default function AdminPanel() {
     if (hasAdminCookie) setIsLoggedIn(true);
   }, []);
 
-  // ✅ Date-wise Sorting Logic (Hooks sab se upar hone chahiye)
   const sortedBlogs = useMemo(() => {
     let blogsCopy = [...blogList];
     if (sortOption === 'newest') {
@@ -131,7 +138,6 @@ export default function AdminPanel() {
 
   const handleDeleteBlog = async (id: string) => { if (!confirm("Delete this blog?")) return; const r = await deleteBlog(id); if (r.success) fetchData(); };
 
-  // Multiple Delete Handler
   const handleBulkDelete = async () => {
     if (selectedBlogs.length === 0) return alert("Please select blogs to delete.");
     if (!confirm(`Delete ${selectedBlogs.length} selected blogs?`)) return;
@@ -146,7 +152,6 @@ export default function AdminPanel() {
     }
   };
 
-  // Checkbox Handlers
   const handleSelectBlog = (id: string) => {
     setSelectedBlogs(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
@@ -209,7 +214,6 @@ export default function AdminPanel() {
 
   if (loadingData) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#6D28D9]"></div></div>;
 
-  // ======== MOVE BUTTON ========
   const MoveBtn = ({ dir, disabled, onClick }: { dir: 'up' | 'down'; disabled: boolean; onClick: () => void }) => (
     <button onClick={onClick} disabled={disabled}
       className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-[#6D28D9] hover:text-[#6D28D9] hover:bg-[#6D28D9]/5 transition-all disabled:opacity-15 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-400 disabled:hover:bg-transparent">
@@ -241,6 +245,7 @@ export default function AdminPanel() {
               { id: "categories", label: "📁 Categories" },
               { id: "subcategories", label: "📂 Sub-Categories" },
               { id: "sortorder", label: "⬆️ Sort Order" },
+              { id: "subscribers", label: "📧 Subscribers" }, // ✅ نیا ٹیب
             ].map((item) => (
               <button key={item.id} onClick={() => { setTab(item.id); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${tab === item.id ? "bg-[#6D28D9] text-white shadow-md shadow-[#6D28D9]/20" : "text-gray-600 hover:bg-gray-100"}`}>{item.label}</button>
             ))}
@@ -440,7 +445,6 @@ export default function AdminPanel() {
                 <p className="text-sm text-gray-400">Click ↑ ↓ buttons to move items up or down</p>
               </div>
 
-              {/* CATEGORIES */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                   <div><h2 className="text-base font-bold text-gray-900">📁 Categories</h2><p className="text-[11px] text-gray-400 mt-0.5">{catList.length} items</p></div>
@@ -469,7 +473,6 @@ export default function AdminPanel() {
                 )}
               </div>
 
-              {/* SUBCATEGORIES */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -506,7 +509,6 @@ export default function AdminPanel() {
                 )}
               </div>
 
-              {/* BLOGS */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                   <div><h2 className="text-base font-bold text-gray-900">📝 Blogs</h2><p className="text-[11px] text-gray-400 mt-0.5">{blogList.length} items</p></div>
@@ -541,10 +543,63 @@ export default function AdminPanel() {
             </div>
           )}
 
+          {/* ========== SUBSCRIBERS ========== */}
+          {tab === "subscribers" && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900">Email Subscribers <span className="text-gray-400 font-normal ml-2 text-base">({subscribers.length})</span></h1>
+                
+                {subscribers.length > 0 && (
+                  <button 
+                    onClick={() => {
+                      const csv = "Email,Subscribed At\n" + subscribers.map(s => `${s.email},${new Date(s.subscribedAt).toLocaleString()}`).join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'subscribers.csv';
+                      a.click();
+                    }}
+                    className="px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all"
+                  >
+                    ⬇️ Export CSV
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto shadow-sm">
+                <table className="w-full text-sm text-left min-w-[500px]">
+                  <thead className="border-b border-gray-100 text-gray-400 bg-gray-50/50">
+                    <tr>
+                      <th className="p-4 font-semibold">#</th>
+                      <th className="p-4 font-semibold">Email Address</th>
+                      <th className="p-4 font-semibold">Subscribed At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {subscribers.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="p-10 text-center text-gray-400 text-sm">No subscribers yet. Be patient!</td>
+                      </tr>
+                    ) : (
+                      subscribers.map((sub, i) => (
+                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                          <td className="p-4 text-gray-400">{i + 1}</td>
+                          <td className="p-4 font-medium text-gray-900">{sub.email}</td>
+                          <td className="p-4 text-gray-500 text-xs">{new Date(sub.subscribedAt).toLocaleString()}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
-      {/* ===== BLOG FORM MODAL (Extracted) ===== */}
+      {/* ===== BLOG FORM MODAL ===== */}
       <BlogForm 
         showForm={showBlogForm} 
         onClose={() => setShowBlogForm(false)} 

@@ -311,3 +311,11 @@ export async function applyBlogImage(blogId: string, imageUrl: string): Promise<
     return { success: false, error: error.message };
   }
 }
+// ✅ سبسکرائبرز کی لسٹ لانے کا فنکشن
+export async function getSubscribers() {
+  try {
+    return await client.fetch(`*[_type == "subscriber"] | order(subscribedAt desc){
+      email, subscribedAt
+    }`);
+  } catch (error) { console.error(error); return []; }
+}

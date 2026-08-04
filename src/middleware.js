@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
-const ADMIN_USER = process.env.ADMIN_BASIC_USER || 'usman'
-const ADMIN_PASSWORD = process.env.ADMIN_BASIC_PASSWORD || 'usman'
+const ADMIN_USER = process.env.ADMIN_BASIC_USER || 'usman7725'
+const ADMIN_PASSWORD = process.env.ADMIN_BASIC_PASSWORD || 'usman7725'
 
 export function middleware(req) {
   if (req.nextUrl.pathname.startsWith('/admin')) {

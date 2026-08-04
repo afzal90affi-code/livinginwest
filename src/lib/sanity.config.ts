@@ -8,7 +8,7 @@ export default defineConfig({
   title: 'Living In West',
 
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || 'fspcj0ni',
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'organization',
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
 
   plugins: [deskTool(), structureTool()],
 

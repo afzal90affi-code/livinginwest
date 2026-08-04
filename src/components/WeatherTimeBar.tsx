@@ -52,9 +52,7 @@ export default function WeatherTimeBar() {
     };
     fetchWeather();
 
-    // ✅ ویب سائٹ کھلتے ہی پاپ اپ کو دکھائیں
     setShowPopup(true);
-    // ✅ 3 سیکنڈ بعد پاپ اپ کو خود بخود چھپائیں
     const popupTimer = setTimeout(() => {
       setShowPopup(false);
     }, 3000);
@@ -66,7 +64,8 @@ export default function WeatherTimeBar() {
   }, []);
 
   return (
-    <div className="bg-white border-b border-gray-200 py-2 text-[10px] uppercase tracking-[0.2em] text-gray-500 relative z-50">
+    // ✅ یہاں sticky top-16 استعمال کیا گیا ہے۔ اگر آپ کے navbar کی height 64px (h-16) ہے تو یہ بالکل اس کے نیچے آئے گا۔
+    <div className="sticky top-16 z-40 bg-white border-b border-gray-200 py-2 text-[10px] uppercase tracking-[0.2em] text-gray-500 relative">
       <style>
         {`
           @keyframes weatherScroll {
@@ -110,7 +109,6 @@ export default function WeatherTimeBar() {
         </div>
 
         <div className="flex-shrink-0 relative">
-          {/* ✅ بٹن پر کلک کرنے سے سیدھا پیج کھلے گا */}
           <Link 
             href="/weather"
             className="flex items-center gap-1.5 bg-gray-900 text-white px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold hover:bg-[#6D28D9] transition-colors"
@@ -118,8 +116,8 @@ export default function WeatherTimeBar() {
             <CloudSun className="w-3 h-3" /> Check Weather
           </Link>
 
-          {/* ✅ ویب سائٹ کھلتے ہی آنے والا پاپ اپ */}
           {showPopup && (
+            // ✅ پاپ اپ کا z-index بڑھا دیا گیا ہے تاکہ وہ دوسرے عناصر پر نظر آئے
             <div className="idea-popup absolute right-0 top-full mt-3 w-60 bg-white border border-gray-200 shadow-2xl rounded-xl p-4 z-50">
               <div className="absolute -top-2 right-6 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
               <p className="text-xs text-gray-600 mb-3 normal-case tracking-normal text-center">

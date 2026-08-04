@@ -7,9 +7,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 const sanityClient = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "",
-  dataset: 'production',
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
   apiVersion: '2023-05-03',
-  token: process.env.SANITY_WRITE_TOKEN || "", 
+  token: process.env.SANITY_WRITE_TOKEN || "",
   useCdn: false,
 });
 
@@ -28,33 +28,33 @@ const newsFeeds = [
   { url: 'https://www.uscis.gov/news/news-releases/rss', category: 'Daily West', subcategory: 'Immigration' },
   { url: 'https://www.uscis.gov/news/alerts/rss', category: 'Daily West', subcategory: 'Immigration Alerts' },
   
-  // 2. Trading & Finance
-  { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Trading & Finance', subcategory: 'Business' },
+//   // 2. Trading & Finance
+//   { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Trading & Finance', subcategory: 'Business' },
 
-  // 3. Promotions & Sales
-  { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Promotions & Sales', subcategory: 'Deals' },
-  { url: 'https://www.techbargains.com/rss.xml', category: 'Promotions & Sales', subcategory: 'Tech Bargains' },
+//   // 3. Promotions & Sales
+//   { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Promotions & Sales', subcategory: 'Deals' },
+//   { url: 'https://www.techbargains.com/rss.xml', category: 'Promotions & Sales', subcategory: 'Tech Bargains' },
 
-  // 4. Automotive
-  { url: 'https://pressroom.toyota.com/rss', category: 'Automotive', subcategory: 'Toyota' }, 
-  { url: 'https://hondanews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Honda' }, 
-  { url: 'https://usa.nissannews.com/rss', category: 'Automotive', subcategory: 'Nissan' }, 
-  { url: 'https://media.ford.com/rss/press_release.xml', category: 'Automotive', subcategory: 'Ford' }, 
-  { url: 'https://group.mercedes-benz.com/rss/press-releases.xml', category: 'Automotive', subcategory: 'Mercedes-Benz' }, 
-  { url: 'https://mitsubishinews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Mitsubishi' }, 
-  { url: 'https://www.hyundainews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Hyundai' }, 
-  { url: 'https://news.google.com/rss/search?q=Tesla+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'Tesla' },
-  { url: 'https://news.google.com/rss/search?q=BYD+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'BYD' },
-  { url: 'https://news.google.com/rss/search?q=Toyota+Canada+press+release+when:3d&hl=en-CA&gl=CA&ceid=CA:en', category: 'Automotive', subcategory: 'Toyota Canada' },
+//   // 4. Automotive
+//   { url: 'https://pressroom.toyota.com/rss', category: 'Automotive', subcategory: 'Toyota' }, 
+//   { url: 'https://hondanews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Honda' }, 
+//   { url: 'https://usa.nissannews.com/rss', category: 'Automotive', subcategory: 'Nissan' }, 
+//   { url: 'https://media.ford.com/rss/press_release.xml', category: 'Automotive', subcategory: 'Ford' }, 
+//   { url: 'https://group.mercedes-benz.com/rss/press-releases.xml', category: 'Automotive', subcategory: 'Mercedes-Benz' }, 
+//   { url: 'https://mitsubishinews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Mitsubishi' }, 
+//   { url: 'https://www.hyundainews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Hyundai' }, 
+//   { url: 'https://news.google.com/rss/search?q=Tesla+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'Tesla' },
+//   { url: 'https://news.google.com/rss/search?q=BYD+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'BYD' },
+//   { url: 'https://news.google.com/rss/search?q=Toyota+Canada+press+release+when:3d&hl=en-CA&gl=CA&ceid=CA:en', category: 'Automotive', subcategory: 'Toyota Canada' },
 
-  // 5. Entertainment
-  { url: 'https://news.google.com/rss/search?q=Hollywood+entertainment+news+when:1d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Hollywood' },
-  { url: 'https://news.google.com/rss/search?q=music+billboard+charts+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Music' },
+//   // 5. Entertainment
+//   { url: 'https://news.google.com/rss/search?q=Hollywood+entertainment+news+when:1d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Hollywood' },
+//   { url: 'https://news.google.com/rss/search?q=music+billboard+charts+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Music' },
 
-  // 6. Health
-  { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health', subcategory: 'WHO Alerts' },
-  { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health', subcategory: 'WHO News' },
-  { url: 'https://news.google.com/rss/search?q=health+medical+breakthrough+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Health', subcategory: 'Medical' },
+//   // 6. Health
+//   { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health', subcategory: 'WHO Alerts' },
+//   { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health', subcategory: 'WHO News' },
+//   { url: 'https://news.google.com/rss/search?q=health+medical+breakthrough+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Health', subcategory: 'Medical' },
 ];
 
 async function fetchAllNews() {
@@ -106,41 +106,56 @@ async function fetchAllNews() {
   return selectedNews;
 }
 
-async function rewriteNews(title: string, desc: string, category: string) {
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    const prompt = `You are an expert news editor for "Living In West". You are writing an article for the "${category}" category.
-    
-    News Title: "${title}"
-    News Description: "${desc}"
-    
-    1. Rewrite the title to be catchy, unique, and SEO-friendly.
-    2. Write a comprehensive, 3-paragraph article expanding on the topic. Use <p> tags for paragraphs. If it's a deal, mention the value. If it's visa news, be clear and formal.
-    3. Create a highly descriptive image generation prompt that VISUALLY REPRESENTS THIS SPECIFIC STORY.
-    
-    Return STRICTLY in JSON format: 
-    {
-      "newTitle": "...", 
-      "newDesc": "...",
-      "imagePrompt": "..."
-    }`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+const preferredAutoNewsModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const autoNewsFallbackModels = [
+  preferredAutoNewsModel,
+  'gemini-2.5-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+].filter((value, index, arr) => value && arr.indexOf(value) === index);
 
-    return {
-      title: parsed.newTitle || title,
-      desc: parsed.newDesc || desc,
-      imagePrompt: parsed.imagePrompt || `Photorealistic news photography about: ${title}`
-    };
-  } catch (error: any) {
-    console.error('❌ AI Rewrite Error:', error?.message || error);
-    return { title, desc, imagePrompt: `Photorealistic news photography about: ${title}` };
+async function rewriteNews(title: string, desc: string, category: string) {
+  let lastError: unknown = null;
+
+  for (const modelName of autoNewsFallbackModels) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const prompt = `You are an expert news editor for "Living In West". You are writing an article for the "${category}" category.
+
+      News Title: "${title}"
+      News Description: "${desc}"
+
+      1. Rewrite the title to be catchy, unique, and SEO-friendly.
+      2. Write a comprehensive, 3-paragraph article expanding on the topic. Use <p> tags for paragraphs. If it's a deal, mention the value. If it's visa news, be clear and formal.
+      3. Create a highly descriptive image generation prompt that VISUALLY REPRESENTS THIS SPECIFIC STORY.
+
+      Return STRICTLY in JSON format:
+      {
+        "newTitle": "...",
+        "newDesc": "...",
+        "imagePrompt": "..."
+      }`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      return {
+        title: parsed.newTitle || title,
+        desc: parsed.newDesc || desc,
+        imagePrompt: parsed.imagePrompt || `Photorealistic news photography about: ${title}`,
+      };
+    } catch (error) {
+      lastError = error;
+      console.warn(`Auto-news Gemini model attempt failed for ${modelName}:`, error);
+    }
   }
+
+  console.error('❌ AI Rewrite Error:', lastError?.toString?.() || lastError);
+  return { title, desc, imagePrompt: `Photorealistic news photography about: ${title}` };
 }
 
 async function fetchPixabayImage(query: string) {

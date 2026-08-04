@@ -7,6 +7,7 @@ import { client } from "@/lib/sanityClient";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script"; // 🌍 Google Translate Script ke liye add kiya
 import MarketTicker from "@/components/MarketTicker"; // ✅ MarketTicker import kiya
+import WeatherTimeBar from "@/components/WeatherTimeBar"; // ✅ WeatherTimeBar import kiya
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });
@@ -27,8 +28,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const navCategories = await client.fetch(NAV_CATEGORIES_QUERY); 
 
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
-      <body className={`${inter.className} bg-[#FAFAFA] text-gray-900 antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
+      <head>
+        {/* ✅ یہ سکرپٹ سائٹ کھلتے ہی فوراً کالا موڈ لگا دے گا اگر صارف نے پہلے سلیکٹ کیا ہو (Flash سے بچنے کے لیے) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('theme');
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.body.classList.add('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-white antialiased transition-colors duration-300`}>
         
         {/* 🌍 Google Translate Hidden Widget & Scripts */}
         <div id="google_translate_element" style={{ display: "none" }}></div>
@@ -48,10 +67,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           `}
         </Script>
 
-        {/* ✅ Yahan MarketTicker add kiya gaya hai (Navbar ke upar) */}
+        {/* ✅ MarketTicker (Top most) */}
         <MarketTicker />
 
+        {/* Navbar */}
         <Navbar categories={navCategories} />
+
+        {/* ✅ WeatherTimeBar (Navbar ke neeche, scroll par hat jayega) */}
+        <WeatherTimeBar />
+
         <main className="min-h-screen">{children}</main>
         <Footer />
         <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID!} />

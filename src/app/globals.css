@@ -2,22 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* @import hata diya gaya hai, ab ye layout.tsx ke CSS variables se aayega */
 html, body {
   margin: 0;
+  padding: 0;
   min-height: 100%;
-  background-color: #FAFAFA;
-  color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #111827;
+  color: #ffffff;
+}
+
+body {
+  background-color: #ffffff;
+  color: #111827;
+  font-family: var(--font-inter), sans-serif;
 }
 
 * {
   box-sizing: border-box;
-  font-family: var(--font-inter), sans-serif;
-}
-
-body {
   font-family: var(--font-inter), sans-serif;
 }
 
@@ -84,7 +98,6 @@ body {
 }
 
 /* ===== QUILL BLOG CONTENT FIX (Frontend Blog Read Page) ===== */
-/* Quill ka jo HTML output aata hai usko theek karne ke liye */
 
 .blog-read {
   font-size: 16px;
@@ -97,7 +110,12 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Quill ke andar wali images ko block banao — text upar niche na ho, neeche aaye */
+/* ✅ ڈارک موڈ میں بلاگ کا ٹیکسٹ سفید ہو جائے گا */
+.dark .blog-read {
+  color: #d1d5db;
+}
+
+/* Quill ke andar wali images ko block banao */
 .blog-read img {
   display: block !important;
   width: 100% !important;
@@ -196,6 +214,11 @@ body {
   line-height: 1.4;
 }
 
+/* ✅ ڈارک موڈ میں ہیڈنگز بھی سفید ہوں گی */
+.dark .blog-read h1, .dark .blog-read h2, .dark .blog-read h3 {
+  color: #ffffff;
+}
+
 /* Quill lists */
 .blog-read ul,
 .blog-read ol {
@@ -214,6 +237,9 @@ body {
   margin: 1.5rem 0;
   color: #555;
   font-style: italic;
+}
+.dark .blog-read blockquote {
+  color: #9ca3af;
 }
 
 /* Quill links */
@@ -236,12 +262,19 @@ body {
   margin: 1.5rem 0;
   font-size: 14px;
 }
+.dark .blog-read pre {
+  background: #333;
+}
 
 .blog-read code {
   background: #f0f0f0;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 14px;
+}
+.dark .blog-read code {
+  background: #444;
+  color: #fff;
 }
 
 /* Quill horizontal rules */

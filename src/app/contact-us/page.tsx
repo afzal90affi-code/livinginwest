@@ -32,7 +32,7 @@ export default function ContactUs() {
                 <span className="text-2xl">✉️</span>
                 <div>
                   <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold">Email</h3>
-                  <a href="team@livinginwest.com" className="text-gray-900 font-medium mt-1 hover:text-[#6D28D9] transition-colors">afzal90affi@gmail.com</a>
+                  <a href="team@livinginwest.com" className="text-gray-900 font-medium mt-1 hover:text-[#6D28D9] transition-colors">team@livinginwest.com</a>
                 </div>
               </div>
 

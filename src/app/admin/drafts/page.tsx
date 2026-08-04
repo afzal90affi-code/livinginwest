@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { client } from '@/lib/sanityClient';
-import { publishDraft, deleteBlog, getBlogImageOptions, applyBlogImage } from './../actions'; // آپ کے مطابق پاتھ ٹھیک کرلیں اگر ../actions ہے تو
+import { publishDraft, deleteBlog, getBlogImageOptions, applyBlogImage } from './../actions';
 import Image from 'next/image';
 import { X, ExternalLink, Search } from 'lucide-react';
 
@@ -41,7 +41,6 @@ export default function AdminDrafts() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(Date.now());
   
-  // 🌟 Image Picker State
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerBlogId, setPickerBlogId] = useState("");
   const [pickerTitle, setPickerTitle] = useState("");
@@ -49,8 +48,9 @@ export default function AdminDrafts() {
   const [loadingImages, setLoadingImages] = useState(false);
   const [applyingImage, setApplyingImage] = useState(false);
   
-  // ✅ Manual Search State
   const [searchQuery, setSearchQuery] = useState("");
+  // ✅ ری رائٹ کے لیے نیا اسٹیٹ
+  const [rewritingId, setRewritingId] = useState<string | null>(null);
 
   const fetchDrafts = async () => {
     const query = `*[_type == "blog" && isPublished == false] | order(date desc) {
@@ -116,7 +116,29 @@ export default function AdminDrafts() {
     router.push(`/admin?edit=${id}`);
   };
 
-  // 🌟 Image Picker Functions
+  // ✅ نیا فنکشن: AI سے خبر ری رائٹ کرنے کے لیے
+  const handleRewrite = async (id: string) => {
+    setRewritingId(id);
+    try {
+      const res = await fetch('/api/rewrite-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blogId: id })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert("✅ News Rewritten Successfully by AI!");
+        fetchDrafts(); // لسٹ کو ریفریش کر لیں تاکہ نیا عنوان نظر آئے
+      } else {
+        alert("❌ Rewrite failed: " + data.error);
+      }
+    } catch (error) {
+      alert("❌ Error rewriting news.");
+    }
+    setRewritingId(null);
+  };
+
   const openImagePicker = async (id: string, title: string) => {
     setIsPickerOpen(true);
     setPickerBlogId(id);
@@ -134,7 +156,6 @@ export default function AdminDrafts() {
     setLoadingImages(false);
   };
 
-  // ✅ Manual Search Handler
   const handleManualSearch = async () => {
     if (!searchQuery.trim()) return;
     setLoadingImages(true);
@@ -219,7 +240,15 @@ export default function AdminDrafts() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-shrink-0">
+                {/* ✅ بٹنز کا حصہ، یہاں Rewrite بٹن شامل کیا گیا ہے */}
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0 justify-end">
+                  <button 
+                    onClick={() => handleRewrite(blog._id)} 
+                    disabled={rewritingId === blog._id}
+                    className="px-4 py-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {rewritingId === blog._id ? "⏳..." : "🤖 Rewrite"}
+                  </button>
                   <button onClick={() => handleEdit(blog._id)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors">✏️ Edit</button>
                   <button onClick={() => handleDelete(blog._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors">🗑️ Delete</button>
                   <button onClick={() => handlePublish(blog._id)} className="px-5 py-2 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors">✅ Publish</button>
@@ -231,7 +260,7 @@ export default function AdminDrafts() {
         )}
       </div>
 
-      {/* 🌟 Image Picker Modal */}
+      {/* Image Picker Modal (وہی پرانا والا) */}
       {isPickerOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto relative">
@@ -241,7 +270,6 @@ export default function AdminDrafts() {
             <h2 className="text-xl font-bold mb-1">Select Image for: <span className="text-blue-600">{pickerTitle.substring(0, 30)}...</span></h2>
             <p className="text-xs text-gray-500 mb-4">If images are not relevant, search manually below:</p>
             
-            {/* ✅ Manual Search Box */}
             <div className="flex gap-2 mb-6 bg-gray-50 p-2 rounded-lg border">
               <input 
                 type="text" 

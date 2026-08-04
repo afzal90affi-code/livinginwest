@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -12,7 +13,7 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
-      // ✅ یہ اسکرولنگ والا کوڈ یہاں اضافہ کیا گیا ہے
+      // اسکرولنگ والا کوڈ
       animation: {
         marquee: 'marquee 20s linear infinite',
       },
@@ -26,4 +27,5 @@ const config: Config = {
   },
   plugins: [],
 };
+
 export default config;

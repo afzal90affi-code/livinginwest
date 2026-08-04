@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { saveBlog, uploadImage } from './actions';
+// ✅ saveSubcategory کو بھی امپورٹ کر لیا ہے
+import { saveBlog, uploadImage, saveSubcategory } from './actions';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 import 'react-quill-new/dist/quill.snow.css';
@@ -26,7 +27,7 @@ export interface Blog {
   sortOrder?: number | null;
   writerName?: string;     
   writerSocial?: string;   
-  heroVideoUrl?: string;   // ✅ Hero Video URL Added
+  heroVideoUrl?: string;   
 }
 
 export interface Category {
@@ -110,7 +111,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [blogCategory, setBlogCategory] = useState("");
   const [blogSubCategory, setBlogSubCategory] = useState("");
   const [blogDesc, setBlogDesc] = useState("");
-  const [blogHeroVideo, setBlogHeroVideo] = useState(""); // ✅ Hero Video State
+  const [blogHeroVideo, setBlogHeroVideo] = useState(""); 
   
   const [blogWriterName, setBlogWriterName] = useState("");
   const [blogWriterSocial, setBlogWriterSocial] = useState("");
@@ -128,6 +129,11 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const [embedType, setEmbedType] = useState("youtube");
   const [embedInput, setEmbedInput] = useState("");
 
+  // ✅ نئی سب کیٹیگری بنانے کے لیے اسٹیٹس
+  const [isAddingSubCat, setIsAddingSubCat] = useState(false);
+  const [newSubCatName, setNewSubCatName] = useState("");
+  const [isSavingSubCat, setIsSavingSubCat] = useState(false);
+
   const availableSubCats = subCatList.filter(s => s.parentId === getSlug(catList.find(c => getSlug(c.slug) === blogCategory)?.slug));
 
   useEffect(() => {
@@ -138,7 +144,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogCategory(initialData.category || (catList.length > 0 ? getSlug(catList[0].slug) : ""));
         setBlogSubCategory(initialData.subCategory || "");
         setBlogDesc(initialData.desc || "");
-        setBlogHeroVideo(initialData.heroVideoUrl || ""); // ✅ Populate Hero Video
+        setBlogHeroVideo(initialData.heroVideoUrl || ""); 
         
         setBlogWriterName(initialData.writerName || "");
         setBlogWriterSocial(initialData.writerSocial || "");
@@ -165,7 +171,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setBlogCategory(catList.length > 0 ? getSlug(catList[0].slug) : ""); 
         setBlogSubCategory(""); 
         setBlogDesc("");
-        setBlogHeroVideo(""); // ✅ Clear Hero Video
+        setBlogHeroVideo(""); 
         
         setBlogWriterName("");
         setBlogWriterSocial("");
@@ -180,6 +186,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         setImgOrientations({});
       }
       setActivePart("1");
+      setIsAddingSubCat(false); // Reset subcategory toggle on modal open
     }
   }, [showForm, initialData]);
 
@@ -199,7 +206,11 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
     else alert("Upload failed: " + r.error);
   };
 
-  const handleCategoryChange = (slug: string) => { setBlogCategory(slug); setBlogSubCategory(""); };
+  const handleCategoryChange = (slug: string) => { 
+    setBlogCategory(slug); 
+    setBlogSubCategory(""); 
+    setIsAddingSubCat(false); // Hide add form if category changes
+  };
 
   const handleContentChange = (index: number, value: string) => {
     setBlogContents(prev => {
@@ -207,6 +218,35 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       next[index] = value;
       return next;
     });
+  };
+
+  // ✅ نئی سب کیٹیگری سیو کرنے والا فنکشن
+  const handleAddSubCategory = async () => {
+    if (!newSubCatName) return alert("Please enter a sub-category name");
+    if (!blogCategory) return alert("Please select a main category first");
+    
+    setIsSavingSubCat(true);
+    const sl = newSubCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    const data = {
+      parentId: blogCategory,
+      name: newSubCatName,
+      slug: { _type: 'slug', current: sl } as unknown as string,
+      emoji: "📁",
+      desc: "",
+    };
+
+    const r = await saveSubcategory(data, undefined);
+    if (r.success) {
+      alert("Sub-category added successfully!");
+      onSaved(); // یہ پیرنٹ کمپوننٹ کو کال کرے گا تاکہ لسٹ ریفریش ہو جائے
+      setBlogSubCategory(sl); // نئی بننے والی کیٹیگری سلیکٹ کر لی
+      setNewSubCatName("");
+      setIsAddingSubCat(false);
+    } else {
+      alert("Error adding sub-category: " + r.error);
+    }
+    setIsSavingSubCat(false);
   };
 
   const handleInsertEmbed = () => {
@@ -268,7 +308,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       imgOrientations: imgOrientations,
       writerName: blogWriterName,       
       writerSocial: blogWriterSocial,
-      heroVideoUrl: blogHeroVideo      // ✅ Added to Save Payload
+      heroVideoUrl: blogHeroVideo      
     };
 
     for(let i=0; i<10; i++) {
@@ -322,13 +362,46 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
             <p className="text-[10px] text-blue-600 mt-1.5">Paste URL here to show Video on Homepage Hero Slider instead of Image.</p>
           </div>
           
+          {/* ✅ Category & Subcategory with Add New Option */}
           <div className="grid grid-cols-2 gap-4">
             <select value={blogCategory} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900">
               {catList.map((c) => <option key={c._id} value={getSlug(c.slug)}>{c.emoji} {c.name}</option>)}
             </select>
-            <select value={blogSubCategory} onChange={(e) => setBlogSubCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900 disabled:opacity-50" disabled={availableSubCats.length === 0}>
-              {availableSubCats.length > 0 ? (<><option value="">-- Sub-Category --</option>{availableSubCats.map((s) => <option key={s._id} value={getSlug(s.slug)}>{s.emoji} {s.name}</option>)}</>) : (<option value="">No sub-categories</option>)}
-            </select>
+            
+            <div className="flex flex-col gap-1">
+              {!isAddingSubCat ? (
+                <select value={blogSubCategory} onChange={(e) => setBlogSubCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900 disabled:opacity-50" disabled={availableSubCats.length === 0}>
+                  {availableSubCats.length > 0 ? (<><option value="">-- Sub-Category --</option>{availableSubCats.map((s) => <option key={s._id} value={getSlug(s.slug)}>{s.emoji} {s.name}</option>)}</>) : (<option value="">No sub-categories</option>)}
+                </select>
+              ) : (
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={newSubCatName} 
+                    onChange={(e) => setNewSubCatName(e.target.value)} 
+                    placeholder="Enter New Sub-Category" 
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleAddSubCategory} 
+                    disabled={isSavingSubCat}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold whitespace-nowrap hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSavingSubCat ? "..." : "Save"}
+                  </button>
+                </div>
+              )}
+              
+              {/* ٹوگل بٹن */}
+              <button 
+                type="button" 
+                onClick={() => { setIsAddingSubCat(!isAddingSubCat); setNewSubCatName(""); }} 
+                className={`text-[11px] font-semibold hover:underline w-fit ${isAddingSubCat ? 'text-gray-500' : 'text-[#6D28D9]'}`}
+              >
+                {isAddingSubCat ? "← Back to Select" : "+ Add New Sub-Category"}
+              </button>
+            </div>
           </div>
 
           {/* WRITER DETAILS SECTION */}
