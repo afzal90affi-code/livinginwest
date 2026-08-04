@@ -25,6 +25,10 @@ interface BlogData {
   img4Url?: string;
   img5Url?: string;
   img6Url?: string;
+  img7Url?: string;
+  img8Url?: string;
+  img9Url?: string;
+  img10Url?: string;
   imgOrientations?: Record<string, string>;
   isPublished?: boolean;
   isMoreStory?: boolean;
@@ -34,6 +38,10 @@ interface BlogData {
   content4?: string;
   content5?: string;
   content6?: string;
+  content7?: string;
+  content8?: string;
+  content9?: string;
+  content10?: string;
   writerName?: string;
   writerSocial?: string;
 }
@@ -65,8 +73,13 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "img4Url": img4.asset->url,
     "img5Url": img5.asset->url,
     "img6Url": img6.asset->url,
+    "img7Url": img7.asset->url,
+    "img8Url": img8.asset->url,
+    "img9Url": img9.asset->url,
+    "img10Url": img10.asset->url,
     imgOrientations, isPublished,
     content1, content2, content3, content4, content5, content6,
+    content7, content8, content9, content10,
     writerName, writerSocial
   }`;
 
@@ -101,7 +114,11 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
   }`;
   const shortStories: BlogData[] = await client.fetch(shortStoriesQuery, { slug: params.slug }, { cache: 'no-store' });
 
-  const fullBlogText = [blog.content1, blog.content2, blog.content3, blog.content4, blog.content5, blog.content6]
+  const fullBlogText = [
+    blog.content1, blog.content2, blog.content3, blog.content4, 
+    blog.content5, blog.content6, blog.content7, blog.content8, 
+    blog.content9, blog.content10
+  ]
     .filter(Boolean)
     .map(c => cleanQuillHtml(c || '').replace(/<[^>]*>/g, '').trim())
     .filter(t => t.length > 0)
@@ -275,6 +292,67 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
             )}
 
             {blog.content6 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content6) }} />}
+
+            {/* AD BLOCK AFTER PART 6 */}
+            <div className="flex items-center justify-center my-12 md:my-16">
+              <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
+            </div>
+            <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
+              <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
+            </div>
+
+            {blog.img7Url && (
+              <div className={`my-10 md:my-14 ${isVertical('7') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
+                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('7') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                  <Image src={blog.img7Url} alt="" fill className="object-cover" sizes={isVertical('7') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
+                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">06</div>
+                </div>
+              </div>
+            )}
+
+            {blog.content7 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content7) }} />}
+
+            {blog.img8Url && (
+              <div className={`my-10 md:my-14 ${isVertical('8') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
+                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('8') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                  <Image src={blog.img8Url} alt="" fill className="object-cover" sizes={isVertical('8') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
+                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">07</div>
+                </div>
+              </div>
+            )}
+
+            {blog.content8 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content8) }} />}
+
+            {/* AD BLOCK AFTER PART 8 */}
+            <div className="flex items-center justify-center my-12 md:my-16">
+              <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
+            </div>
+            <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
+              <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
+            </div>
+
+            {blog.img9Url && (
+              <div className={`my-10 md:my-14 ${isVertical('9') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
+                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('9') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                  <Image src={blog.img9Url} alt="" fill className="object-cover" sizes={isVertical('9') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
+                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">08</div>
+                </div>
+              </div>
+            )}
+
+            {blog.content9 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content9) }} />}
+
+            {blog.img10Url && (
+              <div className={`my-10 md:my-14 ${isVertical('10') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
+                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('10') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                  <Image src={blog.img10Url} alt="" fill className="object-cover" sizes={isVertical('10') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
+                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">09</div>
+                </div>
+              </div>
+            )}
+
+            {blog.content10 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content10) }} />}
+
 
             {/* ARTICLE END & SHARE */}
             <div className="mt-16 md:mt-24 flex flex-col items-center">

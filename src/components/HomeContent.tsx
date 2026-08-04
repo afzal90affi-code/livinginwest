@@ -134,11 +134,11 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-gray-900">
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
       
       {/* AD SLOT 1 */}
       <div className="max-w-7xl mx-auto px-6 my-4">
-        <div className="w-full min-h-[90px] bg-gray-50 border border-gray-200/60 flex items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase">
+        <div className="w-full min-h-[90px] bg-gray-50 dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700 flex items-center justify-center text-[10px] text-gray-400 dark:text-gray-500 tracking-widest uppercase">
           [Advertisement - Top Leaderboard Banner]
         </div>
       </div>
@@ -184,14 +184,14 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
           {/* ===== DAILY UPDATES ===== */}
           <section className="py-4 md:py-8">
-            <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 pb-3">
-              <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Daily Updates</h2>
-              <Link href="/news" className="text-xs text-gray-500 hover:text-gray-900 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
+            <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 dark:border-gray-700 pb-3">
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white uppercase">Daily Updates</h2>
+              <Link href="/news" className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
                 View All News <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
 
-            <div className="flex flex-col divide-y divide-gray-100">
+            <div className="flex flex-col divide-y divide-gray-100 dark:divide-gray-800">
               {blogs.slice(0, 5).map((blog) => {
                 const dateObj = new Date(blog.timestamp);
                 const month = dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
@@ -199,16 +199,16 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
                 return (
                   <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex items-start gap-5 py-5">
-                    <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 border-r-2 border-gray-100 pr-4 text-center">
-                      <span className="text-[10px] font-bold text-[#1e3a8a] uppercase tracking-widest">{month}</span>
-                      <span className="text-3xl font-playfair font-bold text-gray-900 leading-none mt-1">{day}</span>
-                      {blog.newsTime && <span className="text-[9px] text-gray-400 mt-1">{blog.newsTime.split(',')[1]}</span>}
+                    <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 border-r-2 border-gray-100 dark:border-gray-800 pr-4 text-center">
+                      <span className="text-[10px] font-bold text-[#1e3a8a] dark:text-blue-400 uppercase tracking-widest">{month}</span>
+                      <span className="text-3xl font-playfair font-bold text-gray-900 dark:text-white leading-none mt-1">{day}</span>
+                      {blog.newsTime && <span className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">{blog.newsTime.split(',')[1]}</span>}
                     </div>
 
                     <div className="flex-1">
                       <span className="text-[10px] uppercase tracking-[0.2em] text-red-600 font-bold mb-1.5 block">{blog.category}</span>
-                      <h3 className="text-lg md:text-xl font-bold leading-snug text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{blog.title}</h3>
-                      <p className="text-sm text-gray-500 mt-1.5 line-clamp-1 hidden md:block">{blog.desc}</p>
+                      <h3 className="text-lg md:text-xl font-bold leading-snug text-gray-900 dark:text-white group-hover:text-[#1e3a8a] dark:group-hover:text-blue-400 transition-colors line-clamp-2">{blog.title}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-1 hidden md:block">{blog.desc}</p>
                     </div>
 
                     {blog.img && (
@@ -225,27 +225,27 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
           {/* ===== DISCOUNTS & DEALS SECTION ===== */}
           {blogs.filter(b => b.category === 'Discounts & Offers').length > 0 && (
             <section className="py-4 md:py-8">
-              <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 pb-3">
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Discounts & Deals</h2>
-                <Link href="/category/Discounts%20%26%20Offers" className="text-xs text-gray-500 hover:text-gray-900 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
+              <div className="flex items-center justify-between mb-6 border-b-2 border-gray-900 dark:border-gray-700 pb-3">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white uppercase">Discounts & Deals</h2>
+                <Link href="/category/Discounts%20%26%20Offers" className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
                   View All Deals <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {blogs.filter(b => b.category === 'Discounts & Offers').slice(0, 4).map((blog) => (
-                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all">
+                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all">
                     {blog.img && (
-                      <div className="relative aspect-[16/9] overflow-hidden bg-gray-100">
+                      <div className="relative aspect-[16/9] overflow-hidden bg-gray-100 dark:bg-gray-700">
                         <Image src={blog.img} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="300px" />
                         <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Deal</div>
                       </div>
                     )}
                     <div className="p-4 flex flex-col flex-1">
-                      <h3 className="text-lg font-bold leading-snug text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{blog.title}</h3>
-                      <p className="text-sm text-gray-500 mt-2 line-clamp-2 flex-1">{blog.desc}</p>
+                      <h3 className="text-lg font-bold leading-snug text-gray-900 dark:text-white group-hover:text-[#1e3a8a] dark:group-hover:text-blue-400 transition-colors line-clamp-2">{blog.title}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 flex-1">{blog.desc}</p>
                       {blog.newsTime && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center text-[10px] text-gray-400 font-medium">
+                        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center text-[10px] text-gray-400 dark:text-gray-500 font-medium">
                           <Clock className="w-3 h-3 mr-1.5" /> {blog.newsTime}
                         </div>
                       )}
@@ -258,11 +258,11 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
           {/* ===== EDITOR'S PICK (صرف منتخب شدہ خبریں آئیں گی) ===== */}
           {editorPicks.length > 0 && (
-            <section className="py-12 md:py-16 bg-white border border-gray-100 rounded-xl shadow-sm">
+            <section className="py-12 md:py-16 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm">
               <div className="px-6 md:px-10">
-                <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 pb-3">
-                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 uppercase">Editor&apos;s Pick</h2>
-                  <span className="hidden md:block text-xs text-gray-500 uppercase tracking-widest font-semibold">Curated Insights</span>
+                <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 dark:border-gray-700 pb-3">
+                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white uppercase">Editor&apos;s Pick</h2>
+                  <span className="hidden md:block text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-semibold">Curated Insights</span>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
@@ -276,10 +276,10 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                         )}
                       </div>
                       <span className="text-[11px] uppercase tracking-widest text-red-600 font-bold mb-2 inline-block">{editorLeft.category}</span>
-                      <h3 className="font-playfair text-3xl md:text-4xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-2">{editorLeft.title}</h3>
-                      <p className="text-base text-gray-600 mt-3 line-clamp-2 leading-relaxed">{editorLeft.desc}</p>
+                      <h3 className="font-playfair text-3xl md:text-4xl font-bold leading-tight text-gray-900 dark:text-white group-hover:underline underline-offset-4 decoration-2">{editorLeft.title}</h3>
+                      <p className="text-base text-gray-600 dark:text-gray-300 mt-3 line-clamp-2 leading-relaxed">{editorLeft.desc}</p>
                       
-                      <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+                      <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                         <div className="flex items-center gap-2">
                           {renderAuthor(editorLeft)}
                           {editorLeft.writerName && <span>•</span>}

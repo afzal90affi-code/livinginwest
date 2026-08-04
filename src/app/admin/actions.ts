@@ -13,23 +13,53 @@ const checkAuth = () => {
   }
 };
 
+const explainSanityError = (error: any) => {
+  const message = error?.message || 'Image upload failed';
+
+  if (/Insufficient permissions|permission "create" required/i.test(message)) {
+    return 'Sanity write token has insufficient permissions. Use a token with Editor/Admin rights for the dataset, then redeploy or restart the app.';
+  }
+
+  if (/Invalid image|could not process/i.test(message)) {
+    return 'The selected file is not a valid image or is corrupted.';
+  }
+
+  if (/projectId/i.test(message)) {
+    return 'Sanity project id is invalid or missing. Check NEXT_PUBLIC_SANITY_PROJECT_ID.';
+  }
+
+  return message;
+};
+
 // ======== IMAGE UPLOAD FUNCTION ========
 export async function uploadImage(formData: FormData) {
   try {
+    const projectId = (process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || '').trim();
+    const writeToken = (process.env.SANITY_WRITE_TOKEN || '').trim();
+
+    if (!projectId || !writeToken) {
+      return {
+        success: false,
+        error: 'Sanity credentials missing. Set NEXT_PUBLIC_SANITY_PROJECT_ID and SANITY_WRITE_TOKEN in environment variables.'
+      };
+    }
+
     const file = formData.get('file');
     if (!file) return { success: false, error: 'No file provided' };
 
-    const arrayBuffer = await (file as File).arrayBuffer();
+    const fileObj = file as File;
+    const arrayBuffer = await fileObj.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
     const asset = await writeClient.assets.upload('image', buffer, {
-      filename: (file as File).name,
+      filename: fileObj.name,
+      contentType: fileObj.type || 'image/jpeg',
     });
     
     return { success: true, url: asset.url, assetId: asset._id };
   } catch (error: any) {
     console.error('Upload error:', error);
-    return { success: false, error: error.message || 'Image upload failed' };
+    return { success: false, error: explainSanityError(error) };
   }
 }
 
@@ -185,7 +215,7 @@ export async function saveBlog(data: any, editingId?: string) {
     return { success: true };
   } catch (error: any) {
     console.error("Save Blog Error:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: explainSanityError(error) };
   }
 }
 
