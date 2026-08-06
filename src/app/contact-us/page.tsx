@@ -24,7 +24,7 @@ export default function ContactUs() {
                 <span className="text-2xl">💬</span>
                 <div>
                   <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold">WhatsApp</h3>
-                  <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="text-gray-900 font-medium mt-1 hover:text-[#25D366] transition-colors">+92 321 9139090</a>
+                  <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="text-gray-900 font-medium mt-1 hover:text-[#25D366] transition-colors">+92 3333010842</a>
                 </div>
               </div>
               
@@ -40,7 +40,7 @@ export default function ContactUs() {
                 <span className="text-2xl">📍</span>
                 <div>
                   <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold">spokeperson location</h3>
-                  <p className="text-gray-900 font-medium mt-1">karachi,pakistan</p>
+                  <p className="text-gray-900 font-medium mt-1">uk </p>
                 </div>
               </div>
             </div>

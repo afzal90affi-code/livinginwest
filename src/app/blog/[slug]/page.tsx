@@ -164,6 +164,18 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     </div>
   );
 
+  // Dynamic Blog Parts Array
+  const blogSections = [];
+  for (let i = 1; i <= 10; i++) {
+    const content = (blog as any)[`content${i}`] as string | undefined;
+    const imageKey = i + 1;
+    const imageUrl = i < 10 ? (blog as any)[`img${imageKey}Url`] as string | undefined : undefined;
+    
+    if (content || imageUrl) {
+      blogSections.push({ content, imageKey, imageUrl });
+    }
+  }
+
   return (
     <main className="min-h-screen bg-white text-gray-900 blog-no-scroll">
       <ArticleTracker title={blog.title} category={blog.category || "general"} />
@@ -210,9 +222,17 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
 
           {blog.mainImageUrl && (
-            <div className="w-full my-10 md:my-14">
-              <div className="relative w-full max-w-[1000px] mx-auto aspect-[3/2] overflow-hidden bg-gray-50">
-                <Image src={blog.mainImageUrl} alt={blog.title} fill className="object-cover" priority sizes="(max-width: 1024px) 100vw, 85vw" />
+            <div className={`my-10 md:my-14 ${isVertical('1') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
+              <div className={`relative overflow-hidden bg-gray-50 ${isVertical('1') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                <Image 
+                  src={blog.mainImageUrl} 
+                  alt={blog.title} 
+                  fill 
+                  className="object-cover" 
+                  priority 
+                  sizes={isVertical('1') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} 
+                />
+                <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">00</div>
               </div>
             </div>
           )}
@@ -222,137 +242,44 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
 
           <article className="w-full max-w-[760px] mx-auto pt-10 md:pt-14 pb-10 md:pb-20">
-            {blog.content1 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content1) }} />}
             
-            {blog.img2Url && (
-              <div className={`my-10 md:my-14 ${isVertical('2') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('2') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img2Url} alt="" fill className="object-cover" sizes={isVertical('2') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">01</div>
-                </div>
+            {/* DYNAMIC BLOG CONTENT LOOP */}
+            {blogSections.map((section, index) => (
+              <div key={index}>
+                {section.content && (
+                  <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(section.content) }} />
+                )}
+
+                {section.imageUrl && (
+                  <div className={`my-10 md:my-14 ${isVertical(String(section.imageKey)) ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
+                    <div className={`relative overflow-hidden bg-gray-50 ${isVertical(String(section.imageKey)) ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                      <Image 
+                        src={section.imageUrl} 
+                        alt="" 
+                        fill 
+                        className="object-cover" 
+                        sizes={isVertical(String(section.imageKey)) ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} 
+                      />
+                      <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">
+                        {String(section.imageKey - 1).padStart(2, '0')}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ad Block & Divider - Sirf tabhi render hoga jab agla part maujood ho */}
+                {((index + 1) % 2 === 0) && (index < blogSections.length - 1) && (
+                  <>
+                    <div className="flex items-center justify-center my-12 md:my-16">
+                      <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
+                    </div>
+                    <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
+                      <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
-
-            {blog.content2 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content2) }} />}
-
-            <div className="flex items-center justify-center my-12 md:my-16">
-              <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
-            </div>
-            <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
-              <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
-            </div>
-
-            {blog.img3Url && (
-              <div className={`my-10 md:my-14 ${isVertical('3') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('3') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img3Url} alt="" fill className="object-cover" sizes={isVertical('3') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">02</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content3 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content3) }} />}
-
-            {blog.img4Url && (
-              <div className={`my-10 md:my-14 ${isVertical('4') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('4') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img4Url} alt="" fill className="object-cover" sizes={isVertical('4') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">03</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content4 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content4) }} />}
-
-            <div className="flex items-center justify-center my-12 md:my-16">
-              <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
-            </div>
-            <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
-              <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
-            </div>
-
-            {blog.img5Url && (
-              <div className={`my-10 md:my-14 ${isVertical('5') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('5') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img5Url} alt="" fill className="object-cover" sizes={isVertical('5') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">04</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content5 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content5) }} />}
-
-            {blog.img6Url && (
-              <div className={`my-10 md:my-14 ${isVertical('6') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('6') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img6Url} alt="" fill className="object-cover" sizes={isVertical('6') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">05</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content6 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content6) }} />}
-
-            {/* AD BLOCK AFTER PART 6 */}
-            <div className="flex items-center justify-center my-12 md:my-16">
-              <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
-            </div>
-            <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
-              <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
-            </div>
-
-            {blog.img7Url && (
-              <div className={`my-10 md:my-14 ${isVertical('7') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('7') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img7Url} alt="" fill className="object-cover" sizes={isVertical('7') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">06</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content7 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content7) }} />}
-
-            {blog.img8Url && (
-              <div className={`my-10 md:my-14 ${isVertical('8') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('8') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img8Url} alt="" fill className="object-cover" sizes={isVertical('8') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">07</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content8 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content8) }} />}
-
-            {/* AD BLOCK AFTER PART 8 */}
-            <div className="flex items-center justify-center my-12 md:my-16">
-              <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
-            </div>
-            <div className="my-8 py-5 border-t border-b border-gray-100 flex items-center justify-center">
-              <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
-            </div>
-
-            {blog.img9Url && (
-              <div className={`my-10 md:my-14 ${isVertical('9') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('9') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img9Url} alt="" fill className="object-cover" sizes={isVertical('9') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">08</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content9 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content9) }} />}
-
-            {blog.img10Url && (
-              <div className={`my-10 md:my-14 ${isVertical('10') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                <div className={`relative overflow-hidden bg-gray-50 ${isVertical('10') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
-                  <Image src={blog.img10Url} alt="" fill className="object-cover" sizes={isVertical('10') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} />
-                  <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">09</div>
-                </div>
-              </div>
-            )}
-
-            {blog.content10 && <div className="blog-read" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(blog.content10) }} />}
-
+            ))}
 
             {/* ARTICLE END & SHARE */}
             <div className="mt-16 md:mt-24 flex flex-col items-center">
