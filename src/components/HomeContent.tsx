@@ -6,7 +6,9 @@ import { ArrowRight, Clock, ImageOff, Mail } from 'lucide-react';
 import { urlFor } from "@/lib/sanityImage";
 import { ShareCardButton } from '@/components/share';
 
-export const dynamic = 'force-dynamic';
+// 👇 NOTE: "use client" component mein "export const dynamic" kaam nahi karta,
+// isliye ye line yahan se hata di gayi hai. Homepage ki freshness/caching
+// app/page.tsx mein control honi chahiye (jahan se ye component render hota hai).
 
 // 👇 Types define kiye
 interface Category {
@@ -63,7 +65,9 @@ interface MappedBlog {
 
 export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: Category[], initialBlogs: Blog[] }) {
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
-  const [subEmail, setSubEmail] = useState(""); // ✅ Subscribe کے لیے اسٹیٹ
+  const [subEmail, setSubEmail] = useState("");
+  const [subStatus, setSubStatus] = useState<"idle" | "loading" | "success" | "error">("idle"); // ✅ Naya status state
+  const [subMessage, setSubMessage] = useState(""); // ✅ Error/success message dikhane ke liye
   
   const categories: MappedCategory[] = initialCategories.map((c: Category) => {
     let catSlug = 'category';
@@ -124,13 +128,47 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     return () => clearInterval(interval);
   }, [heroNews.length]);
 
-  // ✅ Subscribe فارم سبمٹ ہینڈلر
-  const handleSubSubmit = (e: React.FormEvent) => {
+  // ✅ ASAL FIX YAHAN HAI — Ab ye Sanity mein email save karta hai API route ke zariye
+  const handleSubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!subEmail) return alert("Please enter a valid email");
-    // یہاں آپ بیکینڈ پر ای میل بھیجنے کا کوڈ لگا سکتے ہیں
-    alert("Subscribed successfully! 🎉");
-    setSubEmail("");
+
+    if (!subEmail || !subEmail.includes("@")) {
+      setSubStatus("error");
+      setSubMessage("Please enter a valid email address.");
+      return;
+    }
+
+    setSubStatus("loading");
+    setSubMessage("");
+
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subEmail }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSubStatus("error");
+        setSubMessage(data.error || "Something went wrong. Please try again.");
+        return;
+      }
+
+      setSubStatus("success");
+      setSubMessage("Subscribed successfully! 🎉");
+      setSubEmail("");
+
+      // 3 second baad message clear ho jaye
+      setTimeout(() => {
+        setSubStatus("idle");
+        setSubMessage("");
+      }, 3000);
+    } catch (err) {
+      setSubStatus("error");
+      setSubMessage("Network error. Please try again.");
+    }
   };
 
   return (
@@ -162,21 +200,31 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     </div>
 
     {/* ان پٹ اور بٹن والا حصہ */}
-    <form onSubmit={handleSubSubmit} className="flex w-full sm:w-auto items-center gap-2">
-      <input 
-        type="email" 
-        value={subEmail} 
-        onChange={(e) => setSubEmail(e.target.value)} 
-        placeholder="Enter your email address" 
-        required
-        className="px-4 py-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-white/30 w-full sm:w-64 bg-white/10 text-white placeholder-gray-400 border border-white/20" 
-      />
-      <button 
-        type="submit" 
-        className="bg-white text-gray-900 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors whitespace-nowrap flex-shrink-0"
-      >
-        Subscribe
-      </button>
+    <form onSubmit={handleSubSubmit} className="flex flex-col w-full sm:w-auto items-center gap-2">
+      <div className="flex w-full sm:w-auto items-center gap-2">
+        <input 
+          type="email" 
+          value={subEmail} 
+          onChange={(e) => setSubEmail(e.target.value)} 
+          placeholder="Enter your email address" 
+          required
+          disabled={subStatus === "loading"}
+          className="px-4 py-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-white/30 w-full sm:w-64 bg-white/10 text-white placeholder-gray-400 border border-white/20 disabled:opacity-50" 
+        />
+        <button 
+          type="submit" 
+          disabled={subStatus === "loading"}
+          className="bg-white text-gray-900 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors whitespace-nowrap flex-shrink-0 disabled:opacity-60"
+        >
+          {subStatus === "loading" ? "Submitting..." : "Subscribe"}
+        </button>
+      </div>
+      {/* ✅ Success/Error message dikhta hai */}
+      {subMessage && (
+        <span className={`text-xs ${subStatus === "error" ? "text-red-300" : "text-green-300"}`}>
+          {subMessage}
+        </span>
+      )}
     </form>
 
   </div>

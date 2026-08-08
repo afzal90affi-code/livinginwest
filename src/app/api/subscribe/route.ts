@@ -1,32 +1,35 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@sanity/client';
+import { client } from "@/lib/sanityClient";
+import { NextResponse } from "next/server";
 
-const sanityClient = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "",
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
-  apiVersion: '2023-05-03',
-  token: process.env.SANITY_WRITE_TOKEN || "",
-  useCdn: false,
-});
-
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const { email } = await request.json();
-    
-    // Check if already exists
-    const existing = await sanityClient.fetch(`*[_type == "subscriber" && email == $email][0]`, { email });
-    if (existing) {
-      return NextResponse.json({ success: false, error: "You are already subscribed!" });
+    const { email } = await req.json();
+
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
-    await sanityClient.create({
-      _type: 'subscriber',
-      email: email,
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Duplicate check
+    const existing = await client.fetch(
+      `*[_type == "subscriber" && email == $email][0]{_id}`,
+      { email: cleanEmail }
+    );
+
+    if (existing) {
+      return NextResponse.json({ error: "This email is already subscribed" }, { status: 409 });
+    }
+
+    await client.create({
+      _type: "subscriber",
+      email: cleanEmail,
       subscribedAt: new Date().toISOString(),
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error("Subscribe error:", err);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

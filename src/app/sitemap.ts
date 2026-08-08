@@ -1,6 +1,8 @@
 import { MetadataRoute } from 'next'
 import { client } from '@/lib/sanityClient'
 
+export const revalidate = 900; // 👈 YAHAN — imports ke baad, function se pehle
+
 interface SitemapData {
   slug: string;
   _updatedAt: string;
@@ -28,13 +30,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: 'https://livinginwest.com',
       lastModified: new Date(),
-      changeFrequency: 'daily' as const,   // 👈 as const add kiya
+      changeFrequency: 'daily' as const,
       priority: 1,
     },
     {
       url: 'https://livinginwest.com/daily-news',
       lastModified: new Date(),
-      changeFrequency: 'daily' as const,   // 👈 as const add kiya
+      changeFrequency: 'daily' as const,
       priority: 0.9,
     },
     ...blogEntries,

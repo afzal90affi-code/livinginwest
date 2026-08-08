@@ -1,6 +1,16 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, TrendingUp, DollarSign, Globe, Calculator, Coins, Share2 } from 'lucide-react';
+import { ArrowRight, TrendingUp, DollarSign, Globe, Calculator, Coins, Share2, ArrowUp, ArrowDown, BarChart2 } from 'lucide-react';
+
+// --- Market Data for Table ---
+const marketData = [
+  { region: 'United States', category: 'Index', name: 'S&P 500', actual: '4.6810', chg: '0.064', pchg: '0.06%', isUp: true },
+  { region: 'Japan', category: 'Index', name: 'Nikkei 225', actual: '32.5', chg: '0.044', pchg: '-0.04%', isUp: false },
+  { region: 'United States', category: 'Commodity', name: 'Gold', actual: '2.015', chg: '0.012', pchg: '0.60%', isUp: true },
+  { region: 'Global', category: 'Crypto', name: 'Bitcoin', actual: '61,500', chg: '1.200', pchg: '1.98%', isUp: true },
+  { region: 'Europe', category: 'Forex', name: 'EUR/USD', actual: '1.0850', chg: '0.002', pchg: '0.18%', isUp: true },
+  { region: 'United States', category: 'Stocks', name: 'AAPL', actual: '175.40', chg: '1.200', pchg: '-0.68%', isUp: false },
+];
 
 // --- TradingView Graph Widget ---
 const TradingViewWidget = ({ symbol, name, dateRange = "3M" }: { symbol: string, name: string, dateRange?: string }) => {
@@ -148,7 +158,7 @@ const CurrencyCalculator = () => {
 
 // --- Main Page ---
 export default function TradingFinancePage() {
-  // 🌟 پورے پیج کو شیئر کرنے کا فنکشن
+  // پورے پیج کو شیئر کرنے کا فنکشن
   const handleSharePage = () => {
     if (navigator.share) {
       navigator.share({
@@ -162,12 +172,12 @@ export default function TradingFinancePage() {
     }
   };
 
-  // 🌟 کسی خاص سیکشن (Single Item) کو شیئر کرنے کا فنکشن
+  // کسی خاص سیکشن (Single Item) کو شیئر کرنے کا فنکشن
   const handleShareItem = (itemName: string) => {
     const shareData = {
       title: `${itemName} - Living In West`,
       text: `Check out live ${itemName} data and charts at Living In West!`,
-      url: window.location.href, // پیج کا لنک اس مخصوص ٹیکسٹ کے ساتھ شیئر ہوگا
+      url: window.location.href, 
     };
     if (navigator.share) {
       navigator.share(shareData).catch((err) => console.log(err));
@@ -224,6 +234,51 @@ export default function TradingFinancePage() {
         
         <div className="flex-1 space-y-16">
           
+          {/* 0. Global Markets Overview Table (Naya Add Kiya Gaya Hai) */}
+          <section>
+            <SectionHeader icon={<BarChart2 className="w-6 h-6 text-indigo-600" />} title="Global Markets Overview" color="border-indigo-600" itemName="Global Markets Overview" />
+            <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+              <table className="w-full text-sm text-left text-gray-600 dark:text-gray-300">
+                <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-900/50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 font-medium">Country/Region</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Category</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Name</th>
+                    <th scope="col" className="px-6 py-3 font-medium text-right">Actual</th>
+                    <th scope="col" className="px-6 py-3 font-medium text-right">Chg</th>
+                    <th scope="col" className="px-6 py-3 font-medium text-right">%Chg</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {marketData.map((item, index) => (
+                    <tr key={index} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-800 dark:text-white">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${item.isUp ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                          {item.region}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{item.category}</span>
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{item.name}</td>
+                      <td className="px-6 py-4 text-right font-mono text-gray-700 dark:text-gray-200">{item.actual}</td>
+                      <td className={`px-6 py-4 text-right font-mono font-medium ${item.isUp ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className="flex items-center justify-end gap-1">
+                          {item.isUp ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                          {item.chg}
+                        </span>
+                      </td>
+                      <td className={`px-6 py-4 text-right font-mono font-medium ${item.isUp ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.pchg}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
           {/* 1. Global Minerals & Metals */}
           <section>
             <SectionHeader icon={<Coins className="w-6 h-6 text-amber-600" />} title="Precious & Industrial Minerals" color="border-amber-600" itemName="Precious & Industrial Minerals" />
