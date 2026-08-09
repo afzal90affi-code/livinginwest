@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 import { client } from '@/lib/sanityClient'
 
-export const revalidate = 900; // 👈 YAHAN — imports ke baad, function se pehle
+export const revalidate = 900; // 15 minutes cache
 
 interface SitemapData {
   slug: string;
@@ -9,7 +9,9 @@ interface SitemapData {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const blogs: SitemapData[] = await client.fetch(`*[_type == "blog"]{"slug": slug.current, _updatedAt}`)
+  // ✅ isPublished == true ka check lagaya gaya hai taake sirf live posts aayen
+  const blogs: SitemapData[] = await client.fetch(`*[_type == "blog" && isPublished == true] | order(_updatedAt desc){"slug": slug.current, _updatedAt}`)
+  
   const categories: SitemapData[] = await client.fetch(`*[_type == "category"]{"slug": slug.current, _updatedAt}`)
 
   const blogEntries = blogs.map((b: SitemapData) => ({

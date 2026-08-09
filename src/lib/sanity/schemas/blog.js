@@ -12,6 +12,10 @@ const blog = {
     { name: 'img4', title: 'Image 4', type: 'image', options: { hotspot: true } },
     { name: 'img5', title: 'Image 5', type: 'image', options: { hotspot: true } },
     { name: 'img6', title: 'Image 6', type: 'image', options: { hotspot: true } },
+    { name: 'img7', title: 'Image 7', type: 'image', options: { hotspot: true } },
+    { name: 'img8', title: 'Image 8', type: 'image', options: { hotspot: true } },
+    { name: 'img9', title: 'Image 9', type: 'image', options: { hotspot: true } },
+    { name: 'img10', title: 'Image 10', type: 'image', options: { hotspot: true } },
     
     // ✅ Hero Video URL Field Added Here
     {
