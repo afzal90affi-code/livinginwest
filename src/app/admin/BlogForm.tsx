@@ -192,7 +192,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
 
   const setOrientation = (key: string, val: string) => setImgOrientations(prev => ({ ...prev, [key]: val }));
 
-  // ✅ WATERMARK FUNCTION: Image par logo lagane ke liye
+    // ✅ WATERMARK FUNCTION: Image par logo lagane ke liye
   const addWatermark = async (file: File): Promise<File> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -210,6 +210,13 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
 
           // Logo load karna
           const logo = new Image();
+          
+          // ✅ FALLBACK: Agar logo nahi mila toh image bina watermark ke upload ho jayegi
+          logo.onerror = () => {
+            console.warn("⚠️ Logo file not found in /public folder. Uploading without watermark.");
+            resolve(file); 
+          };
+
           logo.onload = () => {
             // Logo ka size set karna (Image width ka 15%)
             const logoWidth = canvas.width * 0.15;
@@ -235,7 +242,8 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
               }
             }, file.type);
           };
-          // ⚠️ Yahan apne public folder wale logo ka sahi naam daalein
+          
+          // ⚠️ Yahan apne public folder wale logo ka SAHI naam check karein
           logo.src = '/livinginwest-logo.png'; 
         };
         img.src = e.target?.result as string;
@@ -243,7 +251,7 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       reader.readAsDataURL(file);
     });
   };
-
+  
   // ✅ UPDATED HANDLE IMAGE UPLOAD
   const handleImageUpload = async (e: any, index: number) => {
     const file = e.target.files?.[0]; 
