@@ -192,9 +192,69 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
 
   const setOrientation = (key: string, val: string) => setImgOrientations(prev => ({ ...prev, [key]: val }));
 
+  // ✅ WATERMARK FUNCTION: Image par logo lagane ke liye
+  const addWatermark = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file);
+
+          // Original image draw karna
+          ctx.drawImage(img, 0, 0);
+
+          // Logo load karna
+          const logo = new Image();
+          logo.onload = () => {
+            // Logo ka size set karna (Image width ka 15%)
+            const logoWidth = canvas.width * 0.15;
+            const logoHeight = (logo.height / logo.width) * logoWidth;
+            
+            // Position: Top Right corner (thora padding ke sath)
+            const padding = 20;
+            const x = canvas.width - logoWidth - padding;
+            const y = padding;
+
+            // Logo par thora shadow dene se wo har image par clear dikhega
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+
+            // Canvas ko wapas File mein convert karna
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const newFile = new File([blob], file.name, { type: file.type });
+                resolve(newFile);
+              } else {
+                resolve(file);
+              }
+            }, file.type);
+          };
+          // ⚠️ Yahan apne public folder wale logo ka sahi naam daalein
+          logo.src = '/livinginwest-logo.png'; 
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // ✅ UPDATED HANDLE IMAGE UPLOAD
   const handleImageUpload = async (e: any, index: number) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const fd = new FormData(); fd.append('file', file);
+    const file = e.target.files?.[0]; 
+    if (!file) return;
+    
+    // Pehle image par watermark lagayenge
+    const watermarkedFile = await addWatermark(file);
+    
+    const fd = new FormData(); 
+    fd.append('file', watermarkedFile); // Ab watermarked file upload hogi
+    
     const r = await uploadImage(fd);
     if (r.success) {
       setBlogImages(prev => {

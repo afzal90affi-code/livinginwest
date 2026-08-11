@@ -1,3 +1,4 @@
+import { Metadata } from 'next'; // Ye import file ke sabse upar add karein
 import { client } from "@/lib/sanityClient";
 import Image from 'next/image';
 import Link from 'next/link';
@@ -63,6 +64,73 @@ const cleanQuillHtml = (html: string): string => {
     return allowedStyles ? `${start}style="${allowedStyles}"` : start;
   });
 };
+// ✅ 1. GENERATE METADATA FUNCTION (Updated for Admin SEO Panel)
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  // Ab hum metaTitle, metaDesc aur keywords bhi fetch kar rahe hain
+  const query = `*[_type == "blog" && slug.current == $slug][0] {
+    title, desc, metaTitle, metaDesc, keywords,
+    "mainImageUrl": img1.asset->url, 
+    "slug": slug.current
+  }`;
+  
+  const blog: { 
+    title?: string; 
+    desc?: string; 
+    metaTitle?: string;
+    metaDesc?: string;
+    keywords?: string;
+    mainImageUrl?: string; 
+    slug?: string 
+  } | null = await client.fetch(query, { slug: params.slug });
+
+  if (!blog) {
+    return {
+      title: "Blog Not Found | Living In West",
+      description: "The article you are looking for does not exist.",
+    };
+  }
+
+  const baseUrl = "https://livinginwest.com";
+  const ogImageUrl = blog.mainImageUrl || `${baseUrl}/default-og-image.jpg`;
+
+  // Agar admin se meta title diya hai toh wo, warna default title
+  const finalTitle = blog.metaTitle || blog.title;
+  
+  // Agar admin se meta desc diya hai toh wo, warna default desc
+  const finalDesc = blog.metaDesc || blog.desc || "Read the latest insights and stories on Living In West.";
+
+  // Keywords ko array mein convert kar rahe hain (comma separated se)
+  const keywordsArray = blog.keywords ? blog.keywords.split(',').map(k => k.trim()) : [];
+
+  return {
+    title: finalTitle,
+    description: finalDesc,
+    keywords: keywordsArray, // Ye keywords search engines ke liye hain
+    alternates: {
+      canonical: `${baseUrl}/blog/${blog.slug}`,
+    },
+    openGraph: {
+      title: finalTitle,
+      description: finalDesc,
+      url: `${baseUrl}/blog/${blog.slug}`,
+      type: "article",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: finalTitle,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: finalTitle,
+      description: finalDesc,
+      images: [ogImageUrl],
+    },
+  };
+}
 
 export default async function BlogDetail({ params }: { params: { slug: string } }) {
   const blogQuery = `*[_type == "blog" && slug.current == $slug][0] {
@@ -176,8 +244,30 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     }
   }
 
+  // ✅ 2. SCHEMA MARKUP FOR GOOGLE (JSON-LD)
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": blog.title,
+    "description": blog.desc,
+    "image": blog.mainImageUrl,
+    "datePublished": blog.date,
+    "author": {
+      "@type": "Person",
+      "name": blog.writerName || "Living In West"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Living In West"
+    }
+  };
+
   return (
     <main className="min-h-screen bg-white text-gray-900 blog-no-scroll">
+      
+      {/* ✅ SCHEMA RENDERING */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+
       <ArticleTracker title={blog.title} category={blog.category || "general"} />
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 px-4 md:px-6">

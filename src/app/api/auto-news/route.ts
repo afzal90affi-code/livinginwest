@@ -20,6 +20,7 @@ const parser = new RssParser({
   }
 });
 
+// ✅ Array ko uncomment kar diya gaya hai taake error na aaye
 const newsFeeds = [
   // 1. Daily West
   { url: 'https://www.whitehouse.gov/feed/', category: 'Daily West', subcategory: 'US Government' },
@@ -28,33 +29,33 @@ const newsFeeds = [
   { url: 'https://www.uscis.gov/news/news-releases/rss', category: 'Daily West', subcategory: 'Immigration' },
   { url: 'https://www.uscis.gov/news/alerts/rss', category: 'Daily West', subcategory: 'Immigration Alerts' },
   
-//   // 2. Trading & Finance
-//   { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Trading & Finance', subcategory: 'Business' },
+  // 2. Trading & Finance
+  { url: 'https://www.prnewswire.com/rss/business-technology-news.rss', category: 'Trading & Finance', subcategory: 'Business' },
 
-//   // 3. Promotions & Sales
-//   { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Promotions & Sales', subcategory: 'Deals' },
-//   { url: 'https://www.techbargains.com/rss.xml', category: 'Promotions & Sales', subcategory: 'Tech Bargains' },
+  // 3. Promotions & Sales
+  { url: 'https://feeds.feedburner.com/SlickdealsnetFP', category: 'Promotions & Sales', subcategory: 'Deals' },
+  { url: 'https://www.techbargains.com/rss.xml', category: 'Promotions & Sales', subcategory: 'Tech Bargains' },
 
-//   // 4. Automotive
-//   { url: 'https://pressroom.toyota.com/rss', category: 'Automotive', subcategory: 'Toyota' }, 
-//   { url: 'https://hondanews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Honda' }, 
-//   { url: 'https://usa.nissannews.com/rss', category: 'Automotive', subcategory: 'Nissan' }, 
-//   { url: 'https://media.ford.com/rss/press_release.xml', category: 'Automotive', subcategory: 'Ford' }, 
-//   { url: 'https://group.mercedes-benz.com/rss/press-releases.xml', category: 'Automotive', subcategory: 'Mercedes-Benz' }, 
-//   { url: 'https://mitsubishinews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Mitsubishi' }, 
-//   { url: 'https://www.hyundainews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Hyundai' }, 
-//   { url: 'https://news.google.com/rss/search?q=Tesla+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'Tesla' },
-//   { url: 'https://news.google.com/rss/search?q=BYD+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'BYD' },
-//   { url: 'https://news.google.com/rss/search?q=Toyota+Canada+press+release+when:3d&hl=en-CA&gl=CA&ceid=CA:en', category: 'Automotive', subcategory: 'Toyota Canada' },
+  // 4. Automotive
+  { url: 'https://pressroom.toyota.com/rss', category: 'Automotive', subcategory: 'Toyota' }, 
+  { url: 'https://hondanews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Honda' }, 
+  { url: 'https://usa.nissannews.com/rss', category: 'Automotive', subcategory: 'Nissan' }, 
+  { url: 'https://media.ford.com/rss/press_release.xml', category: 'Automotive', subcategory: 'Ford' }, 
+  { url: 'https://group.mercedes-benz.com/rss/press-releases.xml', category: 'Automotive', subcategory: 'Mercedes-Benz' }, 
+  { url: 'https://mitsubishinews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Mitsubishi' }, 
+  { url: 'https://www.hyundainews.com/en-US/releases.rss', category: 'Automotive', subcategory: 'Hyundai' }, 
+  { url: 'https://news.google.com/rss/search?q=Tesla+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'Tesla' },
+  { url: 'https://news.google.com/rss/search?q=BYD+press+release+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Automotive', subcategory: 'BYD' },
+  { url: 'https://news.google.com/rss/search?q=Toyota+Canada+press+release+when:3d&hl=en-CA&gl=CA&ceid=CA:en', category: 'Automotive', subcategory: 'Toyota Canada' },
 
-//   // 5. Entertainment
-//   { url: 'https://news.google.com/rss/search?q=Hollywood+entertainment+news+when:1d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Hollywood' },
-//   { url: 'https://news.google.com/rss/search?q=music+billboard+charts+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Music' },
+  // 5. Entertainment
+  { url: 'https://news.google.com/rss/search?q=Hollywood+entertainment+news+when:1d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Hollywood' },
+  { url: 'https://news.google.com/rss/search?q=music+billboard+charts+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Entertainment', subcategory: 'Music' },
 
-//   // 6. Health
-//   { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health', subcategory: 'WHO Alerts' },
-//   { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health', subcategory: 'WHO News' },
-//   { url: 'https://news.google.com/rss/search?q=health+medical+breakthrough+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Health', subcategory: 'Medical' },
+  // 6. Health
+  { url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml', category: 'Health', subcategory: 'WHO Alerts' },
+  { url: 'https://www.who.int/rss-feeds/news-english.xml', category: 'Health', subcategory: 'WHO News' },
+  { url: 'https://news.google.com/rss/search?q=health+medical+breakthrough+when:2d&hl=en-US&gl=US&ceid=US:en', category: 'Health', subcategory: 'Medical' },
 ];
 
 async function fetchAllNews() {
