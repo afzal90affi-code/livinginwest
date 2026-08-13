@@ -1,7 +1,8 @@
 // components/Footer.tsx
 import Link from 'next/link';
+import Image from 'next/image'; // ✅ Image component import kiya
 
-// 🛠️ Custom SVG Icons for Social Media (lucide-react me ab nahi hain)
+// 🛠️ Custom SVG Icons for Social Media
 const InstagramIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
@@ -37,8 +38,19 @@ export default function Footer() {
           
           {/* Column 1: Brand */}
           <div className="md:col-span-1">
-            <Link href="/" className="inline-block mb-4">
-              <span className="font-playfair text-2xl font-bold tracking-wide">Living<span className="text-gray-400">InWest</span></span>
+            {/* ✅ Logo Image aur Text dono add kiye */}
+            <Link href="/" className="flex items-center gap-3 mb-4">
+              <Image 
+                src="/logo.jpg" 
+                alt="Living In West Logo" 
+                width={40} 
+                height={40} 
+                className="rounded-sm object-cover"
+              />
+              <span className="font-playfair text-xl md:text-2xl font-bold tracking-[0.05em]">
+                {/* ✅ "LIVING IN" ko blue color (text-blue-400) kiya */}
+                <span className="text-blue-400">LIVING IN</span> <span className="text-white">WEST</span>
+              </span>
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed">Premium stories and lifestyle updates from around the globe.</p>
           </div>

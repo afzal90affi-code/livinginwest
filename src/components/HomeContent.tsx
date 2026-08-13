@@ -6,11 +6,6 @@ import { ArrowRight, Clock, ImageOff, Mail } from 'lucide-react';
 import { urlFor } from "@/lib/sanityImage";
 import { ShareCardButton } from '@/components/share';
 
-// 👇 NOTE: "use client" component mein "export const dynamic" kaam nahi karta,
-// isliye ye line yahan se hata di gayi hai. Homepage ki freshness/caching
-// app/page.tsx mein control honi chahiye (jahan se ye component render hota hai).
-
-// 👇 Types define kiye
 interface Category {
   _id: string;
   name: string;
@@ -66,15 +61,17 @@ interface MappedBlog {
 export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: Category[], initialBlogs: Blog[] }) {
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
   const [subEmail, setSubEmail] = useState("");
-  const [subStatus, setSubStatus] = useState<"idle" | "loading" | "success" | "error">("idle"); // ✅ Naya status state
-  const [subMessage, setSubMessage] = useState(""); // ✅ Error/success message dikhane ke liye
+  const [subStatus, setSubStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [subMessage, setSubMessage] = useState("");
   
   const categories: MappedCategory[] = initialCategories.map((c: Category) => {
     let catSlug = 'category';
     if (typeof c.slug === 'string') catSlug = c.slug;
     else if (typeof c.slug === 'object' && c.slug !== null && c.slug.current) catSlug = c.slug.current;
     else if (c.name) catSlug = c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    return { id: c._id, name: c.name, slug: catSlug, emoji: c.emoji, img: c.image ? urlFor(c.image).width(600).height(800).url() : "" };
+    
+    // ✅ SPEED FIX: Quality 60 aur auto format lagaya
+    return { id: c._id, name: c.name, slug: catSlug, emoji: c.emoji, img: c.image ? urlFor(c.image).width(600).height(800).auto('format').quality(60).url() : "" };
   });
 
   const blogs: MappedBlog[] = initialBlogs.map((b: Blog) => {
@@ -88,7 +85,8 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
 
     return { 
       id: b._id, title: b.title || "Untitled", slug: blogSlug, category: blogCat.trim(), desc: b.desc || '', 
-      img: b.mainImage ? urlFor(b.mainImage).width(800).height(1000).auto('format').url() : "", 
+      // ✅ SPEED FIX: Quality 60 aur auto format lagaya taake LCP theek ho
+      img: b.mainImage ? urlFor(b.mainImage).width(800).height(1000).auto('format').quality(60).url() : "", 
       date: b.date ? blogDate.toLocaleDateString() : "", timestamp: blogDate.getTime(), newsTime: b.newsTime || "", 
       isFeatured: b.isFeatured === true, isEditorsPick: b.isEditorsPick === true, isMoreStory: b.isMoreStory === true,
       writerName: b.writerName || "", 
@@ -128,7 +126,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     return () => clearInterval(interval);
   }, [heroNews.length]);
 
-  // ✅ ASAL FIX YAHAN HAI — Ab ye Sanity mein email save karta hai API route ke zariye
   const handleSubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -160,7 +157,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
       setSubMessage("Subscribed successfully! 🎉");
       setSubEmail("");
 
-      // 3 second baad message clear ho jaye
       setTimeout(() => {
         setSubStatus("idle");
         setSubMessage("");
@@ -318,7 +314,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     <Link href={`/blog/${editorLeft.slug}`} className="lg:col-span-7 group block">
                       <div className="aspect-[16/10] overflow-hidden bg-gray-100 relative mb-5">
                         {editorLeft.img ? (
-                          <Image src={editorLeft.img} alt={editorLeft.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" sizes="(max-width: 1024px) 100vw, 50vw" />
+                          <Image src={editorLeft.img} alt={editorLeft.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out" sizes="(max-width: 1024px) 100vw, 50vw" priority />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>
                         )}

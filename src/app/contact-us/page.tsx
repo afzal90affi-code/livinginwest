@@ -20,13 +20,8 @@ export default function ContactUs() {
             <p className="text-gray-500 text-lg leading-relaxed mb-8">We are available on WhatsApp for quick responses. Drop us a message and we will get back to you within minutes!</p>
             
             <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <span className="text-2xl">💬</span>
-                <div>
-                  <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold">WhatsApp</h3>
-                  <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="text-gray-900 font-medium mt-1 hover:text-[#25D366] transition-colors">+92 3333010842</a>
-                </div>
-              </div>
+              
+              
               
               <div className="flex items-start gap-4">
                 <span className="text-2xl">✉️</span>
@@ -36,13 +31,9 @@ export default function ContactUs() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <span className="text-2xl">📍</span>
-                <div>
-                  <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold">spokeperson location</h3>
-                  <p className="text-gray-900 font-medium mt-1">uk </p>
-                </div>
-              </div>
+              
+                
+              
             </div>
           </div>
 

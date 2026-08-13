@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Living In West - Premium Lifestyle & News",
   description: "Explore the latest in lifestyle, travel, food, automotive, and world news.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo.jpg",
   },
 };
 

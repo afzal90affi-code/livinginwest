@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Clock, CloudSun } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 const cities = [
   { name: 'New York', lat: 40.7128, lon: -74.0060 },
@@ -28,11 +29,28 @@ const getWeatherEmoji = (code: number) => {
 };
 
 export default function WeatherTimeBar() {
+  const pathname = usePathname();
+  const isHomepage = pathname === '/';
+  
+  // ✅ Screen size check karne ke liye state
+  const [isDesktop, setIsDesktop] = useState(false);
+
   const [nyTime, setNyTime] = useState("");
   const [weatherData, setWeatherData] = useState<any[]>([]);
   const [showPopup, setShowPopup] = useState(false);
 
+  // ✅ Screen size detect karne ka effect (Sirf ek baar chalega)
   useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024); // 1024px = lg breakpoint
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
+  useEffect(() => {
+    // ✅ Agar homepage nahi hai YA mobile hai, toh API call mat karo
+    if (!isHomepage || !isDesktop) return;
+
     const updateTime = () => setNyTime(new Date().toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: '2-digit', minute: '2-digit' }));
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -61,10 +79,12 @@ export default function WeatherTimeBar() {
       clearInterval(interval);
       clearTimeout(popupTimer);
     };
-  }, []);
+  }, [isHomepage, isDesktop]); // ✅ Dependencies update ki gayi hain
+
+  // ✅ Agar homepage nahi hai ya mobile device hai, toh component render hi mat ho
+  if (!isHomepage || !isDesktop) return null;
 
   return (
-    // ✅ یہاں sticky top-16 استعمال کیا گیا ہے۔ اگر آپ کے navbar کی height 64px (h-16) ہے تو یہ بالکل اس کے نیچے آئے گا۔
     <div className="sticky top-16 z-40 bg-white border-b border-gray-200 py-2 text-[10px] uppercase tracking-[0.2em] text-gray-500 relative">
       <style>
         {`
@@ -117,7 +137,6 @@ export default function WeatherTimeBar() {
           </Link>
 
           {showPopup && (
-            // ✅ پاپ اپ کا z-index بڑھا دیا گیا ہے تاکہ وہ دوسرے عناصر پر نظر آئے
             <div className="idea-popup absolute right-0 top-full mt-3 w-60 bg-white border border-gray-200 shadow-2xl rounded-xl p-4 z-50">
               <div className="absolute -top-2 right-6 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
               <p className="text-xs text-gray-600 mb-3 normal-case tracking-normal text-center">

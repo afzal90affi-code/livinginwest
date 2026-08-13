@@ -1,19 +1,30 @@
 // src/app/blog/[slug]/BlogContent.tsx
 'use client';
 
-import Image from 'next/image';
-import { urlFor } from '@/lib/sanityImage';
-
 interface BlogContentProps {
   content: string;
 }
 
 export default function BlogContent({ content }: BlogContentProps) {
-  // Quill ke image URLs ko process karo (Sanity images ko proper URL me convert)
-  const processedContent = content.replace(
+  // 1. Pehle images par Lazy Loading lagayen
+  let processedContent = content.replace(/<img/gi, '<img loading="lazy" decoding="async"');
+
+  // 2. Sanity images ko compress karen (Agar image Sanity CDN se hai)
+  processedContent = processedContent.replace(
+    /src="(https:\/\/cdn\.sanity\.io\/[^"]+)"/g,
+    (match, url) => {
+      // Agar URL mein pehle se ? (query params) nahi hain toh compression lagao
+      if (!url.includes('?')) {
+        return `src="${url}?w=800&auto=format&q=70"`; // 800px width aur 70% quality
+      }
+      return match;
+    }
+  );
+
+  // 3. (Purana logic) Agar koi local file reference hai toh usko bhi handle karein
+  processedContent = processedContent.replace(
     /src="([^\"]+)"/g,
     (match, src) => {
-      // Agar Sanity image hai toh urlFor use karo
       if (src.includes('file-') || src.includes('image-')) {
         try {
           return `src="${src}"`;
@@ -27,7 +38,7 @@ export default function BlogContent({ content }: BlogContentProps) {
 
   return (
     <div 
-      className="blog-content"
+      className="blog-read"
       dangerouslySetInnerHTML={{ __html: processedContent }}
     />
   );

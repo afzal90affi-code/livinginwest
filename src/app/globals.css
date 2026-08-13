@@ -97,7 +97,31 @@ body {
   font-size: 12px;
 }
 
+html, body {
+  overflow-x: hidden !important; /* Horizontal scroll ko band karne ke liye */
+}
+
 /* ===== QUILL BLOG CONTENT FIX (Frontend Blog Read Page) ===== */
+
+/* ✅ CRITICAL FIX: Sabhi text elements par word-wrapping fixes */
+.blog-read,
+.blog-read p,
+.blog-read span,
+.blog-read h1,
+.blog-read h2,
+.blog-read h3,
+.blog-read h4,
+.blog-read li,
+.blog-read a {
+  white-space: normal !important;
+  /* 'break-word' use kiya hai taake words sirf zaroorat pade toden */
+  overflow-wrap: break-word !important; 
+  word-wrap: break-word !important;
+  word-break: normal !important; /* Normal words beech se nahi katenge */
+  -webkit-hyphens: none !important;
+  -moz-hyphens: none !important;
+  hyphens: none !important;
+}
 
 .blog-read {
   font-size: 16px;
@@ -106,8 +130,12 @@ body {
   max-width: 680px;
   margin: 0 auto;
   width: 100%;
+  overflow: visible !important;
   text-wrap: pretty;
-  overflow-wrap: anywhere;
+}
+
+.blog-read * {
+  min-width: 0;
 }
 
 /* ✅ ڈارک موڈ میں بلاگ کا ٹیکسٹ سفید ہو جائے گا */
@@ -126,6 +154,7 @@ body {
   border-radius: 8px;
   object-fit: cover;
   float: none !important;
+  clear: both !important;
 }
 
 /* Quill image ke wrapper <p> tag — extra spacing hatao */
@@ -133,6 +162,7 @@ body {
   margin-top: 0 !important;
   margin-bottom: 0 !important;
   line-height: 0 !important;
+  clear: both !important;
 }
 
 /* Quill paragraphs — proper spacing */
@@ -140,8 +170,6 @@ body {
   margin-bottom: 1.2rem;
   max-width: 100%;
   text-align: left;
-  word-break: break-word;
-  overflow-wrap: anywhere;
 }
 
 /* Quill alignment classes */
@@ -261,6 +289,8 @@ body {
   overflow-x: auto;
   margin: 1.5rem 0;
   font-size: 14px;
+  white-space: pre-wrap !important; /* Code blocks mein formatting safe rahegi */
+  word-break: break-all !important; /* Sirf code blocks mein words kat sakte hain */
 }
 .dark .blog-read pre {
   background: #333;
@@ -296,4 +326,12 @@ body {
 /* Last paragraph ka extra margin hatao */
 .blog-read p:last-child {
   margin-bottom: 0;
+}
+
+/* ✅ MOBILE FIX: ChatGPT ka Justify text mobile par left ho jayega */
+@media (max-width: 768px) {
+  .blog-read .ql-align-justify,
+  .blog-read [style*="text-align: justify"] {
+    text-align: left !important;
+  }
 }

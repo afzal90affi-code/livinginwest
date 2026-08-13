@@ -2,9 +2,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check } from 'lucide-react';
+import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check, CloudSun } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import ThemeToggle from './ThemeToggle'; // ✅ ڈارک/لائٹ موڈ کمپوننٹ امپورٹ کریں
+import ThemeToggle from './ThemeToggle';
 
 interface NavbarProps {
   categories: { name: string; slug: string }[];
@@ -33,7 +33,6 @@ export default function Navbar({ categories }: NavbarProps) {
     { code: 'hi', label: 'हिन्दी' },
   ];
 
-  // Close language dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (langRef.current && !langRef.current.contains(event.target as Node)) {
@@ -88,17 +87,12 @@ export default function Navbar({ categories }: NavbarProps) {
     trackRef.current.scrollTo({ left: newPos, behavior: 'smooth' });
   };
 
-  // 🌍 Google Translate Function
   const handleLanguageChange = (code: string, label: string) => {
     setSelectedLang(label);
     setLangOpen(false);
-    
-    // Set cookie for Google Translate
     const host = window.location.hostname;
     document.cookie = `googtrans=/en/${code};path=/;domain=${host}`;
     document.cookie = `googtrans=/en/${code};path=/;domain=.${host}`;
-    
-    // Reload page to apply translation
     window.location.reload();
   };
 
@@ -127,7 +121,6 @@ export default function Navbar({ categories }: NavbarProps) {
         </Link>
 
         <div className="flex items-center gap-4">
-          {/* Desktop Search Form */}
           <form onSubmit={handleSearch} className="hidden md:flex items-center">
             <div className="relative flex items-center">
               <input 
@@ -145,7 +138,6 @@ export default function Navbar({ categories }: NavbarProps) {
             </div>
           </form>
 
-          {/* 🌍 Language Selector Dropdown */}
           <div className="relative" ref={langRef}>
             <button 
               onClick={() => setLangOpen(!langOpen)}
@@ -174,10 +166,8 @@ export default function Navbar({ categories }: NavbarProps) {
             )}
           </div>
 
-          {/* ✅ ڈارک/لائٹ موڈ والا بٹن یہاں لگا دیا گیا ہے */}
           <ThemeToggle />
 
-          {/* Mobile Search Toggle */}
           <button onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setMobileOpen(false); }} className="md:hidden text-gray-900 dark:text-white">
             <Search className="w-5 h-5" />
           </button>
@@ -209,7 +199,6 @@ export default function Navbar({ categories }: NavbarProps) {
       <div className="hidden lg:block border-b border-gray-100 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center h-10">
-
             <button
               onClick={() => scroll('left')}
               className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all mr-2 ${!canScrollLeft ? 'opacity-0 pointer-events-none' : ''}`}
@@ -239,7 +228,6 @@ export default function Navbar({ categories }: NavbarProps) {
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-
           </div>
         </div>
       </div>
@@ -257,10 +245,11 @@ export default function Navbar({ categories }: NavbarProps) {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="lg:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 py-6 shadow-lg absolute top-16 left-0 right-0 z-40 h-[calc(100vh-4rem)] overflow-y-auto pb-24">
+        // ✅ FIX: h-[calc(100vh-4rem)] aur pb-24 hata kar max-h-[80vh] aur compact padding kiya
+        <div className="lg:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 py-5 shadow-lg absolute top-16 left-0 right-0 z-40 max-h-[80vh] overflow-y-auto pb-6">
           
           {/* 🌟 Horizontal Swiping Categories for Mobile */}
-          <div className="mb-8">
+          <div className="mb-6">
             <div className="px-6 mb-3 flex items-center justify-between">
               <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold">Categories</p>
               <div className="flex items-center gap-2">
@@ -298,14 +287,26 @@ export default function Navbar({ categories }: NavbarProps) {
           </div>
 
           {/* Quick Links List */}
-          <div className="px-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold mb-3">Quick Links</p>
+          <div className="px-6 border-t border-gray-200 dark:border-gray-700 pt-5">
+            <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold mb-2">Quick Links</p>
             <div className="flex flex-col gap-1">
               {utilityLinks.map((link) => (
-                <Link key={link.name} href={link.href} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 font-medium py-3 border-b border-gray-50 dark:border-gray-800">
+                <Link key={link.name} href={link.href} onClick={() => setMobileOpen(false)} className="text-sm uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 font-medium py-2.5 border-b border-gray-50 dark:border-gray-800">
                   {link.name}
                 </Link>
               ))}
+            </div>
+            
+            {/* ✅ WEATHER BUTTON: Compact look ke sath */}
+            <div className="mt-6">
+              <Link 
+                href="/weather" 
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-xl text-xs uppercase tracking-[0.2em] font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all"
+              >
+                <CloudSun className="w-5 h-5" />
+                Check Weather & Forecast
+              </Link>
             </div>
           </div>
         </div>
