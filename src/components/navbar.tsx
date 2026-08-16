@@ -1,8 +1,9 @@
+
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check, CloudSun } from 'lucide-react';
+import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check, CloudSun, TrendingUp } from 'lucide-react'; // ✅ TrendingUp add kiya
 import { useRouter } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
 
@@ -245,7 +246,6 @@ export default function Navbar({ categories }: NavbarProps) {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        // ✅ FIX: h-[calc(100vh-4rem)] aur pb-24 hata kar max-h-[80vh] aur compact padding kiya
         <div className="lg:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 py-5 shadow-lg absolute top-16 left-0 right-0 z-40 max-h-[80vh] overflow-y-auto pb-6">
           
           {/* 🌟 Horizontal Swiping Categories for Mobile */}
@@ -297,8 +297,8 @@ export default function Navbar({ categories }: NavbarProps) {
               ))}
             </div>
             
-            {/* ✅ WEATHER BUTTON: Compact look ke sath */}
-            <div className="mt-6">
+            {/* ✅ WEATHER & MARKETS BUTTONS */}
+            <div className="mt-6 flex flex-col gap-3">
               <Link 
                 href="/weather" 
                 onClick={() => setMobileOpen(false)}
@@ -306,6 +306,16 @@ export default function Navbar({ categories }: NavbarProps) {
               >
                 <CloudSun className="w-5 h-5" />
                 Check Weather & Forecast
+              </Link>
+
+              {/* ✅ MARKETS BUTTON ADD KIYA HAI */}
+              <Link 
+                href="/trading-finance" 
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-gray-800 to-gray-900 text-white py-3.5 rounded-xl text-xs uppercase tracking-[0.2em] font-bold shadow-md hover:from-gray-700 hover:to-gray-800 transition-all"
+              >
+                <TrendingUp className="w-5 h-5 text-green-400" />
+                View Live Markets
               </Link>
             </div>
           </div>

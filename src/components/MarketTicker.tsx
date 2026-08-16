@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
-import Link from 'next/link'; // ✅ لنک کے لیے امپورٹ
-import { ArrowRight } from 'lucide-react'; // ✅ آئیکن کے لیے امپورٹ
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 
 const countries = [
   { code: 'US', currency: 'USD', flag: '🇺🇸', name: 'USA' },
@@ -31,21 +31,43 @@ export default function MarketTicker() {
   const [selectedCountry, setSelectedCountry] = useState(countries[0]);
   const [exchangeRates, setExchangeRates] = useState<any>({});
   const [loadingRates, setLoadingRates] = useState(true);
+  
+  // ✅ 1. Page load aur Desktop check
+  const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    fetch('https://open.er-api.com/v6/latest/USD')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.rates) {
-          setExchangeRates(data.rates);
+    // ✅ Agar mobile device hai, toh component yahi ruk jayega. Koi API call nahi hogi.
+    const isMobile = window.innerWidth < 1024; // 1024px = lg breakpoint
+    if (isMobile) return;
+
+    const loadTickerData = () => {
+      setShouldRender(true);
+      fetch('https://open.er-api.com/v6/latest/USD')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.rates) {
+            setExchangeRates(data.rates);
+            setLoadingRates(false);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch exchange rates:", err);
           setLoadingRates(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch exchange rates:", err);
-        setLoadingRates(false);
-      });
+        });
+    };
+
+    if (document.readyState === 'complete') {
+      loadTickerData();
+    } else {
+      window.addEventListener('load', loadTickerData);
+      return () => window.removeEventListener('load', loadTickerData);
+    }
   }, []);
+
+  // ✅ Agar mobile hai ya page abhi tak load nahi hua, toh khaali div return karo
+  if (!shouldRender) {
+    return <div className="hidden lg:block bg-gray-900 h-[48px] border-b border-gray-800"></div>;
+  }
 
   const convertPrice = (usdPrice: number) => {
     if (selectedCountry.currency === 'USD') return usdPrice.toFixed(2);
@@ -64,7 +86,7 @@ export default function MarketTicker() {
   };
 
   return (
-    <div className="bg-gray-900 text-white py-3 overflow-hidden border-b border-gray-800">
+    <div className="hidden lg:block bg-gray-900 text-white py-3 overflow-hidden border-b border-gray-800">
       <style>
         {`
           @keyframes tickerScroll {
@@ -82,7 +104,6 @@ export default function MarketTicker() {
 
       <div className="max-w-7xl mx-auto px-4 flex items-center gap-4 sm:gap-6">
         
-        {/* 🌍 Country Selector */}
         <div className="flex-shrink-0 relative z-10">
           <select 
             value={selectedCountry.code}
@@ -100,7 +121,6 @@ export default function MarketTicker() {
           </select>
         </div>
 
-        {/* 📊 Scrolling Market Data */}
         <div className="flex-1 overflow-hidden">
           <div className="flex gap-8 whitespace-nowrap ticker-animation cursor-pointer">
             {[...marketData, ...marketData].map((item, index) => {
@@ -120,7 +140,6 @@ export default function MarketTicker() {
           </div>
         </div>
 
-        {/* ✅ یہاں دائیں جانب بٹن اضافہ کیا گیا ہے */}
         <Link href="/trading-finance" className="hidden sm:flex items-center gap-1 flex-shrink-0 bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-md hover:bg-gray-200 transition-colors">
           View Market <ArrowRight className="w-3 h-3" />
         </Link>
