@@ -41,16 +41,12 @@ export default function Footer() {
             {/* ✅ Logo Image aur Text dono add kiye */}
             <Link href="/" className="flex items-center gap-3 mb-4">
               <Image 
-                src="/logo.jpg" 
+                src="/livinginwest-logo.png" 
                 alt="Living In West Logo" 
-                width={40} 
-                height={40} 
-                className="rounded-sm object-cover"
+                width={180} 
+                height={96} 
+                className="h-20 w-auto object-contain"
               />
-              <span className="font-playfair text-xl md:text-2xl font-bold tracking-[0.05em]">
-                {/* ✅ "LIVING IN" ko blue color (text-blue-400) kiya */}
-                <span className="text-blue-400">LIVING IN</span> <span className="text-white">WEST</span>
-              </span>
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed">Premium stories and lifestyle updates from around the globe.</p>
           </div>
@@ -66,14 +62,16 @@ export default function Footer() {
           </div>
 
           {/* Column 3: Legal */}
+          {/* Column 3: Legal */}
           <div>
             <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold mb-4">Legal</h3>
             <ul className="space-y-3">
-              <li><Link href="/privacy-policy" className="text-sm text-gray-300 hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/contact-us" className="text-sm text-gray-300 hover:text-white transition-colors">Contact Us</Link></li>
-            </ul>
+            <li><Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">About Us</Link></li>
+            <li><Link href="/contact-us" className="text-sm text-gray-300 hover:text-white transition-colors">Contact Us</Link></li>
+           <li><Link href="/privacy-policy" className="text-sm text-gray-300 hover:text-white transition-colors">Privacy Policy</Link></li>
+            <li><Link href="/disclaimer" className="text-sm text-gray-300 hover:text-white transition-colors">Disclaimer</Link></li>
+           </ul>
           </div>
-
           {/* Column 4: Socials */}
           <div>
             <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold mb-4">Follow Us</h3>

@@ -109,16 +109,13 @@ export default function Navbar({ categories }: NavbarProps) {
 
         <Link href="/" className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0">
           <Image 
-            src="/logo.jpg" 
+            src="/livinginwest-logo.png" 
             alt="Living In West Logo" 
-            width={36} 
-            height={36} 
-            className="rounded-sm object-cover"
+            width={150} 
+            height={58} 
+            className="h-12 w-auto object-contain"
             priority 
           />
-          <span className="font-playfair text-xl md:text-2xl font-bold tracking-[0.05em]">
-            <span className="text-[#1e3a8a] dark:text-blue-400">LIVING IN</span> <span className="text-gray-900 dark:text-white">WEST</span>
-          </span>
         </Link>
 
         <div className="flex items-center gap-4">

@@ -15,17 +15,20 @@ interface CategoryItem {
 
 export const metadata: Metadata = {
   title: 'All Categories - Living In West',
-  description: 'Browse all lifestyle categories on Living In West.',
+  description: 'Explore all premium lifestyle categories on Living In West. Find expert guides on travel, automotive, real estate, and living in the USA.',
 };
 
 export const dynamic = 'force-dynamic';
 
+// ⚠️ Note: Agar aapke Sanity mein blog post ki type koi aur hai (jaise "article"), 
+// toh niche _type == "post" ko apni type ke hisaab se change kar lein.
 const CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
   _id,
   name,
   "slug": slug.current,
   emoji,
-  image
+  image,
+  "blogCount": count(*[_type == "post" && references(^._id)])
 }`;
 
 export default async function CategoriesPage() {
@@ -65,9 +68,13 @@ export default async function CategoriesPage() {
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                   <div className="absolute inset-0 flex flex-col justify-end p-8 z-10">
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-bold mb-2">
-                      {cat.blogCount || 0} Stories
-                    </span>
+                    
+                    {/* ✅ Ab agar count 0 hoga toh yeh span bilkul render nahi hoga */}   
+                     {cat.blogCount && cat.blogCount > 0 ? (
+  <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-bold mb-2">
+    {cat.blogCount} Stories
+  </span>
+                           ) : null}
                     <h2 className="font-playfair text-3xl md:text-4xl font-bold text-white leading-tight">{cat.name}</h2>
                   </div>
                 </Link>

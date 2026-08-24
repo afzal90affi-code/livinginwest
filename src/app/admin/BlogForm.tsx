@@ -367,6 +367,9 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const handleSaveBlog = async () => {
     if (!blogTitle) return alert("Title required!");
     const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+
+    
     
     const d: ActionData = {
       slug: { _type: 'slug', current: sl } as unknown as string,
