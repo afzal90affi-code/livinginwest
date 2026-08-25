@@ -51,7 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         {/* 📌 PINTEREST ANALYTICS TAG (Head ke andar) */}
         <Script
-          id="549770726508"
+          id="pinterest-tag"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
@@ -62,13 +62,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               var r=document.getElementsByTagName("script")[0];
               r.parentNode.insertBefore(t,r)}}("https://s.pinimg.com/ct/core.js");
               
-              pintrk('load', '549770726508'); // ⚠️ Yahan apni Pinterest Tag ID dalein
+              pintrk('load', '2612759657883'); 
               pintrk('page');
             `,
           }}
         />
         <noscript>
-          <img height="1" width="1" style={{ display: 'none' }} alt="" src="https://ct.pinterest.com/v3/?event=init&tid=YOUR_TAG_ID&noscript=1" />
+          <img height="1" width="1" style={{ display: 'none' }} alt="" src="https://ct.pinterest.com/v3/?event=init&tid=2612759657883&noscript=1" />
         </noscript>
       </head>
       

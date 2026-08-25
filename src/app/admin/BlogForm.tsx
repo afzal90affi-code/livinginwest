@@ -4,6 +4,10 @@ import dynamic from 'next/dynamic';
 // ✅ saveSubcategory کو بھی امپورٹ کر لیا ہے
 import { saveBlog, uploadImage, saveSubcategory } from './actions';
 
+// ✅ PDF Libraries Import kiye
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -367,9 +371,6 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
   const handleSaveBlog = async () => {
     if (!blogTitle) return alert("Title required!");
     const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-
-    
     
     const d: ActionData = {
       slug: { _type: 'slug', current: sl } as unknown as string,
@@ -397,6 +398,88 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
     
     const r = await saveBlog(d, editingId || undefined);
     if (r.success) { onClose(); onSaved(); } else alert("Error: " + r.error);
+  };
+
+  // ✅ PDF DOWNLOAD FUNCTION
+  const handleDownloadPDF = async () => {
+    if (!blogTitle) return alert("Please enter a Blog Title first to save as PDF.");
+
+    const printContainer = document.createElement('div');
+    printContainer.style.position = 'absolute';
+    printContainer.style.left = '-9999px';
+    printContainer.style.top = '0';
+    printContainer.style.width = '800px';
+    printContainer.style.padding = '40px';
+    printContainer.style.backgroundColor = '#ffffff';
+    printContainer.style.fontFamily = 'Arial, sans-serif';
+    printContainer.style.color = '#000000';
+
+    const titleEl = document.createElement('h1');
+    titleEl.innerText = blogTitle;
+    titleEl.style.fontSize = '28px';
+    titleEl.style.marginBottom = '20px';
+    printContainer.appendChild(titleEl);
+
+    for (let i = 0; i < 10; i++) {
+      if (blogContents[i]) {
+        const contentEl = document.createElement('div');
+        contentEl.innerHTML = blogContents[i];
+        contentEl.style.marginBottom = '20px';
+        printContainer.appendChild(contentEl);
+      }
+      
+      if (blogImages[i]?.url) {
+        const imgEl = document.createElement('img');
+        imgEl.src = blogImages[i].url;
+        imgEl.style.maxWidth = '100%';
+        imgEl.style.marginBottom = '20px';
+        imgEl.crossOrigin = 'anonymous';
+        printContainer.appendChild(imgEl);
+      }
+    }
+
+    document.body.appendChild(printContainer);
+
+    const images = printContainer.getElementsByTagName('img');
+    const imagePromises = Array.from(images).map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    });
+    await Promise.all(imagePromises);
+
+    try {
+      const canvas = await html2canvas(printContainer, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210; 
+      const pageHeight = 295; 
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const fileName = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
+      pdf.save(fileName);
+
+    } catch (error) {
+      console.error("PDF Error:", error);
+      alert("Failed to generate PDF. Check console for errors.");
+    } finally {
+      document.body.removeChild(printContainer);
+    }
   };
 
   if (!showForm) return null;
@@ -607,6 +690,16 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
         
         <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 md:px-8 py-5 rounded-b-2xl flex gap-3 z-20">
           <button onClick={onClose} className="flex-1 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
+          
+          {/* ✅ PDF DOWNLOAD BUTTON */}
+          <button 
+            type="button" 
+            onClick={handleDownloadPDF} 
+            className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-black transition-all flex items-center justify-center gap-2"
+          >
+            📄 Download PDF
+          </button>
+
           <button onClick={handleSaveBlog} className="flex-1 py-3 bg-[#6D28D9] text-white rounded-xl text-sm font-semibold hover:bg-[#5B21B6] transition-all hover:shadow-lg hover:shadow-[#6D28D9]/20 active:scale-[0.98]">{editingId ? "✓ Update" : "🚀 Publish"}</button>
         </div>
       </div>
