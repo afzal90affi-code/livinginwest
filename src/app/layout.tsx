@@ -32,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
       <head>
+        <meta name="p:domain_verify" content="9f262a508100adb89995932d1afb3e0a"/>
         {/* ✅ Dark Mode Script (Flash se bachne ke liye) */}
         <script
           dangerouslySetInnerHTML={{
