@@ -58,16 +58,14 @@ const BLOGS_QUERY = `*[_type == "blog"] | order(_createdAt desc) [0...20] {
 export const revalidate = 60; 
 
 export default async function Page() {
-  const catDataRaw = await client.fetch(CATEGORIES_QUERY);
-  const blogDataRaw = await client.fetch(BLOGS_QUERY);
+  // 🆕 DONO FETCHES SATH MEIN (parallel) + CACHE OPTIONS
+  const [catDataRaw, blogDataRaw] = await Promise.all([
+    client.fetch(CATEGORIES_QUERY, {}, { next: { revalidate: 60 } }),
+    client.fetch(BLOGS_QUERY, {}, { next: { revalidate: 60 } }),
+  ]);
 
-  const catData: CategoryData[] = catDataRaw.map((c: CategoryData) => ({
-    ...c,
-  }));
-
-  const blogData: BlogData[] = blogDataRaw.map((b: BlogData) => ({
-    ...b,
-  }));
+  const catData: CategoryData[] = catDataRaw;
+  const blogData: BlogData[] = blogDataRaw;
 
   return (
     <>

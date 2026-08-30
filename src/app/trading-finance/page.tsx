@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, TrendingUp, DollarSign, Globe, Calculator, Coins, Share2, ArrowUp, ArrowDown, BarChart2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, TrendingUp, DollarSign, Globe, Calculator, Coins, Share2, ArrowUp, ArrowDown, BarChart2, Home, ReceiptText, Bitcoin } from 'lucide-react';
+
 
 // --- Market Data for Table ---
 const marketData = [
@@ -230,11 +232,50 @@ export default function TradingFinancePage() {
         <TickerTape />
       </div>
 
+      {/* 🆕 Calculator Quick Access Buttons — Ticker Tape ke niche */}
+      <div className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex flex-wrap items-center justify-center gap-4">
+          <Link href="/mortgage-calculator" className="group flex items-center gap-3 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <span className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+              <Home className="w-5 h-5 text-blue-600" />
+            </span>
+            <span className="text-left">
+              <span className="block font-bold text-gray-900 dark:text-white text-sm">Mortgage Calculator</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">Monthly EMI & interest calculate karein</span>
+            </span>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+          </Link>
+
+          <Link href="/income-tax-calculator" className="group flex items-center gap-3 bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <span className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+              <ReceiptText className="w-5 h-5 text-green-600" />
+            </span>
+            <span className="text-left">
+              <span className="block font-bold text-gray-900 dark:text-white text-sm">Income Tax Calculator</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">Country-wise tax rates (auto-detect)</span>
+            </span>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+          </Link>
+
+          {/* 🆕 Crypto Converter Button */}
+          <Link href="/crypto-calculator" className="group flex items-center gap-3 bg-white dark:bg-gray-800 hover:bg-amber-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <span className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+              <Bitcoin className="w-5 h-5 text-amber-600" />
+            </span>
+            <span className="text-left">
+              <span className="block font-bold text-gray-900 dark:text-white text-sm">Crypto Converter</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">BTC, ETH & 160+ currencies live</span>
+            </span>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+          </Link>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col lg:flex-row gap-10">
         
         <div className="flex-1 space-y-16">
           
-          {/* 0. Global Markets Overview Table (Naya Add Kiya Gaya Hai) */}
+          {/* 0. Global Markets Overview Table */}
           <section>
             <SectionHeader icon={<BarChart2 className="w-6 h-6 text-indigo-600" />} title="Global Markets Overview" color="border-indigo-600" itemName="Global Markets Overview" />
             <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -364,6 +405,28 @@ export default function TradingFinancePage() {
               <li className="flex justify-between"><span>Gold (oz)</span><span className="font-bold text-green-600">▲ 2300</span></li>
               <li className="flex justify-between"><span>Silver (oz)</span><span className="font-bold text-green-600">▲ 27.5</span></li>
             </ul>
+          </div>
+
+          {/* 🆕 Sidebar Calculator Links */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 sticky top-4">
+            <h3 className="text-lg font-bold mb-4 border-b dark:border-gray-700 pb-2 flex items-center gap-2 text-gray-900 dark:text-white">
+              <Calculator className="w-5 h-5 text-blue-600" /> Financial Tools
+            </h3>
+            <div className="space-y-3">
+              <Link href="/mortgage-calculator" className="flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-blue-600 bg-gray-50 dark:bg-gray-900 rounded-lg px-4 py-3 border border-gray-100 dark:border-gray-700 transition-colors">
+                <span className="flex items-center gap-2"><Home className="w-4 h-4 text-blue-600" /> Mortgage Calculator</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link href="/income-tax-calculator" className="flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-green-600 bg-gray-50 dark:bg-gray-900 rounded-lg px-4 py-3 border border-gray-100 dark:border-gray-700 transition-colors">
+                <span className="flex items-center gap-2"><ReceiptText className="w-4 h-4 text-green-600" /> Income Tax Calculator</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              {/* 🆕 Crypto Converter Link */}
+              <Link href="/crypto-calculator" className="flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-amber-600 bg-gray-50 dark:bg-gray-900 rounded-lg px-4 py-3 border border-gray-100 dark:border-gray-700 transition-colors">
+                <span className="flex items-center gap-2"><Bitcoin className="w-4 h-4 text-amber-600" /> Crypto Converter</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </aside>
 

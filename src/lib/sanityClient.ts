@@ -12,10 +12,11 @@ export const client = createClient({
   projectId,
   dataset,
   apiVersion: '2024-01-01',
-  useCdn: false, // معمولی فےچنگ کے لیے false بہتر ہے
+  useCdn: true, // ✅ GLOBAL CDN — fast! (public content کے لیے یہی صحیح ہے)
 });
 
 // Write client - ایڈمن پینل سے ڈیٹا اپلوڈ یا اپڈیٹ کرنے کے لیے
+// ⚠️ یہ بالکل ویسا ہی رہے گا — write ہمیشہ origin سے ہوتا ہے
 export const writeClient = createClient({
   projectId,
   dataset,
