@@ -1,9 +1,21 @@
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
     // Vercel par build fail hone se bachne ke liye
     ignoreDuringBuilds: true,
   },
+
+  // ✅ IndexNow key file — public folder ke bina root .txt se serve
+  async rewrites() {
+    return [
+      {
+        source: '/9f4e2b7a1c8d5e3f6a0b4c9d2e7f1a8b.txt',
+        destination: '/keyfile/9f4e2b7a1c8d5e3f6a0b4c9d2e7f1a8b',
+      },
+    ];
+  },
+
   // ✅ Embed Blog (iframe) ko allow karne ke liye headers
   async headers() {
     return [
@@ -22,6 +34,7 @@ const nextConfig = {
       },
     ];
   },
+
   images: {
     remotePatterns: [
       {

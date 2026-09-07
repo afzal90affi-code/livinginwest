@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { client } from "@/lib/sanityClient";
 import Image from 'next/image';
 import Link from 'next/link';
+import { notFound } from 'next/navigation'; // ✅ CHANGED 3: proper 404 ke liye
 import { ArrowLeft, Calendar } from 'lucide-react';
 import BlogAudioPlayer from '@/components/BlogAudioPlayer';
 import Comments from '../Comments';
@@ -10,7 +11,9 @@ import { ShareMenu, ShareCardButton } from '@/components/share';
 import Slider from '@/components/Slider';
 import EmbedBlogButton from '@/components/embeds/EmbedBlogButton';
 
-export const dynamic = 'force-dynamic';
+// ✅ CHANGED 1: force-dynamic HATA diya — ab ISR cache chalega
+// (Googlebot ko fast response milega, crawl budget zyada milega)
+export const revalidate = 60;
 
 interface BlogData {
   _id: string;
@@ -32,7 +35,6 @@ interface BlogData {
   img10Url?: string;
   imgOrientations?: Record<string, string>;
   isPublished?: boolean;
-  isMoreStory?: boolean;
   content1?: string;
   content2?: string;
   content3?: string;
@@ -47,21 +49,14 @@ interface BlogData {
   writerSocial?: string;
 }
 
-
- // ✅ ULTIMATE FIX: ChatGPT copy-paste ke saare issues yahan automatically fix honge
+// ✅ ULTIMATE FIX: ChatGPT copy-paste ke saare issues yahan automatically fix honge
 const cleanQuillHtml = (html: string): string => {
   if (!html) return "";
   
-  // 1. <wbr> tags remove karo (ye words ko beech se todte hain)
   let cleanHtml = html.replace(/<wbr\s*\/?>/gi, ' ');
-
-  // 2. ChatGPT ke Non-breaking spaces (&nbsp;) ko normal space banao
   cleanHtml = cleanHtml.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
-
-  // 3. Zero-width spaces aur soft hyphens (invisible characters) hatao
   cleanHtml = cleanHtml.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
 
-  // 4. Sabhi tags (p, span, div) se word-break aur text-align styles strictly filter karo
   cleanHtml = cleanHtml.replace(/style="([^"]*)"/gi, (match, style) => {
     const cleanStyle = style
       .split(';')
@@ -71,7 +66,6 @@ const cleanQuillHtml = (html: string): string => {
     return cleanStyle ? `style="${cleanStyle}"` : '';
   });
 
-  // 5. ChatGPT ke <p style="text-align: justify;"> ko class mein convert karo taake mobile par hum ise left kar sakein
   let normalizedHtml = cleanHtml.replace(
     /<p[^>]*class="[^"]*ql-align-justify[^"]*"[^>]*>/gi,
     '<p class="ql-align-justify">'
@@ -81,10 +75,8 @@ const cleanQuillHtml = (html: string): string => {
     'class="ql-align-justify"'
   );
 
-  // 6. Image par Lazy Loading lagayen
   normalizedHtml = normalizedHtml.replace(/<img/gi, '<img loading="lazy" decoding="async"');
 
-  // 7. Sanity Images ko compress karen
   normalizedHtml = normalizedHtml.replace(/src="(https:\/\/cdn\.sanity\.io\/[^"]+)"/g, (match, url) => {
     if (!url.includes('?')) {
       return `src="${url}?w=800&auto=format&q=70"`;
@@ -92,7 +84,6 @@ const cleanQuillHtml = (html: string): string => {
     return match;
   });
 
-  // 8. Image styles ko clean karna
   return normalizedHtml.replace(/(<img[^>]*?)style="([^"]*)"/gi, (match, start, style) => {
     const allowedStyles = style
       .split(';')
@@ -105,8 +96,9 @@ const cleanQuillHtml = (html: string): string => {
 };
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const query = `*[_type == "blog" && slug.current == $slug][0] {
-    title, desc, metaTitle, metaDesc, keywords,
+  // ✅ CHANGED 2: isPublished filter yahan bhi — unpublished post ka metadata na bane
+  const query = `*[_type == "blog" && slug.current == $slug && isPublished != false][0] {
+    title, desc, metaTitle, metaDesc, keywords, date,
     "mainImageUrl": img1.asset->url, 
     "slug": slug.current
   }`;
@@ -117,6 +109,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     metaTitle?: string;
     metaDesc?: string;
     keywords?: string;
+    date?: string;
     mainImageUrl?: string; 
     slug?: string 
   } | null = await client.fetch(query, { slug: params.slug });
@@ -144,6 +137,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description: finalDesc,
       url: `${baseUrl}/blog/${blog.slug}`,
       type: "article",
+      // ✅ BONUS: Google ko publish date ka signal — freshness ke liye acha
+      publishedTime: blog.date,
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: finalTitle }],
     },
     twitter: {
@@ -156,7 +151,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function BlogDetail({ params }: { params: { slug: string } }) {
-  const blogQuery = `*[_type == "blog" && slug.current == $slug][0] {
+  // ⚠️ NOTE: Agar aapka Next.js version 15+ hai to yahan change karna hoga:
+  //   { params }: { params: Promise<{ slug: string }> }
+  //   const { slug } = await params;   ← aur neeche har jagah params.slug ki jagah slug use karo
+  const blogQuery = `*[_type == "blog" && slug.current == $slug && isPublished != false][0] {
     _id, title, "slug": slug.current, category, subCategory, desc, date,
     "mainImageUrl": img1.asset->url,
     "img2Url": img2.asset->url,
@@ -176,18 +174,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
   const blog: BlogData | null = await client.fetch(blogQuery, { slug: params.slug }, { next: { revalidate: 60 } });
 
+  // ✅ CHANGED 3: Soft 404 → Proper 404
+  // Pehle "Story not found" 200 status ke sath render hota tha — Google isay
+  // "Soft 404" error ginta hai aur poori site ka quality score girata hai.
+  // Ab Google ko sahi 404 status milega — quality signals clean rahenge.
   if (!blog) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <p className="font-playfair text-6xl font-light text-gray-200 mb-4">404</p>
-          <p className="text-gray-400 uppercase tracking-[0.3em] text-[11px]">Story not found</p>
-          <Link href="/" className="inline-block mt-6 text-[11px] uppercase tracking-[0.2em] text-[#1e3a8a] hover:text-black transition-colors">
-            ← Back to Home
-          </Link>
-        </div>
-      </div>
-    );
+    notFound();
   }
 
   const catBlogsQuery = `*[_type == "blog" && coalesce(category->slug.current, category) == $cat && slug.current != $slug && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
@@ -300,6 +292,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "description": blog.desc,
     "image": blog.mainImageUrl,
     "datePublished": blog.date,
+    // ✅ BONUS: dateModified bhi do — Google freshness signal pasand karta hai
+    "dateModified": blog.date,
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://livinginwest.com/blog/${blog.slug?.current}`
+    },
     "author": { "@type": "Person", "name": blog.writerName || "Living In West" },
     "publisher": { "@type": "Organization", "name": "Living In West" }
   };
@@ -424,7 +422,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                 <div className="w-12 h-px bg-gray-200"></div>
               </div>
 
-              {/* Writer Info & Share/Embed in a Smart Card */}
               <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-5 bg-gray-50 rounded-xl border border-gray-100 shadow-sm mb-6">
                 <div className="flex items-center gap-3">
                   <div className="relative w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -529,6 +526,9 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
         </div>
 
+        {/* ⚠️ TODO (optional): Jab AdSense approve ho jaye, yahan asli ads lagao.
+            Jab tak khaali placeholder boxes low-quality signal hain — 
+            chaaho to in dono divs ko abhi ke liye hata sakte ho. */}
         <aside className="hidden lg:block w-[15%] py-4">
           <div className="sticky top-20 flex flex-col gap-6">
             <div className="w-full min-h-[600px] bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase py-4">

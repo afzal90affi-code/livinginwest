@@ -12,9 +12,43 @@ import WeatherTimeBar from "@/components/WeatherTimeBar"; // ✅ WeatherTimeBar 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });
 
+// ✅ FINAL METADATA — "Life in the USA" umbrella (news + lifestyle + housing sab iske andar)
 export const metadata: Metadata = {
-  title: "Living In West - Premium Lifestyle & News",
-  description: "Explore the latest in lifestyle, travel, food, automotive, and world news at Living In West. Your premium guide to living, working, and thriving in the western world.",
+  // Absolute URLs ke liye zaroori — OG images/canonical proper absolute banenge
+  metadataBase: new URL("https://livinginwest.com"),
+
+  // Template: har page ka title "Page Title | Living In West" ban jayega
+  title: {
+    default: "Living In West — USA News, Lifestyle & Living Guide",
+    template: "%s | Living In West",
+  },
+
+  // Umbrella description — Google site ko "America living guide" ke tor pe classify karega
+  description:
+    "Your complete guide to life in the USA — latest news, lifestyle, travel, jobs, housing & state-by-state living guides. Everything about living, working and thriving in America.",
+
+  // Explicit robots — 100% clear ke index karna hai
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large", // Google Images mein bade previews — free traffic
+      "max-snippet": -1,
+    },
+  },
+
+  
+
+  // Site-wide OpenGraph defaults
+  openGraph: {
+    type: "website",
+    siteName: "Living In West",
+    url: "https://livinginwest.com",
+  },
+  twitter: { card: "summary_large_image" },
+
   icons: {
     icon: "/livinginwest-logo.png",
     shortcut: "/livinginwest-logo.png",
@@ -27,7 +61,12 @@ const NAV_CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
 }`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const navCategories = await client.fetch(NAV_CATEGORIES_QUERY); 
+  // Nav fetch pe revalidate — har request pe Sanity call nahi, 1 ghanta cache
+  const navCategories = await client.fetch(
+    NAV_CATEGORIES_QUERY,
+    {},
+    { next: { revalidate: 3600 } }
+  ); 
 
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${playfair.variable}`}>
