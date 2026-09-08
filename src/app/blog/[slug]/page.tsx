@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { client } from "@/lib/sanityClient";
 import Image from 'next/image';
 import Link from 'next/link';
-import { notFound } from 'next/navigation'; // ✅ CHANGED 3: proper 404 ke liye
+import { notFound } from 'next/navigation';
 import { ArrowLeft, Calendar } from 'lucide-react';
 import BlogAudioPlayer from '@/components/BlogAudioPlayer';
 import Comments from '../Comments';
@@ -11,8 +11,6 @@ import { ShareMenu, ShareCardButton } from '@/components/share';
 import Slider from '@/components/Slider';
 import EmbedBlogButton from '@/components/embeds/EmbedBlogButton';
 
-// ✅ CHANGED 1: force-dynamic HATA diya — ab ISR cache chalega
-// (Googlebot ko fast response milega, crawl budget zyada milega)
 export const revalidate = 60;
 
 interface BlogData {
@@ -49,7 +47,6 @@ interface BlogData {
   writerSocial?: string;
 }
 
-// ✅ ULTIMATE FIX: ChatGPT copy-paste ke saare issues yahan automatically fix honge
 const cleanQuillHtml = (html: string): string => {
   if (!html) return "";
   
@@ -96,7 +93,6 @@ const cleanQuillHtml = (html: string): string => {
 };
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  // ✅ CHANGED 2: isPublished filter yahan bhi — unpublished post ka metadata na bane
   const query = `*[_type == "blog" && slug.current == $slug && isPublished != false][0] {
     title, desc, metaTitle, metaDesc, keywords, date,
     "mainImageUrl": img1.asset->url, 
@@ -137,7 +133,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description: finalDesc,
       url: `${baseUrl}/blog/${blog.slug}`,
       type: "article",
-      // ✅ BONUS: Google ko publish date ka signal — freshness ke liye acha
       publishedTime: blog.date,
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: finalTitle }],
     },
@@ -151,9 +146,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function BlogDetail({ params }: { params: { slug: string } }) {
-  // ⚠️ NOTE: Agar aapka Next.js version 15+ hai to yahan change karna hoga:
-  //   { params }: { params: Promise<{ slug: string }> }
-  //   const { slug } = await params;   ← aur neeche har jagah params.slug ki jagah slug use karo
   const blogQuery = `*[_type == "blog" && slug.current == $slug && isPublished != false][0] {
     _id, title, "slug": slug.current, category, subCategory, desc, date,
     "mainImageUrl": img1.asset->url,
@@ -174,10 +166,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
   const blog: BlogData | null = await client.fetch(blogQuery, { slug: params.slug }, { next: { revalidate: 60 } });
 
-  // ✅ CHANGED 3: Soft 404 → Proper 404
-  // Pehle "Story not found" 200 status ke sath render hota tha — Google isay
-  // "Soft 404" error ginta hai aur poori site ka quality score girata hai.
-  // Ab Google ko sahi 404 status milega — quality signals clean rahenge.
   if (!blog) {
     notFound();
   }
@@ -240,14 +228,14 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           href={b.writerSocial} 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="font-semibold text-gray-900 hover:text-[#6D28D9] hover:underline transition-colors"
+          className="font-semibold text-gray-900 dark:text-gray-100 hover:text-[#6D28D9] dark:hover:text-purple-400 hover:underline transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           By {name}
         </a>
       );
     }
-    return <span className="font-semibold text-gray-900">By {name}</span>;
+    return <span className="font-semibold text-gray-900 dark:text-gray-100">By {name}</span>;
   };
 
   const SwipeCard = ({ b, widthClass }: { b: BlogData, widthClass: string }) => {
@@ -255,18 +243,18 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     return (
       <div className={`${widthClass} snap-start flex flex-col`}>
         <Link href={`/blog/${b.slug}`} className="group block">
-          <div className="relative aspect-[3/2] overflow-hidden bg-gray-50 mb-3 rounded-sm">
+          <div className="relative aspect-[3/2] overflow-hidden bg-gray-50 dark:bg-gray-900 mb-3 rounded-sm">
             {b.mainImageUrl
               ? <Image src={b.mainImageUrl} alt={b.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="280px" />
-              : <div className="w-full h-full flex items-center justify-center text-gray-200 text-xl">📝</div>
+              : <div className="w-full h-full flex items-center justify-center text-gray-200 dark:text-gray-700 text-xl">📝</div>
             }
           </div>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-[#1e3a8a] font-bold mb-1">{categoryText}</p>
-          <h4 className="text-[15px] leading-[1.3] font-playfair font-bold text-gray-900 group-hover:text-[#1e3a8a] transition-colors line-clamp-2">{b.title}</h4>
-          {b.date && <p className="text-[10px] text-gray-400 mt-1.5">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
+          <p className="text-[9px] uppercase tracking-[0.2em] text-[#1e3a8a] dark:text-blue-400 font-bold mb-1">{categoryText}</p>
+          <h4 className="text-[15px] leading-[1.3] font-playfair font-bold text-gray-900 dark:text-gray-100 group-hover:text-[#1e3a8a] dark:group-hover:text-blue-400 transition-colors line-clamp-2">{b.title}</h4>
+          {b.date && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
         </Link>
-        <div className="flex items-center justify-between mt-2 border-t border-gray-100 pt-2">
-          <span className="text-[10px] text-gray-400 uppercase tracking-widest">Share</span>
+        <div className="flex items-center justify-between mt-2 border-t border-gray-100 dark:border-gray-800 pt-2">
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest">Share</span>
           <ShareCardButton title={b.title} url={`/blog/${b.slug}`} />
         </div>
       </div>
@@ -292,7 +280,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "description": blog.desc,
     "image": blog.mainImageUrl,
     "datePublished": blog.date,
-    // ✅ BONUS: dateModified bhi do — Google freshness signal pasand karta hai
     "dateModified": blog.date,
     "mainEntityOfPage": {
       "@type": "WebPage",
@@ -303,7 +290,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
   };
 
   return (
-    <main className="min-h-screen bg-white text-gray-900 blog-no-scroll overflow-x-hidden">
+    <main className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 blog-no-scroll overflow-x-hidden transition-colors">
       
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
@@ -312,14 +299,14 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 px-4 md:px-6">
         <div className="w-full lg:w-[85%] py-4">
 
-          <div className="border-b border-gray-100">
+          <div className="border-b border-gray-100 dark:border-gray-800">
             <div className="max-w-[680px] mx-auto py-4 flex items-center justify-between">
-              <Link href={`/category/${blog.category}`} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-gray-400 hover:text-[#1e3a8a] transition-colors">
+              <Link href={`/category/${blog.category}`} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-gray-400 dark:text-gray-500 hover:text-[#1e3a8a] dark:hover:text-blue-400 transition-colors">
                 <ArrowLeft className="w-3 h-3" />
                 {blog.category}
               </Link>
               {blog.date && (
-                <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-gray-300">
+                <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-gray-300 dark:text-gray-600">
                   <Calendar className="w-3 h-3" />
                   {new Date(blog.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                 </span>
@@ -328,19 +315,19 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
 
           <div className="max-w-[680px] mx-auto pt-10 md:pt-14 text-center">
-            <span className="inline-block text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold mb-5">
+            <span className="inline-block text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] dark:text-blue-400 font-semibold mb-5">
               {blog.subCategory || blog.category}
             </span>
-            <h1 className="text-[30px] md:text-[46px] leading-[1.08] font-playfair font-bold tracking-[-0.025em] text-gray-900 mb-5 break-words">
+            <h1 className="text-[30px] md:text-[46px] leading-[1.08] font-playfair font-bold tracking-[-0.025em] text-gray-900 dark:text-gray-100 mb-5 break-words">
               {blog.title}
             </h1>
             {blog.desc && (
-              <p className="text-[14px] md:text-[16px] text-gray-500 leading-[1.7] mb-8 max-w-lg mx-auto break-words">
+              <p className="text-[14px] md:text-[16px] text-gray-500 dark:text-gray-400 leading-[1.7] mb-8 max-w-lg mx-auto break-words">
                 {blog.desc}
               </p>
             )}
-            <div className="flex items-center justify-center gap-3 pb-8 border-b border-gray-100">
-              <div className="relative w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="flex items-center justify-center gap-3 pb-8 border-b border-gray-100 dark:border-gray-800">
+              <div className="relative w-10 h-10 rounded-full bg-gray-900 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
            <Image 
                   src="/logo.jpg" 
                  alt="Living In West" 
@@ -351,14 +338,14 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
               </div>
               <div className="text-left">
                 {renderAuthor(blog)}
-                <p className="text-[11px] text-gray-500">Editorial Team</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">Editorial Team</p>
               </div>
             </div>
           </div>
 
           {blog.mainImageUrl && (
             <div className={`my-8 md:my-10 ${isVertical('1') ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-              <div className={`relative overflow-hidden bg-gray-50 ${isVertical('1') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+              <div className={`relative overflow-hidden bg-gray-50 dark:bg-gray-900 ${isVertical('1') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
                 <Image 
                   src={blog.mainImageUrl} 
                   alt={blog.title} 
@@ -367,7 +354,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                   priority 
                   sizes={isVertical('1') ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} 
                 />
-                <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">00</div>
+                <div className="absolute bottom-3 right-4 text-gray-300 dark:text-gray-700 font-mono text-[10px] uppercase tracking-[0.3em]">00</div>
               </div>
             </div>
           )}
@@ -381,12 +368,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
             {blogSections.map((section, index) => (
               <div key={index}>
                 {section.content && (
-                  <div className="blog-read [&_p]:!mb-3 [&_h2]:!mt-5 [&_h2]:!mb-2 [&_h3]:!mt-4 [&_h3]:!mb-2" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(section.content) }} />
+                  <div className="blog-read [&_p]:!mb-3 [&_h2]:!mt-5 [&_h2]:!mb-2 [&_h3]:!mt-4 [&_h3]:!mb-2 dark:[&_h2]:text-gray-100 dark:[&_h3]:text-gray-100" dangerouslySetInnerHTML={{ __html: cleanQuillHtml(section.content) }} />
                 )}
 
                 {section.imageUrl && (
                   <div className={`my-6 md:my-8 ${isVertical(String(section.imageKey)) ? 'max-w-[420px] mx-auto' : 'w-full max-w-[1000px] mx-auto'}`}>
-                    <div className={`relative overflow-hidden bg-gray-50 ${isVertical(String(section.imageKey)) ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
+                    <div className={`relative overflow-hidden bg-gray-50 dark:bg-gray-900 ${isVertical(String(section.imageKey)) ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
                       <Image 
                         src={section.imageUrl} 
                         alt="" 
@@ -394,7 +381,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                         className="object-cover" 
                         sizes={isVertical(String(section.imageKey)) ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} 
                       />
-                      <div className="absolute bottom-3 right-4 text-gray-300 font-mono text-[10px] uppercase tracking-[0.3em]">
+                      <div className="absolute bottom-3 right-4 text-gray-300 dark:text-gray-700 font-mono text-[10px] uppercase tracking-[0.3em]">
                         {String(section.imageKey - 1).padStart(2, '0')}
                       </div>
                     </div>
@@ -404,10 +391,10 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                 {((index + 1) % 2 === 0) && (index < blogSections.length - 1) && (
                   <>
                     <div className="flex items-center justify-center my-8 md:my-10">
-                      <div className="w-14 h-px bg-gray-300" /><span className="mx-4 text-gray-300 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300" />
+                      <div className="w-14 h-px bg-gray-300 dark:bg-gray-700" /><span className="mx-4 text-gray-300 dark:text-gray-600 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300 dark:bg-gray-700" />
                     </div>
-                    <div className="my-6 py-4 border-t border-b border-gray-100 flex items-center justify-center">
-                      <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 font-mono">[ advertisement ]</span>
+                    <div className="my-6 py-4 border-t border-b border-gray-100 dark:border-gray-800 flex items-center justify-center">
+                      <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 dark:text-gray-600 font-mono">[ advertisement ]</span>
                     </div>
                   </>
                 )}
@@ -417,14 +404,14 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
             {/* ✅ ARTICLE END: Smart Card with Writer & Share */}
             <div className="mt-10 flex flex-col items-center">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-px bg-gray-200"></div>
-                <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-mono">End of Article</span>
-                <div className="w-12 h-px bg-gray-200"></div>
+                <div className="w-12 h-px bg-gray-200 dark:bg-gray-700"></div>
+                <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 dark:text-gray-600 font-mono">End of Article</span>
+                <div className="w-12 h-px bg-gray-200 dark:bg-gray-700"></div>
               </div>
 
-              <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-5 bg-gray-50 rounded-xl border border-gray-100 shadow-sm mb-6">
+              <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4 p-5 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="relative w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <div className="relative w-10 h-10 rounded-full bg-gray-900 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     <Image 
                         src="/logo.jpg" 
                         alt="Living In West" 
@@ -435,7 +422,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                   </div>
                   <div className="text-left">
                     {renderAuthor(blog)}
-                    <p className="text-[11px] text-gray-500">Editorial Team</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Editorial Team</p>
                   </div>
                 </div>
                 
@@ -454,12 +441,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
           {/* ✅ MORE BLOGS (Interleaved by Subcategory) */}
           {moreBlogs.length > 0 && (
-            <div className="border-t border-gray-100 bg-white">
+            <div className="border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950">
               <div className="max-w-[1000px] mx-auto py-12 md:py-16">
                 <div className="flex items-end justify-between mb-6">
                   <div>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold block mb-2">Quick Reads</span>
-                    <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 leading-tight">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] dark:text-blue-400 font-semibold block mb-2">Quick Reads</span>
+                    <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 dark:text-gray-100 leading-tight">
                       More Blogs
                     </h2>
                   </div>
@@ -475,12 +462,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
           {/* ✅ MORE FROM CATEGORY */}
           {catBlogs.length > 0 && (
-            <div className="border-t border-gray-100 bg-[#FAFAFA]">
+            <div className="border-t border-gray-100 dark:border-gray-800 bg-[#FAFAFA] dark:bg-gray-900/40">
               <div className="max-w-[1000px] mx-auto py-12 md:py-16">
                 <div className="flex items-end justify-between mb-6">
                   <div>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold block mb-2">More Stories</span>
-                    <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 leading-tight">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] dark:text-blue-400 font-semibold block mb-2">More Stories</span>
+                    <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 dark:text-gray-100 leading-tight">
                       More from {blog.category}
                     </h2>
                   </div>
@@ -496,12 +483,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
           {/* ✅ RECOMMENDED BLOGS */}
           {recBlogs.length > 0 && (
-            <div className="border-t border-gray-100 bg-white">
+            <div className="border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950">
               <div className="max-w-[1000px] mx-auto py-12 md:py-16">
                 <div className="flex items-end justify-between mb-6">
                   <div>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] font-semibold block mb-2">Explore</span>
-                    <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 leading-tight">
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] dark:text-blue-400 font-semibold block mb-2">Explore</span>
+                    <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 dark:text-gray-100 leading-tight">
                       Recommended for You
                     </h2>
                   </div>
@@ -515,29 +502,26 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
             </div>
           )}
 
-          <div className="border-t border-gray-100 bg-white">
+          <div className="border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950">
             <div className="max-w-[680px] mx-auto py-6 flex items-center justify-between">
-              <Link href="/" className="text-[11px] uppercase tracking-[0.2em] text-gray-400 hover:text-[#1e3a8a] transition-colors">
+              <Link href="/" className="text-[11px] uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 hover:text-[#1e3a8a] dark:hover:text-blue-400 transition-colors">
                 ← Back to Home
               </Link>
-              <p className="text-[10px] text-gray-300 font-mono">LIVING IN WEST © {new Date().getFullYear()}</p>
+              <p className="text-[10px] text-gray-300 dark:text-gray-600 font-mono">LIVING IN WEST © {new Date().getFullYear()}</p>
             </div>
           </div>
 
         </div>
 
-        {/* ⚠️ TODO (optional): Jab AdSense approve ho jaye, yahan asli ads lagao.
-            Jab tak khaali placeholder boxes low-quality signal hain — 
-            chaaho to in dono divs ko abhi ke liye hata sakte ho. */}
         <aside className="hidden lg:block w-[15%] py-4">
           <div className="sticky top-20 flex flex-col gap-6">
-            <div className="w-full min-h-[600px] bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase py-4">
-              <span className="mb-2 text-gray-300 text-[8px]">Advertisement</span>
-              <div className="w-full h-[500px] bg-gray-100 flex items-center justify-center rounded">[ Article Ad 160x600 ]</div>
+            <div className="w-full min-h-[600px] bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 dark:text-gray-500 tracking-widest uppercase py-4">
+              <span className="mb-2 text-gray-300 dark:text-gray-600 text-[8px]">Advertisement</span>
+              <div className="w-full h-[500px] bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">[ Article Ad 160x600 ]</div>
             </div>
-            <div className="w-full min-h-[250px] bg-gray-50 border border-gray-200 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 tracking-widest uppercase py-4">
-              <span className="mb-2 text-gray-300 text-[8px]">Advertisement</span>
-              <div className="w-full h-[200px] bg-gray-100 flex items-center justify-center rounded">[ Article Ad 300x250 ]</div>
+            <div className="w-full min-h-[250px] bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 dark:text-gray-500 tracking-widest uppercase py-4">
+              <span className="mb-2 text-gray-300 dark:text-gray-600 text-[8px]">Advertisement</span>
+              <div className="w-full h-[200px] bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">[ Article Ad 300x250 ]</div>
             </div>
           </div>
         </aside>

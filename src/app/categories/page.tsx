@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: 'Explore all premium lifestyle categories on Living In West. Find expert guides on travel, automotive, real estate, and living in the USA.',
 };
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 21600;  // 6 hours (seconds me)
 
 // ⚠️ Note: Agar aapke Sanity mein blog post ki type koi aur hai (jaise "article"), 
 // toh niche _type == "post" ko apni type ke hisaab se change kar lein.
@@ -41,16 +41,16 @@ export default async function CategoriesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#FAFAFA] text-gray-900 py-16 md:py-24">
+    <main className="min-h-screen bg-[#FAFAFA] dark:bg-gray-950 text-gray-900 dark:text-gray-100 py-16 md:py-24 transition-colors">
       <div className="max-w-7xl mx-auto px-6">
         
         <div className="text-center mb-16">
           <h1 className="font-playfair text-4xl md:text-6xl font-bold tracking-tight">All Categories</h1>
-          <p className="text-gray-500 mt-4 text-sm md:text-base max-w-xl mx-auto">Explore our complete collection of lifestyle topics and stories.</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-4 text-sm md:text-base max-w-xl mx-auto">Explore our complete collection of lifestyle topics and stories.</p>
         </div>
 
         {catList.length === 0 ? (
-          <p className="text-center text-gray-400">No categories found. Add them from Sanity Studio.</p>
+          <p className="text-center text-gray-400 dark:text-gray-500">No categories found. Add them from Sanity Studio.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {catList.map((cat: CategoryItem) => {
@@ -59,7 +59,7 @@ export default async function CategoriesPage() {
                 : `https://picsum.photos/seed/cat-${cat.slug}/800/600.jpg`;
 
               return (
-                <Link href={`/category/${cat.slug}`} key={cat._id} className="group block relative aspect-[4/3] overflow-hidden bg-gray-100 border border-gray-200/50 hover:border-gray-900 transition-colors">
+                <Link href={`/category/${cat.slug}`} key={cat._id} className="group block relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-900 border border-gray-200/50 dark:border-gray-800 hover:border-gray-900 dark:hover:border-gray-100 transition-colors">
                   <Image 
                     src={imgUrl} 
                     alt={cat.name}
@@ -69,7 +69,6 @@ export default async function CategoriesPage() {
                   />
                   <div className="absolute inset-0 flex flex-col justify-end p-8 z-10">
                     
-                    {/* ✅ Ab agar count 0 hoga toh yeh span bilkul render nahi hoga */}   
                      {cat.blogCount && cat.blogCount > 0 ? (
   <span className="text-[10px] uppercase tracking-[0.3em] text-gray-300 font-bold mb-2">
     {cat.blogCount} Stories

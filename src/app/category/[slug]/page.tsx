@@ -91,7 +91,7 @@ async function getSubcategories(slug: string, name: string): Promise<Subcategory
   return subcats;
 }
 
-// ✅ نئی اور 100% مضبوط Query: یہ کیٹیگری اور سب کیٹیگری دونوں سے خبریں لائے گی
+// ✅ Query: کیٹیگری اور سب کیٹیگری دونوں سے خبریں لائے گی
 async function getBlogsByMatchList(matchList: string[]): Promise<BlogData[]> {
   const blogs = await client.fetch(
     `*[_type == "blog" && isPublished == true && (
@@ -117,11 +117,38 @@ function formatDate(dateString?: string): string {
   });
 }
 
+// ✅ REUSABLE BLOG CARD (dark mode ke sath) – teeno jagah same card use hoga
+function BlogCard({ blog }: { blog: BlogData }) {
+  const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(600).height(600).url() : null;
+  return (
+    <div className="group flex flex-col">
+      <Link href={`/blog/${blog.slug}`} className="block">
+        <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-900 aspect-square mb-4">
+          {blogImg ? <Image src={blogImg} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" sizes="(max-width: 768px) 100vw, 33vw" /> : <div className="w-full h-full bg-gray-100 dark:bg-gray-900"></div>}
+        </div>
+      </Link>
+      <div className="flex flex-col flex-1">
+        <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-widest font-bold">
+          <span className="text-blue-600 dark:text-blue-400">{blog.categoryName}</span>
+          {blog.readTime && <span className="flex items-center gap-1.5 text-gray-400 dark:text-gray-500"><Clock className="w-3 h-3" />{blog.readTime} min read</span>}
+        </div>
+        <Link href={`/blog/${blog.slug}`}>
+          <h3 className="font-playfair text-xl md:text-2xl font-bold leading-tight text-gray-900 dark:text-gray-100 group-hover:underline underline-offset-4 decoration-1 transition-all">{blog.title}</h3>
+        </Link>
+        {blog.desc && <p className="text-gray-500 dark:text-gray-400 mt-3 text-sm leading-relaxed line-clamp-2">{blog.desc}</p>}
+        <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider">{blog.date && formatDate(blog.date)}</span>
+          <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
   const category = await getCategoryData(params.slug);
   const subcategories = category ? await getSubcategories(params.slug, category.name) : [];
   
-  // ✅ وہ تمام نام اور سلگس اکٹھے کریں جن سے خبریں میچ کرنی ہیں
   let blogs: BlogData[] = [];
   if (category) {
     const matchList = [
@@ -135,13 +162,13 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
   if (!category) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-gray-950 transition-colors">
         <div className="text-center">
-          <h1 className="text-6xl font-bold mb-4 text-gray-300">404</h1>
-          <p className="text-gray-500 text-lg mb-6">Category not found</p>
+          <h1 className="text-6xl font-bold mb-4 text-gray-300 dark:text-gray-700">404</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-lg mb-6">Category not found</p>
           <Link 
             href="/" 
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -154,42 +181,40 @@ export default async function CategoryPage({ params }: { params: { slug: string 
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950 transition-colors">
       
       {/* ===== HEADER SECTION ===== */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-7xl mx-auto px-6 py-10 md:py-12">
-          <nav className="flex items-center gap-2 text-xs text-gray-400 mb-6 uppercase tracking-widest font-semibold">
-            <Link href="/" className="hover:text-gray-900 transition-colors">Home</Link>
+          <nav className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 mb-6 uppercase tracking-widest font-semibold">
+            <Link href="/" className="hover:text-gray-900 dark:hover:text-gray-100 transition-colors">Home</Link>
             <span>/</span>
-            <span className="text-gray-900">{category.name}</span>
+            <span className="text-gray-900 dark:text-gray-100">{category.name}</span>
           </nav>
 
           <div>
-            <h1 className="font-playfair text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight border-b-4 border-blue-600 inline-block pb-2">
+            <h1 className="font-playfair text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-gray-100 tracking-tight border-b-4 border-blue-600 dark:border-blue-500 inline-block pb-2">
               {category.name}
             </h1>
-            <p className="mt-5 text-gray-500 text-lg max-w-2xl">
+            <p className="mt-5 text-gray-500 dark:text-gray-400 text-lg max-w-2xl">
               Explore all articles and guides about {category.name.toLowerCase()}.
             </p>
           </div>
 
           <div className="flex items-center gap-6 mt-8">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 font-bold">
-              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold">
+              <div className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-500"></div>
               {blogs.length} Articles
             </div>
             {subcategories.length > 0 && (
-              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 font-bold">
-                <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold">
+                <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></div>
                 {subcategories.length} Topics
               </div>
             )}
           </div>
         </div>
       </div>
-
-      
 
       {/* ===== MAIN CONTENT ===== */}
       <div className="max-w-7xl mx-auto px-6 py-10 md:py-12">
@@ -198,10 +223,10 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         {subcategories.length > 0 && (
           <div className="mb-12">
             <div className="flex items-center justify-between mb-5 px-6 md:px-0">
-              <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest">
+              <h2 className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-widest">
                 Browse Topics
               </h2>
-              <div className="h-px flex-1 ml-4 bg-gray-200"></div>
+              <div className="h-px flex-1 ml-4 bg-gray-200 dark:bg-gray-800"></div>
             </div>
             
             <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide -mx-6 px-6 md:mx-0 md:px-0 md:flex-wrap">
@@ -211,19 +236,19 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                   <Link 
                     href={`/subcategories/${sub.slug}`} 
                     key={sub._id} 
-                    className="group flex items-center gap-2.5 bg-white border border-gray-200 hover:border-gray-900 rounded-full pl-4 pr-3 py-2 transition-all duration-300 shadow-sm hover:shadow-md flex-shrink-0"
+                    className="group flex items-center gap-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:border-gray-900 dark:hover:border-gray-100 rounded-full pl-4 pr-3 py-2 transition-all duration-300 shadow-sm hover:shadow-md flex-shrink-0"
                   >
                     {subImg ? (
-                      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-50 flex-shrink-0 ring-1 ring-gray-200">
+                      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-50 dark:bg-gray-800 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-700">
                         <Image src={subImg} alt={sub.name} width={24} height={24} className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="w-2 h-2 rounded-full bg-blue-600 flex-shrink-0 transition-colors group-hover:bg-gray-900"></div>
+                      <div className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-500 flex-shrink-0 transition-colors group-hover:bg-gray-900 dark:group-hover:bg-gray-100"></div>
                     )}
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 whitespace-nowrap transition-colors">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 whitespace-nowrap transition-colors">
                       {sub.name}
                     </span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-300 group-hover:text-gray-900 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-900 dark:group-hover:text-gray-100 group-hover:translate-x-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
@@ -237,7 +262,6 @@ export default async function CategoryPage({ params }: { params: { slug: string 
         {subcategories.length > 0 ? (
           <div className="space-y-16">
             {subcategories.map((sub) => {
-              // اس سب کیٹیگری سے میچ کرنے والے بلاگز نکالیں
               const subBlogs = blogs.filter(b => {
                 const bSub = (b.subCat || "").toLowerCase();
                 const bCat = (b.categoryName || "").toLowerCase();
@@ -246,50 +270,27 @@ export default async function CategoryPage({ params }: { params: { slug: string 
                 return bSub === sName || bSub === sSlug || bCat === sName || bCat === sSlug;
               });
 
-              if (subBlogs.length === 0) return null; // اگر بلاگز نہیں ہیں تو سیکشن ہی نہ دکھائیں
+              if (subBlogs.length === 0) return null;
 
               return (
                 <div key={sub._id}>
-                  <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 pb-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 uppercase">{sub.name}</h2>
-                    <Link href={`/subcategories/${sub.slug}`} className="text-xs text-gray-500 hover:text-gray-900 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
+                  <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 dark:border-gray-100 pb-3">
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 uppercase">{sub.name}</h2>
+                    <Link href={`/subcategories/${sub.slug}`} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 uppercase tracking-widest font-semibold flex items-center gap-1 transition-colors">
                       View All <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                     </Link>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-                    {subBlogs.map((blog: BlogData) => {
-                      const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(600).height(600).url() : null;
-                      return (
-                        <div key={blog._id} className="group flex flex-col">
-                          <Link href={`/blog/${blog.slug}`} className="block">
-                            <div className="relative overflow-hidden bg-gray-100 aspect-square mb-4">
-                              {blogImg ? <Image src={blogImg} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" sizes="(max-width: 768px) 100vw, 33vw" /> : <div className="w-full h-full bg-gray-100"></div>}
-                            </div>
-                          </Link>
-                          <div className="flex flex-col flex-1">
-                            <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-widest font-bold">
-                              <span className="text-blue-600">{blog.categoryName}</span>
-                              {blog.readTime && <span className="flex items-center gap-1.5 text-gray-400"><Clock className="w-3 h-3" />{blog.readTime} min read</span>}
-                            </div>
-                            <Link href={`/blog/${blog.slug}`}>
-                              <h3 className="font-playfair text-xl md:text-2xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-1 transition-all">{blog.title}</h3>
-                            </Link>
-                            {blog.desc && <p className="text-gray-500 mt-3 text-sm leading-relaxed line-clamp-2">{blog.desc}</p>}
-                            <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
-                              <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">{blog.date && formatDate(blog.date)}</span>
-                              <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {subBlogs.map((blog: BlogData) => (
+                      <BlogCard key={blog._id} blog={blog} />
+                    ))}
                   </div>
                 </div>
               );
             })}
 
-            {/* اگر کوئی بلاگ مین کیٹیگری میں ہے لیکن کسی سب کیٹیگری میں نہیں ہے تو وہ یہاں دکھائے دیں */}
+            {/* بلاگ مین کیٹیگری میں ہوں لیکن سب کیٹیگری میں نہیں */}
             {(() => {
               const mainBlogs = blogs.filter(b => {
                 const bSub = (b.subCat || "").toLowerCase();
@@ -300,80 +301,34 @@ export default async function CategoryPage({ params }: { params: { slug: string 
               
               return (
                 <div>
-                  <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 pb-3">
-                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 uppercase">More in {category.name}</h2>
+                  <div className="flex items-center justify-between mb-8 border-b-2 border-gray-900 dark:border-gray-100 pb-3">
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100 uppercase">More in {category.name}</h2>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-                    {mainBlogs.map((blog: BlogData) => {
-                      const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(600).height(600).url() : null;
-                      return (
-                        <div key={blog._id} className="group flex flex-col">
-                          <Link href={`/blog/${blog.slug}`} className="block">
-                            <div className="relative overflow-hidden bg-gray-100 aspect-square mb-4">
-                              {blogImg ? <Image src={blogImg} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" sizes="(max-width: 768px) 100vw, 33vw" /> : <div className="w-full h-full bg-gray-100"></div>}
-                            </div>
-                          </Link>
-                          <div className="flex flex-col flex-1">
-                            <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-widest font-bold">
-                              <span className="text-blue-600">{blog.categoryName}</span>
-                              {blog.readTime && <span className="flex items-center gap-1.5 text-gray-400"><Clock className="w-3 h-3" />{blog.readTime} min read</span>}
-                            </div>
-                            <Link href={`/blog/${blog.slug}`}>
-                              <h3 className="font-playfair text-xl md:text-2xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-1 transition-all">{blog.title}</h3>
-                            </Link>
-                            {blog.desc && <p className="text-gray-500 mt-3 text-sm leading-relaxed line-clamp-2">{blog.desc}</p>}
-                            <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
-                              <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">{blog.date && formatDate(blog.date)}</span>
-                              <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {mainBlogs.map((blog: BlogData) => (
+                      <BlogCard key={blog._id} blog={blog} />
+                    ))}
                   </div>
                 </div>
               );
             })()}
           </div>
         ) : (
-          // اگر کوئی سب کیٹیگری موجود نہیں ہے، تو تمام بلاگز یہاں دیکھائیں
+          // اگر کوئی سب کیٹیگری موجود نہیں، تو تمام بلاگز یہاں
           <div>
-            <div className="flex items-center justify-between mb-8 border-b border-gray-200 pb-3">
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 uppercase tracking-tight">Latest Articles</h2>
+            <div className="flex items-center justify-between mb-8 border-b border-gray-200 dark:border-gray-800 pb-3">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">Latest Articles</h2>
             </div>
             {blogs.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                <p className="text-gray-500 text-lg font-semibold">No articles found</p>
-                <p className="text-gray-400 text-sm mt-1">Check back later for new content</p>
+              <div className="text-center py-20 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900">
+                <p className="text-gray-500 dark:text-gray-400 text-lg font-semibold">No articles found</p>
+                <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Check back later for new content</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-                {blogs.map((blog: BlogData) => {
-                  const blogImg = blog.mainImage ? urlFor(blog.mainImage).width(600).height(600).url() : null;
-                  return (
-                    <div key={blog._id} className="group flex flex-col">
-                      <Link href={`/blog/${blog.slug}`} className="block">
-                        <div className="relative overflow-hidden bg-gray-100 aspect-square mb-4">
-                          {blogImg ? <Image src={blogImg} alt={blog.title} fill className="object-cover group-hover:scale-105 transition-transform duration-700 ease-out" sizes="(max-width: 768px) 100vw, 33vw" /> : <div className="w-full h-full bg-gray-100"></div>}
-                        </div>
-                      </Link>
-                      <div className="flex flex-col flex-1">
-                        <div className="flex items-center justify-between mb-3 text-[10px] uppercase tracking-widest font-bold">
-                          <span className="text-blue-600">{blog.categoryName}</span>
-                          {blog.readTime && <span className="flex items-center gap-1.5 text-gray-400"><Clock className="w-3 h-3" />{blog.readTime} min read</span>}
-                        </div>
-                        <Link href={`/blog/${blog.slug}`}>
-                          <h3 className="font-playfair text-xl md:text-2xl font-bold leading-tight text-gray-900 group-hover:underline underline-offset-4 decoration-1 transition-all">{blog.title}</h3>
-                        </Link>
-                        {blog.desc && <p className="text-gray-500 mt-3 text-sm leading-relaxed line-clamp-2">{blog.desc}</p>}
-                        <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
-                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">{blog.date && formatDate(blog.date)}</span>
-                          <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {blogs.map((blog: BlogData) => (
+                  <BlogCard key={blog._id} blog={blog} />
+                ))}
               </div>
             )}
           </div>
@@ -381,9 +336,9 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
         {/* ===== BOTTOM CTA ===== */}
         {blogs.length > 0 && (
-          <div className="mt-16 pt-10 border-t border-gray-200 text-center">
-            <p className="text-gray-500 text-sm mb-5 font-medium">You've reached the end of {category.name} articles.</p>
-            <Link href="/" className="inline-flex items-center gap-2 px-8 py-3 text-sm font-bold text-white bg-gray-900 rounded-full hover:bg-gray-700 transition-colors uppercase tracking-widest">
+          <div className="mt-16 pt-10 border-t border-gray-200 dark:border-gray-800 text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-5 font-medium">You've reached the end of {category.name} articles.</p>
+            <Link href="/" className="inline-flex items-center gap-2 px-8 py-3 text-sm font-bold text-white dark:text-gray-900 bg-gray-900 dark:bg-gray-100 rounded-full hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors uppercase tracking-widest">
               Back to All Categories
             </Link>
           </div>
