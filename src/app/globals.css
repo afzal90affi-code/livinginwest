@@ -114,10 +114,9 @@ html, body {
 .blog-read li,
 .blog-read a {
   white-space: normal !important;
-  /* 'break-word' use kiya hai taake words sirf zaroorat pade toden */
   overflow-wrap: break-word !important; 
   word-wrap: break-word !important;
-  word-break: normal !important; /* Normal words beech se nahi katenge */
+  word-break: normal !important;
   -webkit-hyphens: none !important;
   -moz-hyphens: none !important;
   hyphens: none !important;
@@ -138,7 +137,7 @@ html, body {
   min-width: 0;
 }
 
-/* ✅ ڈارک موڈ میں بلاگ کا ٹیکسٹ سفید ہو جائے گا */
+/* ✅ Dark mode me blog ka text white ho jayega */
 .dark .blog-read {
   color: #d1d5db;
 }
@@ -242,7 +241,7 @@ html, body {
   line-height: 1.4;
 }
 
-/* ✅ ڈارک موڈ میں ہیڈنگز بھی سفید ہوں گی */
+/* Dark mode me headings bhi white hongi */
 .dark .blog-read h1, .dark .blog-read h2, .dark .blog-read h3 {
   color: #ffffff;
 }
@@ -289,8 +288,8 @@ html, body {
   overflow-x: auto;
   margin: 1.5rem 0;
   font-size: 14px;
-  white-space: pre-wrap !important; /* Code blocks mein formatting safe rahegi */
-  word-break: break-all !important; /* Sirf code blocks mein words kat sakte hain */
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
 }
 .dark .blog-read pre {
   background: #333;
@@ -328,10 +327,118 @@ html, body {
   margin-bottom: 0;
 }
 
-/* ✅ MOBILE FIX: ChatGPT ka Justify text mobile par left ho jayega */
+/* ✅ MOBILE FIX: Justify text mobile par left ho jayega */
 @media (max-width: 768px) {
   .blog-read .ql-align-justify,
   .blog-read [style*="text-align: justify"] {
     text-align: left !important;
   }
+}
+
+/* ============================================================ */
+/* ===== ✅ BLOG TABLE STYLES — MOBILE FRIENDLY (UPDATED) ===== */
+/* ============================================================ */
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  -webkit-overflow-scrolling: touch; /* iOS par smooth swipe scroll */
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.blog-read table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 480px; /* chhoti screen par table squeeze nahi hogi, scroll hogi */
+  font-size: 0.95em;
+}
+
+.blog-read table th,
+.blog-read table td {
+  border: 1px solid #e5e7eb;
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.blog-read table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+/* ✅ MOBILE: compact + smooth scroll */
+@media (max-width: 640px) {
+  .table-wrapper {
+    margin: 1.2rem -4px; /* screen edge tak thoda wide */
+    border-radius: 6px;
+  }
+  .blog-read table {
+    font-size: 0.85em;
+    min-width: 420px;
+  }
+  .blog-read table th,
+  .blog-read table td {
+    padding: 0.45rem 0.6rem;
+  }
+}
+
+/* ✅ Dark mode table support */
+.dark .table-wrapper {
+  border-color: #374151;
+}
+.dark .blog-read table th,
+.dark .blog-read table td {
+  border-color: #374151;
+}
+
+.dark .blog-read table th {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.dark .blog-read table td {
+  color: #e5e7eb;
+}
+
+/* Table ke andar wale paragraphs ki extra margin hatao */
+.blog-read table p {
+  margin-bottom: 0 !important;
+}
+
+/* ✅ Scrollbar hint mobile users ko (ki table swipe ho sakti hai) */
+.table-wrapper::-webkit-scrollbar {
+  height: 5px;
+}
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+.dark .table-wrapper::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+/* ============================================== */
+/* ===== ✅ TABLE STYLES ADMIN EDITOR ME ===== */
+/* ============================================== */
+
+.blog-editor-custom .ql-editor table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.blog-editor-custom .ql-editor table td,
+.blog-editor-custom .ql-editor table th {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.7rem;
+}
+
+.blog-editor-custom .ql-editor table th {
+  background: #f9fafb;
+  font-weight: 600;
 }

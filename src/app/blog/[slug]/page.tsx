@@ -16,7 +16,7 @@ export const revalidate = 60;
 interface BlogData {
   _id: string;
   title: string;
-  slug?: { current: string };
+  slug?: string;
   category?: string | null;
   subCategory?: string | null;
   desc?: string;
@@ -80,6 +80,10 @@ const cleanQuillHtml = (html: string): string => {
     }
     return match;
   });
+
+  // 👈 NEW: Table ko scrollable wrapper me daal do (mobile par table cut na ho)
+  normalizedHtml = normalizedHtml.replace(/<table/gi, '<div class="table-wrapper"><table');
+  normalizedHtml = normalizedHtml.replace(/<\/table>/gi, '</table></div>');
 
   return normalizedHtml.replace(/(<img[^>]*?)style="([^"]*)"/gi, (match, start, style) => {
     const allowedStyles = style
@@ -283,7 +287,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "dateModified": blog.date,
     "mainEntityOfPage": {
       "@type": "WebPage",
-      "@id": `https://livinginwest.com/blog/${blog.slug?.current}`
+      // 👈 FIXED: blog.slug string hai (query me "slug": slug.current), isliye .current hata diya
+      "@id": `https://livinginwest.com/blog/${blog.slug}`
     },
     "author": { "@type": "Person", "name": blog.writerName || "Living In West" },
     "publisher": { "@type": "Organization", "name": "Living In West" }
@@ -328,13 +333,13 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
             )}
             <div className="flex items-center justify-center gap-3 pb-8 border-b border-gray-100 dark:border-gray-800">
               <div className="relative w-10 h-10 rounded-full bg-gray-900 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
-           <Image 
+                <Image 
                   src="/logo.jpg" 
-                 alt="Living In West" 
-                 fill 
-                 className="object-cover" 
+                  alt="Living In West" 
+                  fill 
+                  className="object-cover" 
                   sizes="40px" 
-                              />
+                />
               </div>
               <div className="text-left">
                 {renderAuthor(blog)}
@@ -413,12 +418,12 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                 <div className="flex items-center gap-3">
                   <div className="relative w-10 h-10 rounded-full bg-gray-900 dark:bg-gray-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
                     <Image 
-                        src="/logo.jpg" 
-                        alt="Living In West" 
-                         fill 
-                         className="object-cover" 
-                         sizes="40px" 
-                       />
+                      src="/logo.jpg" 
+                      alt="Living In West" 
+                      fill 
+                      className="object-cover" 
+                      sizes="40px" 
+                    />
                   </div>
                   <div className="text-left">
                     {renderAuthor(blog)}
@@ -427,7 +432,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <EmbedBlogButton slug={blog.slug?.current || params.slug} />
+                  {/* 👈 FIXED: slug pehle se string hai, .current ki zaroorat nahi */}
+                  <EmbedBlogButton slug={blog.slug || params.slug} />
                   <ShareMenu />
                 </div>
               </div>

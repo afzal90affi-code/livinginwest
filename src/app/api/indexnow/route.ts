@@ -1,44 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { submitToIndexNow } from "../../../lib/indexnow";
 
-/* GET — usage info (testing ke liye) */
-export async function GET() {
-  const KEY = process.env.INDEXNOW_KEY || "9f4e2b7a1c8d5e3f6a0b4c9d2e7f1a8b";
-  const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://livinginwest.com";
-
-  return NextResponse.json({
-    site: SITE,
-    keyFile: `${SITE}/${KEY}.txt`,
-    usage: "POST { urls: ['/about', '/blog/my-post', '/products/x'] }",
-  });
-}
-
-/* POST — URLs submit karo */
+/* POST — URLs submit karo (sirf secret wali request allow) */
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const urls: string[] = Array.isArray(body?.urls) ? body.urls : [];
-
-    if (urls.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "urls array required — e.g. { urls: ['/home', '/blog'] }" },
-        { status: 400 }
-      );
-    }
-
-    /* IndexNow max 10,000 URLs per request — safety limit */
-    const limited = urls.slice(0, 10000);
-    const result = await submitToIndexNow(limited);
-
-    return NextResponse.json({
-      success: result.ok,
-      submitted: limited.length,
-      ...result,
-    });
-  } catch {
+  /* Lock: bina secret ke koi access nahi kar sakta */
+  const secret = req.headers.get("x-webhook-secret");
+  if (
+    !process.env.INDEXNOW_WEBHOOK_SECRET ||
+    secret !== process.env.INDEXNOW_WEBHOOK_SECRET
+  ) {
     return NextResponse.json(
-      { success: false, error: "Invalid JSON body" },
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const body = await req.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON" },
       { status: 400 }
     );
   }
+
+  let urls: string[] = [];
+
+  if (Array.isArray(body?.urls)) {
+    /* Manual format: { urls: ["/blog/xyz"] } */
+    urls = body.urls;
+  } else {
+    /* Sanity webhook format: { slug: "..." } ya { slug: { current: "..." } } */
+    const slug =
+      typeof body?.slug === "string" ? body.slug : body?.slug?.current;
+    if (slug) {
+      urls = [`/blog/${slug}`, "/", "/daily-news"];
+    }
+  }
+
+  if (urls.length === 0) {
+    return NextResponse.json(
+      { success: false, error: "urls array ya slug required" },
+      { status: 400 }
+    );
+  }
+
+  /* IndexNow max 10,000 URLs per request — safety limit */
+  const result = await submitToIndexNow(urls.slice(0, 10000));
+  return NextResponse.json({
+    success: result.ok,
+    submitted: urls.length,
+    ...result,
+  });
 }

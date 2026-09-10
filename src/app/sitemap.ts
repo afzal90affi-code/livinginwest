@@ -1,6 +1,5 @@
 import { MetadataRoute } from 'next'
 import { client } from '@/lib/sanityClient'
-import { submitToIndexNow } from '@/lib/indexnow'
 
 export const revalidate = 900; // 15 minutes cache
 
@@ -34,28 +33,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: 'weekly' as const,
     priority: 0.6,
   }))
-
-  /* ---------- IndexNow auto-ping ----------
-     Sirf woh URLs jo pichle 24 hours mein update hue —
-     har 15 min mein poori site ping karna spam hota hai,
-     IndexNow key block ho sakti hai. */
-
-  try {
-    const DAY = 24 * 60 * 60 * 1000;
-    const freshUrls = [...blogEntries, ...catEntries]
-      .filter((e) => {
-        const t = e.lastModified instanceof Date ? e.lastModified.getTime() : 0;
-        return Date.now() - t < DAY;
-      })
-      .map((e) => e.url);
-
-    // Static main pages sirf ek fresh URL ke saath bhejo (har ping mein sath chalengi)
-    if (freshUrls.length > 0) {
-      await submitToIndexNow([SITE, `${SITE}/daily-news`, ...freshUrls]);
-    }
-  } catch {
-    /* IndexNow fail ho toh bhi sitemap normal return ho — site pe asar nahi */
-  }
 
   return [
     {

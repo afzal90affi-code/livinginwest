@@ -1,10 +1,8 @@
 /* ============================================================
    IndexNow Helper — livinginwest.com
-   Key: env se aati hai (.env.local -> INDEXNOW_KEY)
-   Submit: POST https://api.indexnow.org/indexnow
+   Key sirf env se aati hai (INDEXNOW_KEY) — code me koi key Nahi
 ============================================================ */
 
-const KEY = process.env.INDEXNOW_KEY || "9f4e2b7a1c8d5e3f6a0b4c9d2e7f1a8b";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://livinginwest.com";
 const HOST = "livinginwest.com";
 
@@ -17,8 +15,15 @@ type IndexNowResult = {
 
 /** Ek ya zyada URLs IndexNow (Bing/Yandex/Seznam) ko submit karo */
 export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult> {
-  if (!KEY || !SITE || urls.length === 0) {
-    return { ok: false, reason: "missing config or empty urls" };
+  const KEY = process.env.INDEXNOW_KEY;
+
+  if (!KEY) {
+    console.error("IndexNow: INDEXNOW_KEY missing in env!");
+    return { ok: false, reason: "INDEXNOW_KEY missing" };
+  }
+
+  if (urls.length === 0) {
+    return { ok: false, reason: "empty urls" };
   }
 
   try {
@@ -29,12 +34,17 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult> 
         host: HOST,
         key: KEY,
         keyLocation: `${SITE}/${KEY}.txt`,
-        urlList: urls.map((u) => (u.startsWith("http") ? u : `${SITE}${u}`)),
+        urlList: urls.map((u) =>
+          u.startsWith("http") ? u : `${SITE}${u.startsWith("/") ? "" : "/"}${u}`
+        ),
       }),
     });
 
-    /* 200 = accepted, 202 = key pending verification (pehli baar) */
-    return { ok: res.ok || res.status === 202, status: res.status };
+    /* 200 = accepted | 202 = key verification pending (pehli baar) — dono success */
+    if (!res.ok) {
+      console.error(`IndexNow submit failed with status: ${res.status}`);
+    }
+    return { ok: res.ok, status: res.status };
   } catch (err) {
     console.error("IndexNow submit failed:", err);
     return { ok: false, error: err };
