@@ -1,9 +1,10 @@
 /* ============================================================
    IndexNow Helper — livinginwest.com
    Key sirf env se aati hai (INDEXNOW_KEY) — code me koi key Nahi
+   SITE hardcoded — env ke www/trailing-slash se 422 nahi aayega
 ============================================================ */
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://livinginwest.com";
+const SITE = "https://livinginwest.com";   // ✅ hardcoded — no env risk
 const HOST = "livinginwest.com";
 
 type IndexNowResult = {
@@ -42,7 +43,8 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult> 
 
     /* 200 = accepted | 202 = key verification pending (pehli baar) — dono success */
     if (!res.ok) {
-      console.error(`IndexNow submit failed with status: ${res.status}`);
+      const text = await res.text().catch(() => "");
+      console.error(`IndexNow ${res.status}: ${text}`);
     }
     return { ok: res.ok, status: res.status };
   } catch (err) {
