@@ -538,10 +538,8 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
 
   const handleSaveBlog = async () => {
     if (!blogTitle) return alert("Title required!");
-    const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     
     const d: ActionData = {
-      slug: { _type: 'slug', current: sl } as unknown as string,
       title: blogTitle, category: blogCategory, subCategory: blogSubCategory,
       isFeatured: blogFeatured, isPublished: blogPublished, desc: blogDesc,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
@@ -550,6 +548,14 @@ export default function BlogForm({ showForm, onClose, initialData, catList, subC
       writerSocial: blogWriterSocial,
       heroVideoUrl: blogHeroVideo      
     };
+
+    // ✅ Slug sirf NEW blog par generate hoga — edit par slug bhejega hi nahi
+    if (!editingId) {
+      const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      d.slug = { _type: 'slug', current: sl } as unknown as string;
+    }
+    
+    // ... baaki code same rahega
 
     // ✅ Saare 10 parts — har ek apne tables ke sath
     for(let i=0; i<10; i++) {

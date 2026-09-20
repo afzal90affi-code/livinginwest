@@ -1,134 +1,144 @@
-"use client";
-import { useState } from 'react';
-import Link from 'next/link';
-import { Home, ArrowLeft, Share2 } from 'lucide-react';
+// app/mortgage-calculator/page.tsx
+import type { Metadata } from "next";
+import MortgageCalculatorUs from "@/lib/components/MortgageCalculatorUs";
+import { getUsMortgageRate } from "@/lib/mortgage-rate";
+export const revalidate = 86400; // har 24 ghante par page refresh (rate update)
 
-const CURRENCIES = ["C$", "$", "£", "€", "₹", "₨"];
+const money = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+const pi = (loan: number, r: number, years: number) => {
+  const m = r / 100 / 12, n = years * 12;
+  return m === 0 ? loan / n : (loan * m) / (1 - Math.pow(1 + m, -n));
+};
 
-function Field({ label, value, min, max, step, onChange, prefix, suffix, display }: {
-  label: string; value: number; min: number; max: number; step: number;
-  onChange: (v: number) => void; prefix?: string; suffix?: string; display?: string;
-}) {
-  return (
-    <div className="mb-6">
-      <div className="flex justify-between items-center mb-2">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">{label}</label>
-        <span className="text-sm font-bold text-blue-600">{prefix}{display ?? value}{suffix}</span>
-      </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full accent-blue-600 cursor-pointer" />
-      <div className="flex gap-2 mt-2">
-        {prefix && <span className="flex items-center justify-center bg-blue-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg px-3 font-bold text-sm text-gray-700 dark:text-gray-300">{prefix}</span>}
-        <input type="number" value={value} min={min} step={step}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-blue-500" />
-        {suffix && <span className="flex items-center justify-center bg-blue-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg px-3 font-bold text-sm text-gray-700 dark:text-gray-300">{suffix}</span>}
-      </div>
-    </div>
-  );
+// ✅ AUTO METADATA — year + rate khud update
+export async function generateMetadata(): Promise<Metadata> {
+  const { rate } = await getUsMortgageRate();
+  const year = new Date().getFullYear();
+  return {
+    title: `USA Mortgage Calculator — PITI With Taxes, Insurance & PMI (${year})`,
+    description: `Free US mortgage calculator at today's ${rate}% 30-year fixed rate. See the true monthly payment with property tax, home insurance, PMI & HOA — plus how much extra payments save.`,
+    alternates: { canonical: "/mortgage-calculator" },
+  };
 }
 
-export default function MortgageCalculatorPage() {
-  const [cur, setCur] = useState(CURRENCIES[0]);
-  const [price, setPrice] = useState(500000);
-  const [down, setDown] = useState(20);
-  const [rate, setRate] = useState(5.5);
-  const [years, setYears] = useState(25);
+export default async function MortgageCalculatorPage() {
+  const rateInfo = await getUsMortgageRate();
+  const year = new Date().getFullYear();
+  const { rate, formattedDate, isLive } = rateInfo;
 
-  const loan = Math.max(0, price * (1 - down / 100));
-  const n = years * 12;
-  const r = rate / 100 / 12;
-  const monthly = n > 0 ? (r === 0 ? loan / n : (loan * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)) : 0;
-  const total = monthly * n;
-  const interest = total - loan;
-  const pPct = total > 0 ? (loan / total) * 100 : 0;
+  // Auto-calculated example (rate change par content khud badalta hai)
+  const exLoan = 320000; // $400k home, 20% down
+  const exPI = pi(exLoan, rate, 30);
+  const exTax = (400000 * 0.011) / 12, exIns = 1800 / 12;
+  const exTotal = exPI + exTax + exIns;
 
-  const fmt = (v: number) => cur + Math.round(v).toLocaleString();
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({ title: 'Mortgage Calculator - Living In West', url: window.location.href }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copied!");
-    }
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: `USA Mortgage Calculator ${year}`,
+    applicationCategory: "FinanceApplication",
+    operatingSystem: "Any",
+    url: "https://livinginvest.com/mortgage-calculator",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    description: `Calculate US mortgage payments with property tax, insurance, PMI and HOA. Uses the current ${rate}% 30-year fixed rate.`,
+    areaServed: { "@type": "Country", name: "United States" },
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
-      {/* Header */}
-      <div className="bg-gray-900 dark:bg-black text-white py-10">
-        <div className="max-w-5xl mx-auto px-6">
-          <Link href="/trading-finance" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white mb-4 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Trading & Finance
-          </Link>
-          <div className="flex items-center gap-3">
-            <Home className="w-9 h-9 text-blue-400" />
-            <h1 className="text-3xl md:text-4xl font-bold">Mortgage Calculator</h1>
-          </div>
-          <p className="text-gray-400 mt-2">Apni monthly payment, total interest aur loan cost calculate karein.</p>
-        </div>
+    <article className="max-w-4xl mx-auto px-4 py-10">
+      <script type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+        USA Mortgage Calculator — PITI With Taxes, Insurance &amp; PMI ({year})
+      </h1>
+      <p className="text-gray-500 mt-2 text-sm">
+        Last updated: {formattedDate} · Current 30-year fixed rate: <strong>{rate}%</strong>{" "}
+        {isLive ? "(Freddie Mac weekly survey, auto-updated)" : "(estimate — edit field below)"}
+      </p>
+
+      <p className="text-gray-700 mt-5 leading-relaxed">
+        A mortgage payment in the United States is almost never just principal and interest.
+        Lenders quote a <strong>PITI</strong> number — Principal, Interest, Taxes and Insurance —
+        and if your down payment is under 20%, <strong>PMI</strong> is added on top. This calculator
+        uses the current national 30-year fixed rate of <strong>{rate}%</strong> and lets you
+        adjust every US-specific cost: property tax (which varies dramatically by state),
+        home insurance, HOA fees and extra monthly payments.
+      </p>
+
+      {/* ✅ CALCULATOR — live rate prop ke saath */}
+      <div className="my-8">
+        <MortgageCalculatorUs currentRate={rate} rateAsOf={rateInfo.formattedDate} isLive={isLive} />
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Inputs */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">Currency</label>
-              <select value={cur} onChange={(e) => setCur(e.target.value)}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:border-blue-500">
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <Field label="Home Price" value={price} min={50000} max={5000000} step={5000}
-              onChange={setPrice} prefix={cur} display={price.toLocaleString()} />
-            <Field label="Down Payment" value={down} min={0} max={75} step={1}
-              onChange={setDown} suffix="%" />
-            <Field label="Interest Rate (Annual)" value={rate} min={0.5} max={15} step={0.05}
-              onChange={setRate} suffix="%" display={rate.toFixed(2)} />
-            <Field label="Loan Term" value={years} min={1} max={40} step={1}
-              onChange={setYears} suffix="yrs" />
-          </div>
+      {/* AUTO-UPDATING EXAMPLE SECTION */}
+      <h2 className="text-2xl font-bold text-gray-900 mt-10">
+        Example: $400,000 Home at Today&apos;s {rate}% Rate
+      </h2>
+      <p className="text-gray-700 mt-3 leading-relaxed">
+        With 20% down ({money(80000)}), a {money(400000)} home leaves a {money(exLoan)} loan.
+        At the current {rate}% 30-year fixed rate, principal and interest come to about{" "}
+        <strong>{money(exPI)}/month</strong>. Add typical property tax (~1.1%) and insurance
+        (~{money(exIns)}/mo) and the real monthly cost is roughly <strong>{money(exTotal)}</strong> —
+        that&apos;s PITI, and it&apos;s the number that actually hits your bank account.
+      </p>
 
-          {/* Results */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center gap-6">
-            <div className="text-center w-full">
-              <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">Monthly Payment</p>
-              <p className="text-4xl font-extrabold text-blue-600 mt-1">{fmt(monthly)}</p>
-            </div>
-            <div className="relative w-44 h-44 rounded-full flex-shrink-0"
-              style={{ background: `conic-gradient(#2563eb 0% ${pPct}%, #f59e0b ${pPct}% 100%)` }}>
-              <div className="absolute inset-9 rounded-full bg-white dark:bg-gray-800 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold">{pPct.toFixed(0)}%</span>
-                <span className="text-[10px] uppercase text-gray-500">Principal</span>
-              </div>
-            </div>
-            <div className="flex gap-5 text-xs text-gray-600 dark:text-gray-400">
-              <span><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-600 mr-1.5"></span>Principal <b>{pPct.toFixed(1)}%</b></span>
-              <span><span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>Interest <b>{(100 - pPct).toFixed(1)}%</b></span>
-            </div>
-            <div className="grid grid-cols-3 gap-3 w-full">
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] text-gray-500 uppercase">Loan</p>
-                <p className="text-sm font-bold mt-1">{fmt(loan)}</p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] text-gray-500 uppercase">Interest</p>
-                <p className="text-sm font-bold mt-1">{fmt(interest)}</p>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-center">
-                <p className="text-[10px] text-gray-500 uppercase">Total</p>
-                <p className="text-sm font-bold mt-1">{fmt(total)}</p>
-              </div>
-            </div>
-            <button onClick={handleShare} className="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-blue-600 border border-gray-200 dark:border-gray-600 px-4 py-2 rounded-full transition-colors">
-              <Share2 className="w-3.5 h-3.5" /> Share Calculator
-            </button>
-          </div>
+      <h2 className="text-2xl font-bold text-gray-900 mt-10">What Is PITI?</h2>
+      <p className="text-gray-700 mt-3 leading-relaxed">
+        <strong>Principal</strong> is what you borrowed. <strong>Interest</strong> is the lender&apos;s
+        charge. <strong>Taxes</strong> are property taxes — from roughly 0.3% in Hawaii to over 2.2%
+        in New Jersey. <strong>Insurance</strong> covers homeowners insurance, and PMI (Private
+        Mortgage Insurance) applies to most US loans with less than 20% down. US lenders typically
+        escrow taxes and insurance, so your single monthly payment includes all of it.
+      </p>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-10">When Does PMI Go Away?</h2>
+      <p className="text-gray-700 mt-3 leading-relaxed">
+        On conventional loans, PMI automatically cancels once your balance reaches 78% of the
+        home&apos;s original value, and you can request removal at 80%. That&apos;s why the calculator
+        stops charging PMI once your equity passes 20% — a detail many online tools miss.
+      </p>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-10">How Much Do Extra Payments Save?</h2>
+      <p className="text-gray-700 mt-3 leading-relaxed">
+        Add any amount in the &quot;Extra Payment&quot; field. Even {money(100)}/month extra on a{" "}
+        {money(exLoan)} loan at {rate}% typically cuts several years off the loan and saves tens of
+        thousands in interest — the calculator shows your exact savings and new payoff date.
+      </p>
+
+      {/* AUTO-FAQ */}
+      <h2 className="text-2xl font-bold text-gray-900 mt-10">FAQ</h2>
+      <div className="space-y-5 mt-4 text-gray-700">
+        <div>
+          <h3 className="font-semibold">What is the current US mortgage rate?</h3>
+          <p className="mt-1 text-sm">
+            The national average 30-year fixed rate is <strong>{rate}%</strong> as of {formattedDate}
+            {isLive ? ", from Freddie Mac&apos;s Primary Mortgage Market Survey (auto-updated weekly)." : ". Verify with your lender — rates vary by credit score and location."}
+          </p>
+        </div>
+        <div>
+          <h3 className="font-semibold">Does this work outside the United States?</h3>
+          <p className="mt-1 text-sm">
+            This tool is designed for US loans — 30-year fixed, escrowed taxes, PMI rules. Canadian
+            mortgages work differently (5-year terms with semi-annual compounding) and need a
+            separate calculator.
+          </p>
+        </div>
+        <div>
+          <h3 className="font-semibold">Is &quot;EMI&quot; the same as a monthly mortgage payment?</h3>
+          <p className="mt-1 text-sm">
+            The math is identical — Indian borrowers say EMI, US lenders say monthly payment or PITI.
+            But US mortgages add property tax and insurance, so the PITI number is what matters here.
+          </p>
+        </div>
+        <div>
+          <h3 className="font-semibold">How accurate are the state property tax presets?</h3>
+          <p className="mt-1 text-sm">
+            They&apos;re approximate state-level effective rates. Your county and city can differ
+            significantly — the field is editable, so enter your local rate for exact results.
+          </p>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
