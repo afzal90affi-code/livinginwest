@@ -32,6 +32,9 @@ interface BlogData {
   img9Url?: string;
   img10Url?: string;
   imgOrientations?: Record<string, string>;
+  imgAlts?: Record<string, string>;                      // ✅ NEW
+  imgDims?: Record<string, { w: number; h: number }>;    // ✅ NEW
+  _updatedAt?: string;                                    // ✅ NEW (schema freshness)
   isPublished?: boolean;
   content1?: string;
   content2?: string;
@@ -72,25 +75,35 @@ const cleanQuillHtml = (html: string): string => {
     'class="ql-align-justify"'
   );
 
+  // ✅ CONTENT IMAGES: lazy + explicit dimensions (CLS fix)
+  // Sanity images ko 16:9 (800x450) par force crop karte hain — isliye
+  // browser ko exact size pehle se pata hai, content jump nahi karta.
   normalizedHtml = normalizedHtml.replace(/<img/gi, '<img loading="lazy" decoding="async"');
 
-  normalizedHtml = normalizedHtml.replace(/src="(https:\/\/cdn\.sanity\.io\/[^"]+)"/g, (match, url) => {
-    if (!url.includes('?')) {
-      return `src="${url}?w=800&auto=format&q=70"`;
-    }
-    return match;
+  normalizedHtml = normalizedHtml.replace(/src="(https:\/\/cdn\.sanity\.io\/[^"]+?)\?[^"]*"/g, (match, url) => {
+    return `src="${url}?w=800&h=450&fit=crop&auto=format&q=70"`;
+  });
+  normalizedHtml = normalizedHtml.replace(/src="(https:\/\/cdn\.sanity\.io\/[^"?]+)"/g, (match, url) => {
+    return `src="${url}?w=800&h=450&fit=crop&auto=format&q=70"`;
   });
 
-  // 👈 NEW: Table ko scrollable wrapper me daal do (mobile par table cut na ho)
-  normalizedHtml = normalizedHtml.replace(/<table/gi, '<div class="table-wrapper"><table');
-  normalizedHtml = normalizedHtml.replace(/<\/table>/gi, '</table></div>');
+  // ✅ Jo images ke paas style nahi hai unhe responsive style do (squash na ho)
+  normalizedHtml = normalizedHtml.replace(/<img(?![^>]*\sstyle=)/gi, '<img style="max-width:100%; height:auto;"');
+  // ✅ Explicit dimensions attributes — browser pehle se space reserve karta hai
+  normalizedHtml = normalizedHtml.replace(/<img(?![^>]*\swidth=)/gi, '<img width="800"');
+  normalizedHtml = normalizedHtml.replace(/<img(?![^>]*\sheight=)/gi, '<img height="450"');
 
+  // ✅ FIXED: Table wrapper ab double-wrap nahi karta (admin content already wrapped hota hai)
+  normalizedHtml = normalizedHtml.replace(/(<div class="table-wrapper">\s*)?<table/gi, '<div class="table-wrapper"><table');
+  normalizedHtml = normalizedHtml.replace(/<\/table>(\s*<\/div>)?/gi, '</table></div>');
+
+  // ✅ FIXED: 'height' ab allowed styles mein hai (warna width/height attrs se images squash hoti)
   return normalizedHtml.replace(/(<img[^>]*?)style="([^"]*)"/gi, (match, start, style) => {
     const allowedStyles = style
       .split(';')
       .map((s: string) => s.trim())
       .filter(Boolean)
-      .filter((prop: string) => /^(float|width|max-width|margin|display)\s*:/i.test(prop))
+      .filter((prop: string) => /^(float|width|max-width|height|margin|display)\s*:/i.test(prop))
       .join('; ');
     return allowedStyles ? `${start}style="${allowedStyles}"` : start;
   });
@@ -162,7 +175,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "img8Url": img8.asset->url,
     "img9Url": img9.asset->url,
     "img10Url": img10.asset->url,
-    imgOrientations, isPublished,
+    imgOrientations, imgAlts, imgDims, _updatedAt, isPublished,
     content1, content2, content3, content4, content5, content6,
     content7, content8, content9, content10,
     writerName, writerSocial
@@ -222,7 +235,17 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     .filter(t => t.length > 0)
     .join(" ");
 
-  const isVertical = (key: string) => blog.imgOrientations?.[key] === 'vertical';
+  // ✅ FIXED: Manual orientation missing ho to imgDims se auto-detect (h > w = vertical)
+  const isVertical = (key: string) => {
+    const manual = blog.imgOrientations?.[key];
+    if (manual) return manual === 'vertical';
+    const d = blog.imgDims?.[key];
+    if (d?.w && d?.h) return d.h > d.w;
+    return false;
+  };
+
+  // ✅ NEW: Alt text helper — admin se set hua alt, warna title fallback
+  const getImgAlt = (key: string) => blog.imgAlts?.[key] || blog.title;
 
   const renderAuthor = (b: BlogData) => {
     const name = b.writerName || "Living In West";
@@ -284,14 +307,26 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "description": blog.desc,
     "image": blog.mainImageUrl,
     "datePublished": blog.date,
-    "dateModified": blog.date,
+    // ✅ FIXED: dateModified ab real updated date hai (freshness signal for Bing/Google)
+    "dateModified": blog._updatedAt || blog.date,
     "mainEntityOfPage": {
       "@type": "WebPage",
-      // 👈 FIXED: blog.slug string hai (query me "slug": slug.current), isliye .current hata diya
       "@id": `https://livinginwest.com/blog/${blog.slug}`
     },
-    "author": { "@type": "Person", "name": blog.writerName || "Living In West" },
-    "publisher": { "@type": "Organization", "name": "Living In West" }
+    // ✅ IMPROVED: author social URL + publisher logo (rich results ke liye)
+    "author": {
+      "@type": "Person",
+      "name": blog.writerName || "Living In West",
+      ...(blog.writerSocial ? { "url": blog.writerSocial } : {})
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Living In West",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://livinginwest.com/logo.jpg"
+      }
+    }
   };
 
   return (
@@ -353,7 +388,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
               <div className={`relative overflow-hidden bg-gray-50 dark:bg-gray-900 ${isVertical('1') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
                 <Image 
                   src={blog.mainImageUrl} 
-                  alt={blog.title} 
+                  // ✅ FIXED: alt ab admin se set kiya hua imgAlts['1'] use karta hai
+                  alt={getImgAlt('1')} 
                   fill 
                   className="object-cover" 
                   priority 
@@ -381,7 +417,9 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                     <div className={`relative overflow-hidden bg-gray-50 dark:bg-gray-900 ${isVertical(String(section.imageKey)) ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
                       <Image 
                         src={section.imageUrl} 
-                        alt="" 
+                        // ✅ FIXED: alt="" (empty — Bing wali 9 instances error YAHI thi) 
+                        // ab admin ke imgAlts se aata hai, fallback post title
+                        alt={getImgAlt(String(section.imageKey))} 
                         fill 
                         className="object-cover" 
                         sizes={isVertical(String(section.imageKey)) ? "(max-width: 768px) 100vw, 420px" : "(max-width: 1024px) 100vw, 85vw"} 
@@ -432,7 +470,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  {/* 👈 FIXED: slug pehle se string hai, .current ki zaroorat nahi */}
                   <EmbedBlogButton slug={blog.slug || params.slug} />
                   <ShareMenu />
                 </div>

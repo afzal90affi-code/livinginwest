@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { client } from '@/lib/sanityClient';
 import { publishDraft, deleteBlog, getBlogImageOptions, applyBlogImage } from './../actions';
@@ -39,22 +39,24 @@ export default function AdminDrafts() {
   const router = useRouter();
   const [drafts, setDrafts] = useState<DraftBlog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-  
+
+  /* ✅ FILTER: Last 7 Days / All */
+  const [draftFilter, setDraftFilter] = useState<"7days" | "all">("7days");
+
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerBlogId, setPickerBlogId] = useState("");
   const [pickerTitle, setPickerTitle] = useState("");
   const [imageOptions, setImageOptions] = useState<{ source: string, url: string }[]>([]);
   const [loadingImages, setLoadingImages] = useState(false);
   const [applyingImage, setApplyingImage] = useState(false);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
-  // ✅ ری رائٹ کے لیے نیا اسٹیٹ
   const [rewritingId, setRewritingId] = useState<string | null>(null);
 
   const fetchDrafts = async () => {
+    /* ✅ reference se category TITLE nikalo */
     const query = `*[_type == "blog" && isPublished == false] | order(date desc) {
-      _id, title, date, category, newsTime, sourceUrl, sourceName,
+      _id, title, date, "category": category->title, newsTime, sourceUrl, sourceName,
       "imgUrl": img1.asset->url
     }`;
     const result = await client.fetch(query);
@@ -69,14 +71,13 @@ export default function AdminDrafts() {
         Notification.requestPermission();
       }
     }
-    const tickInterval = setInterval(() => setCurrentTime(Date.now()), 30000);
     const interval = setInterval(async () => {
-      const query = `*[_type == "blog" && isPublished == false] | order(date desc) { _id, title }`;
+      const query = `*[_type == "blog" && isPublished == false] { _id, title }`;
       const latestDrafts = await client.fetch(query);
       if (latestDrafts.length > drafts.length) {
         if (Notification.permission === "granted") {
           new Notification("🚨 News Alert: New Drafts Ready!", {
-            body: `${latestDrafts.length - drafts.length} new AI news draft(s) are ready to publish.`,
+            body: `${latestDrafts.length - drafts.length} new news draft(s) are ready.`,
             icon: "/logo.jpg"
           });
         }
@@ -86,9 +87,32 @@ export default function AdminDrafts() {
 
     return () => {
       clearInterval(interval);
-      clearInterval(tickInterval);
     };
   }, [drafts.length]);
+
+  /* ✅ LAST 7 DAYS — computed filter */
+  const last7DaysDrafts = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return drafts.filter((d) => d.date && new Date(d.date).getTime() >= cutoff);
+  }, [drafts]);
+
+  const shownDrafts = draftFilter === "7days" ? last7DaysDrafts : drafts;
+
+  /* ✅ 7+ din purane drafts cleanup */
+  const cleanupOldDrafts = async () => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const old = drafts.filter((d) => d.date && new Date(d.date).getTime() < cutoff);
+    if (!old.length) {
+      alert("Koi 7+ din purana draft nahi hai. Sab fresh hain! ✅");
+      return;
+    }
+    if (!confirm(`${old.length} purane drafts (7+ din) delete karein?\nYe permanent hai!`)) return;
+    for (const d of old) {
+      await deleteBlog(d._id).catch(() => {});
+    }
+    fetchDrafts();
+    alert(`✅ ${old.length} purane drafts clean ho gaye!`);
+  };
 
   const handlePublish = async (id: string) => {
     const r = await publishDraft(id);
@@ -116,7 +140,6 @@ export default function AdminDrafts() {
     router.push(`/admin?edit=${id}`);
   };
 
-  // ✅ نیا فنکشن: AI سے خبر ری رائٹ کرنے کے لیے
   const handleRewrite = async (id: string) => {
     setRewritingId(id);
     try {
@@ -126,10 +149,10 @@ export default function AdminDrafts() {
         body: JSON.stringify({ blogId: id })
       });
       const data = await res.json();
-      
+
       if (data.success) {
         alert("✅ News Rewritten Successfully by AI!");
-        fetchDrafts(); // لسٹ کو ریفریش کر لیں تاکہ نیا عنوان نظر آئے
+        fetchDrafts();
       } else {
         alert("❌ Rewrite failed: " + data.error);
       }
@@ -160,7 +183,7 @@ export default function AdminDrafts() {
     if (!searchQuery.trim()) return;
     setLoadingImages(true);
     setImageOptions([]);
-    
+
     const r = await getBlogImageOptions(pickerBlogId, searchQuery);
     if (r?.success && r.options) {
       setImageOptions(r.options);
@@ -188,22 +211,57 @@ export default function AdminDrafts() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6 border-b pb-4">
-          <h1 className="text-2xl font-bold text-gray-900">AI Drafted News</h1>
-          <span className="text-xs text-green-600 font-semibold bg-green-100 px-3 py-1 rounded-full">
-            🔔 Live Auto-Check ON
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 border-b pb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Original News Drafts</h1>
+          <div className="flex items-center gap-2">
+            {/* ✅ Cleanup purane drafts */}
+            <button
+              onClick={cleanupOldDrafts}
+              className="text-xs text-red-500 font-semibold border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition"
+            >
+              🗑 7+ din purane delete
+            </button>
+            <span className="text-xs text-green-600 font-semibold bg-green-100 px-3 py-1 rounded-full">
+              🔔 Live Auto-Check ON
+            </span>
+          </div>
         </div>
-        
-        {drafts.length === 0 ? (
+
+        {/* ✅ FILTER — Last 7 Days / All */}
+        <div className="mb-4 flex items-center gap-2">
+          <button
+            onClick={() => setDraftFilter("7days")}
+            className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+              draftFilter === "7days"
+                ? "bg-blue-600 text-white shadow-md"
+                : "bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300"
+            }`}
+          >
+            📅 Last 7 Days ({last7DaysDrafts.length})
+          </button>
+          <button
+            onClick={() => setDraftFilter("all")}
+            className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+              draftFilter === "all"
+                ? "bg-blue-600 text-white shadow-md"
+                : "bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300"
+            }`}
+          >
+            📚 All ({drafts.length})
+          </button>
+        </div>
+
+        {shownDrafts.length === 0 ? (
           <div className="bg-white p-10 rounded-xl text-center text-gray-500 border border-dashed">
-            No drafts available. Waiting for Auto News to fetch...
+            {draftFilter === "7days" && drafts.length > 0
+              ? "Last 7 days me koi draft nahi — 'All' filter try karo ya Auto News se fresh generate karo."
+              : "No drafts available. Waiting for Auto News to fetch..."}
           </div>
         ) : (
           <div className="space-y-4">
-            {drafts.map((blog) => (
+            {shownDrafts.map((blog) => (
               <div key={blog._id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-green-500 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                
+
                 <div className="flex flex-col items-center gap-2 flex-shrink-0">
                   {blog.imgUrl ? (
                     <div className="relative w-full md:w-32 h-32 overflow-hidden rounded-lg bg-gray-100">
@@ -212,7 +270,7 @@ export default function AdminDrafts() {
                   ) : (
                     <div className="w-full md:w-32 h-32 flex-shrink-0 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs">No Image</div>
                   )}
-                  <button 
+                  <button
                     onClick={() => openImagePicker(blog._id, blog.title)}
                     className="text-[10px] text-blue-600 font-semibold hover:underline"
                   >
@@ -222,11 +280,12 @@ export default function AdminDrafts() {
 
                 <div className="flex-1 w-full">
                   <div className="flex items-center gap-2 mb-1">
+                    {/* ✅ State ka naam dikhega */}
                     <span className="text-[10px] uppercase tracking-widest text-red-600 font-bold">{blog.category || 'News'}</span>
                     <span className="text-[9px] uppercase tracking-wider text-green-700 font-bold bg-green-100 px-2 py-0.5 rounded-full">🟢 Pending</span>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mt-1">{blog.title}</h3>
-                  
+
                   <div className="flex flex-col gap-1 mt-2 text-xs text-gray-500">
                     <p className="flex items-center gap-1">
                       <span>🕒</span> {getTimeAgo(blog.date)}
@@ -240,10 +299,10 @@ export default function AdminDrafts() {
                   </div>
                 </div>
 
-                {/* ✅ بٹنز کا حصہ، یہاں Rewrite بٹن شامل کیا گیا ہے */}
+                {/* Buttons */}
                 <div className="flex flex-wrap items-center gap-2 flex-shrink-0 justify-end">
-                  <button 
-                    onClick={() => handleRewrite(blog._id)} 
+                  <button
+                    onClick={() => handleRewrite(blog._id)}
                     disabled={rewritingId === blog._id}
                     className="px-4 py-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors disabled:opacity-50 flex items-center gap-1"
                   >
@@ -260,7 +319,7 @@ export default function AdminDrafts() {
         )}
       </div>
 
-      {/* Image Picker Modal (وہی پرانا والا) */}
+      {/* Image Picker Modal */}
       {isPickerOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto relative">
@@ -269,17 +328,17 @@ export default function AdminDrafts() {
             </button>
             <h2 className="text-xl font-bold mb-1">Select Image for: <span className="text-blue-600">{pickerTitle.substring(0, 30)}...</span></h2>
             <p className="text-xs text-gray-500 mb-4">If images are not relevant, search manually below:</p>
-            
+
             <div className="flex gap-2 mb-6 bg-gray-50 p-2 rounded-lg border">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
                 placeholder="e.g. Technology, Sports, Politics..."
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
               />
-              <button 
+              <button
                 onClick={handleManualSearch}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1 hover:bg-blue-700"
               >
@@ -288,15 +347,15 @@ export default function AdminDrafts() {
             </div>
 
             {loadingImages && <p className="text-gray-500 text-center py-10 animate-pulse">Fetching best images from Pexels, Unsplash & AI...</p>}
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {imageOptions.map((opt, idx) => (
                 <div key={idx} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer group" onClick={() => !applyingImage && handleSelectImage(opt.url)}>
                   <div className="relative aspect-video bg-gray-100 flex items-center justify-center">
-                    <img 
-                      src={opt.url} 
-                      alt={opt.source} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0" 
+                    <img
+                      src={opt.url}
+                      alt={opt.source}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0"
                       loading="lazy"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';

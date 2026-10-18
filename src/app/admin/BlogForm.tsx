@@ -6,7 +6,7 @@ import { saveBlog, uploadImage, saveSubcategory } from './actions';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// ✅ as any — dynamic import me ref typing ka issue fix
+// ✅ dynamic import — Quill browser-only hai
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false }) as any;
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -22,6 +22,9 @@ export interface Blog {
   contents?: string[];
   imgUrls?: string[];
   imgOrientations?: Record<string, string>;
+  imgAlts?: Record<string, string>;                       // ✅ alt text per image
+  imgDims?: Record<string, { w: number; h: number }>;     // ✅ dimensions per image (CLS fix)
+  slug?: string | { current: string };
   metaTitle?: string;
   metaDesc?: string;
   keywords?: string;
@@ -57,10 +60,10 @@ export interface Subcategory {
   sortOrder?: number | null;
 }
 
-interface ImageState { url: string; assetId: string; }
+interface ImageState { url: string; assetId: string; w?: number; h?: number; }
 interface TableEntry { id: string; html: string; }
 type SanityImageRef = { _type: 'image'; asset: { _ref: string; _type: 'reference' } };
-type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef | Record<string, string> | null>;
+type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef | Record<string, unknown> | null>;
 
 export const getSlug = (slug: string | { current: string } | undefined): string => {
   if (!slug) return "";
@@ -68,6 +71,11 @@ export const getSlug = (slug: string | { current: string } | undefined): string 
   return slug.current || "";
 };
 
+// ✅ SEO-friendly slug generator
+export const slugify = (s: string): string =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+// ✅ Save ke waqt img styling — editor loop nahi banega (React #185 fix)
 const sanitizeQuill = (html: string): string => {
   if (!html) return "";
   let cleanHtml = html.replace(/(<img[^>]*?)\s(width|height)="[^"]*"/gi, '$1');
@@ -76,7 +84,6 @@ const sanitizeQuill = (html: string): string => {
   return cleanHtml;
 };
 
-// ✅ Word count me table markers count nahi honge
 const getWordCount = (html: string): number => {
   if (!html) return 0;
   const t = html.replace(/\[\[TABLE:[A-Za-z0-9_]+\]\]/g, "").replace(/<[^>]*>/g, '').trim();
@@ -84,59 +91,40 @@ const getWordCount = (html: string): number => {
 };
 
 // ============================================================
-// ✅ TABLE MARKER SYSTEM
-// Editor me asli table nahi jaati (Quill todti hai). Uski jagah
-// YELLOW HIGHLIGHT marker jaata hai — box me saaf dikhta hai ke
-// table kahan hai. Text marker ke UPAR aur NEECHE dono likha ja
-// sakta hai. Save par marker ki jagah asli table lagti hai.
+// ✅ TABLE MARKER SYSTEM (unchanged)
 // ============================================================
-
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-// ✅ Marker ka style — editor me YELLOW highlight dikhega
 const MARKER_STYLE = 'background-color:#FEF3C7; color:#92400E;';
-
-// Styled marker HTML (load/append ke liye)
 const styledMarker = (id: string): string =>
   `<span style="${MARKER_STYLE}"><strong>[[TABLE:${id}]]</strong></span>`;
 
-// Content se ek table ka marker HATAO (styled/plain dono handle)
 const stripMarker = (html: string, id: string): string => {
   const idEsc = escapeRe(id);
   let out = html.replace(
-    new RegExp(`<p[^>]*>\\s*(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\\s*\\[\\[TABLE:${idEsc}\\]\\]\\s*(?:<\\/(?:span|strong|b|em|i)>){0,3}\\s*<\\/p>`, 'g'),
-    ""
-  );
+    new RegExp(`<p[^>]*>\\s*(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\\s*\\[\\[TABLE:${idEsc}\\]\\]\\s*(?:<\\/(?:span|strong|b|em|i)>){0,3}\\s*<\\/p>`, 'g'), "");
   out = out.replace(
-    new RegExp(`(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\\s*\\[\\[TABLE:${idEsc}\\]\\]\\s*(?:<\\/(?:span|strong|b|em|i)>){0,3}`, 'g'),
-    ""
-  );
+    new RegExp(`(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\\s*\\[\\[TABLE:${idEsc}\\]\\]\\s*(?:<\\/(?:span|strong|b|em|i)>){0,3}`, 'g'), "");
   out = out.replace(new RegExp(`\\[\\[TABLE:${idEsc}\\]\\]`, 'g'), "");
   return out;
 };
 
-// Marker ki jagah TABLE HTML lagao (styled/plain, <p> wrapped, inline — sab)
 const replaceMarkerWithHtml = (html: string, id: string, tableHtml: string): string => {
   const idEsc = escapeRe(id);
   let out = html.replace(
     new RegExp(`<p[^>]*>\\s*(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\\s*\\[\\[TABLE:${idEsc}\\]\\]\\s*(?:<\\/(?:span|strong|b|em|i)>){0,3}\\s*<\\/p>`, 'g'),
-    () => tableHtml
-  );
+    () => tableHtml);
   out = out.replace(
     new RegExp(`(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\\s*\\[\\[TABLE:${idEsc}\\]\\]\\s*(?:<\\/(?:span|strong|b|em|i)>){0,3}`, 'g'),
-    () => tableHtml
-  );
+    () => tableHtml);
   out = out.split(`[[TABLE:${id}]]`).join(tableHtml);
   return out;
 };
 
-// Load par: content se tables nikalo + unki jagah YELLOW MARKER chhod do
 const extractTablesFromContent = (content: string): { displayContent: string; tables: TableEntry[] } => {
   if (!content) return { displayContent: "", tables: [] };
   let working = content;
   const tables: TableEntry[] = [];
 
-  // 1) Hidden block se tables (save format)
   const blockRegex = /<!--TABLES:([\s\S]*?):TABLES-->/;
   const blockMatch = working.match(blockRegex);
   if (blockMatch) {
@@ -147,7 +135,6 @@ const extractTablesFromContent = (content: string): { displayContent: string; ta
     working = working.replace(blockRegex, "");
   }
 
-  // 2) Har table ka HTML dhundo → wahan YELLOW MARKER chhod do
   tables.forEach(t => {
     if (t.html && working.includes(t.html)) {
       const pos = working.indexOf(t.html);
@@ -155,12 +142,10 @@ const extractTablesFromContent = (content: string): { displayContent: string; ta
     }
   });
 
-  // 3) Purane plain markers ko styled banao (purane version se banayi hui entries)
   tables.forEach(t => {
     working = working.split(`[[TABLE:${t.id}]]`).join(styledMarker(t.id));
   });
 
-  // 4) Purane inline tables (backward compatibility)
   const inline = working.match(/<div class="table-wrapper">[\s\S]*?<\/table><\/div>/g) || [];
   inline.forEach((tbl, i) => {
     const id = `TBL_OLD${Date.now()}${i}`;
@@ -168,13 +153,10 @@ const extractTablesFromContent = (content: string): { displayContent: string; ta
     working = working.split(tbl).join(styledMarker(id));
   });
 
-  // Aakhri faaltu khali <p> hatao
   working = working.replace(/(?:<p>\s*<\/p>\s*)+$/g, "");
-
   return { displayContent: working, tables };
 };
 
-// Save par: YELLOW MARKER jahan hai wahin table lagti hai. Na mile to END me.
 const buildFinalContent = (text: string, tables: TableEntry[]): string => {
   let out = text || "";
   if (tables && tables.length > 0) {
@@ -185,9 +167,7 @@ const buildFinalContent = (text: string, tables: TableEntry[]): string => {
         used.add(t.id);
       }
     });
-    // Jin tables ke marker nahi mila → END me (purana behaviour)
     out += tables.filter(t => !used.has(t.id)).map(t => t.html).join("");
-    // Orphan markers saaf karo (jinki table delete ho chuki hai)
     out = out.replace(/(?:<(?:span|strong|b|em|i)[^>]*>){0,3}\s*\[\[TABLE:[A-Za-z0-9_]+\]\]\s*(?:<\/(?:span|strong|b|em|i)>){0,3}/g, "");
     return out + `<!--TABLES:${JSON.stringify(tables)}:TABLES-->`;
   }
@@ -195,11 +175,11 @@ const buildFinalContent = (text: string, tables: TableEntry[]): string => {
 };
 
 // ======== QUILL CONFIG ========
+// ✅ H1 hata diya — post title hi ek H1 hai (Bing "multiple h1" error ka fix)
+// ✅ font/size/video hata diye — clean typography + dedicated embed system
 const quillModules = {
   toolbar: [
-    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-    [{ 'font': [] }],
-    [{ 'size': ['small', false, 'large', 'huge'] }],
+    [{ 'header': [2, 3, 4, false] }],
     ['bold', 'italic', 'underline', 'strike'],
     [{ 'color': [] }, { 'background': [] }],
     [{ 'script': 'sub' }, { 'script': 'super' }],
@@ -207,12 +187,13 @@ const quillModules = {
     [{ 'indent': '-1' }, { 'indent': '+1' }],
     [{ 'align': [] }],
     ['blockquote', 'code-block'],
-    ['link', 'image', 'video'],
+    ['link', 'image'],
     ['clean']
   ]
 };
 
-const quillFormats = ['header', 'font', 'size', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'script', 'list', 'bullet', 'indent', 'align', 'blockquote', 'code-block', 'link', 'image', 'video', 'clean'];
+// ✅ 'bullet' aur 'clean' formats mein nahi hone chahiye (console warnings ka fix)
+const quillFormats = ['header', 'bold', 'italic', 'underline', 'strike', 'color', 'background', 'script', 'list', 'indent', 'align', 'blockquote', 'code-block', 'link', 'image'];
 
 const contentParts = Array.from({ length: 10 }, (_, i) => ({
   key: String(i + 1),
@@ -235,6 +216,8 @@ export default function BlogForm({
   const [activePart, setActivePart] = useState("1");
 
   const [blogTitle, setBlogTitle] = useState("");
+  const [blogSlug, setBlogSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
   const [blogCategory, setBlogCategory] = useState("");
   const [blogSubCategory, setBlogSubCategory] = useState("");
   const [blogDesc, setBlogDesc] = useState("");
@@ -246,6 +229,8 @@ export default function BlogForm({
   const [blogContents, setBlogContents] = useState<string[]>(Array(10).fill(""));
   const [blogImages, setBlogImages] = useState<ImageState[]>(Array(10).fill({ url: "", assetId: "" }));
   const [imgOrientations, setImgOrientations] = useState<Record<string, string>>({});
+  const [imgAlts, setImgAlts] = useState<Record<string, string>>({});
+  const [imgDims, setImgDims] = useState<Record<string, { w: number; h: number }>>({});
 
   const [blogFeatured, setBlogFeatured] = useState(false);
   const [blogPublished, setBlogPublished] = useState(false);
@@ -256,7 +241,7 @@ export default function BlogForm({
   const [embedType, setEmbedType] = useState("youtube");
   const [embedInput, setEmbedInput] = useState("");
 
-  // ✅ TABLE STATES — har part ka apna alag array
+  // TABLE STATES
   const [partTables, setPartTables] = useState<Record<string, TableEntry[]>>({});
   const [showTableModal, setShowTableModal] = useState(false);
   const [tableRows, setTableRows] = useState(3);
@@ -273,7 +258,6 @@ export default function BlogForm({
   const [newSubCatName, setNewSubCatName] = useState("");
   const [isSavingSubCat, setIsSavingSubCat] = useState(false);
 
-  // ✅ Real Quill editor (ref se) + part-wise last cursor position
   const quillRef = useRef<any>(null);
   const cursorIndexRef = useRef<Record<string, number | null>>({});
 
@@ -285,6 +269,8 @@ export default function BlogForm({
       if (initialData) {
         setEditingId(initialData._id);
         setBlogTitle(initialData.title);
+        setBlogSlug(getSlug(initialData.slug) || "");
+        setSlugEdited(true);
         setBlogCategory(initialData.category || (catList.length > 0 ? getSlug(catList[0].slug) : ""));
         setBlogSubCategory(initialData.subCategory || "");
         setBlogDesc(initialData.desc || "");
@@ -299,7 +285,6 @@ export default function BlogForm({
         for (let i = 0; i < 10; i++) {
           images[i] = { url: initialData.imgUrls?.[i] || "", assetId: "" };
           const raw = initialData.contents?.[i] || "";
-          // ✅ Har part se tables extract + YELLOW markers wapas content me
           const { displayContent, tables } = extractTablesFromContent(raw);
           contents[i] = displayContent;
           if (tables.length > 0) allTables[String(i + 1)] = tables;
@@ -311,12 +296,16 @@ export default function BlogForm({
         setBlogFeatured(initialData.isFeatured);
         setBlogPublished(initialData.isPublished || false);
         setImgOrientations(initialData.imgOrientations || {});
+        setImgAlts(initialData.imgAlts || {});
+        setImgDims(initialData.imgDims || {});
         setBlogMetaTitle(initialData.metaTitle || "");
         setBlogMetaDesc(initialData.metaDesc || "");
         setBlogKeywords(initialData.keywords || "");
       } else {
         setEditingId(null);
         setBlogTitle("");
+        setBlogSlug("");
+        setSlugEdited(false);
         setBlogCategory(catList.length > 0 ? getSlug(catList[0].slug) : "");
         setBlogSubCategory("");
         setBlogDesc("");
@@ -331,6 +320,8 @@ export default function BlogForm({
         setBlogMetaDesc("");
         setBlogKeywords("");
         setImgOrientations({});
+        setImgAlts({});
+        setImgDims({});
         setPartTables({});
       }
       setActivePart("1");
@@ -343,33 +334,48 @@ export default function BlogForm({
     }
   }, [showForm, initialData]);
 
-  // ✅ Part switch (cursor positions per-part save rehti hain)
-  const switchPart = (key: string) => {
-    setActivePart(key);
-  };
+  const switchPart = (key: string) => setActivePart(key);
 
   const setOrientation = (key: string, val: string) =>
     setImgOrientations(prev => ({ ...prev, [key]: val }));
 
-  // ======== WATERMARK ========
-  const addWatermark = (file: File): Promise<File> => {
+  const setAlt = (key: string, val: string) =>
+    setImgAlts(prev => ({ ...prev, [key]: val }));
+
+  // ======== IMAGE: watermark + resize + WebP + dimensions capture ========
+  const processImage = (file: File): Promise<{ file: File; w: number; h: number }> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return resolve(file);
+          // ✅ Bade images resize (LCP improvement)
+          const MAX = 1920;
+          let w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
 
-          ctx.drawImage(img, 0, 0);
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve({ file, w: img.width, h: img.height });
+
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const finish = () => {
+            // ✅ WebP compression — ~30-70% chhoti file (Core Web Vitals)
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const webpName = file.name.replace(/\.\w+$/, '') + '.webp';
+                resolve({ file: new File([blob], webpName, { type: 'image/webp' }), w, h });
+              } else resolve({ file, w, h });
+            }, 'image/webp', 0.85);
+          };
 
           const logo = new Image();
           logo.onerror = () => {
             console.warn("⚠️ Logo file not found in /public folder. Uploading without watermark.");
-            resolve(file);
+            finish();
           };
           logo.onload = () => {
             const logoWidth = canvas.width * 0.15;
@@ -377,11 +383,7 @@ export default function BlogForm({
             const padding = 20;
             ctx.globalAlpha = 0.85;
             ctx.drawImage(logo, canvas.width - logoWidth - padding, padding, logoWidth, logoHeight);
-
-            canvas.toBlob((blob) => {
-              if (blob) resolve(new File([blob], file.name, { type: file.type }));
-              else resolve(file);
-            }, file.type);
+            finish();
           };
           logo.src = '/livinginwest-logo.png';
         };
@@ -395,18 +397,21 @@ export default function BlogForm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const watermarkedFile = await addWatermark(file);
+    const { file: processedFile, w, h } = await processImage(file);
+    const partKey = String(index + 1);
 
     const fd = new FormData();
-    fd.append('file', watermarkedFile);
+    fd.append('file', processedFile);
 
     const r = await uploadImage(fd);
     if (r.success) {
       setBlogImages(prev => {
         const next = [...prev];
-        next[index] = { url: r.url || "", assetId: r.assetId || "" };
+        next[index] = { url: r.url || "", assetId: r.assetId || "", w, h };
         return next;
       });
+      // ✅ Dimensions save karo (CLS fix ke liye)
+      setImgDims(prev => ({ ...prev, [partKey]: { w, h } }));
     } else alert("Upload failed: " + r.error);
   };
 
@@ -414,6 +419,12 @@ export default function BlogForm({
     setBlogCategory(slug);
     setBlogSubCategory("");
     setIsAddingSubCat(false);
+  };
+
+  const handleTitleChange = (val: string) => {
+    setBlogTitle(val);
+    // ✅ Naye post par title se slug auto-generate (jab tak manually edit na kare)
+    if (!editingId && !slugEdited) setBlogSlug(slugify(val));
   };
 
   const handleContentChange = (index: number, value: string) => {
@@ -429,7 +440,7 @@ export default function BlogForm({
     if (!blogCategory) return alert("Please select a main category first");
 
     setIsSavingSubCat(true);
-    const sl = newSubCatName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const sl = slugify(newSubCatName);
 
     const data = {
       parentId: blogCategory,
@@ -461,9 +472,9 @@ export default function BlogForm({
       const match = embedInput.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
       const videoId = match ? match[1] : null;
       if (!videoId) return alert("Invalid YouTube URL");
-      embedHtml = `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 30px 0; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><iframe src="https://www.youtube.com/embed/${videoId}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe></div><p></p>`;
+      // ✅ privacy-friendly nocookie + lazy load + title (a11y/SEO)
+      embedHtml = `<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin: 30px 0; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"><iframe src="https://www.youtube-nocookie.com/embed/${videoId}?rel=0" title="YouTube video" loading="lazy" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" allowfullscreen></iframe></div><p></p>`;
     } else if (embedType === "iframe") {
-      // ✅ Chart embed (Datawrapper/Flourish iframe)
       const srcMatch = embedInput.match(/src=["']([^"']+)["']/);
       const src = srcMatch ? srcMatch[1] : embedInput.trim();
       embedHtml = `<div style="position:relative; width:100%; max-width:700px; margin:30px auto; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);"><iframe src="${src}" style="width:100%; height:500px; border:0;" title="Chart" loading="lazy"></iframe></div><p></p>`;
@@ -477,9 +488,7 @@ export default function BlogForm({
     alert(`Embed added to the bottom of Part ${activePart}!`);
   };
 
-  // ============================================================
-  // ✅ TABLE FUNCTIONS
-  // ============================================================
+  // ======== TABLE FUNCTIONS (unchanged) ========
   const openTableModal = () => {
     setTableData(prev =>
       Array.from({ length: tableRows }, (_, r) =>
@@ -516,14 +525,12 @@ export default function BlogForm({
     return html;
   };
 
-  // ✅ Editor me YELLOW marker daalo — last cursor par, ya content ke end me
   const insertTableMarker = (tableId: string) => {
     const marker = `[[TABLE:${tableId}]]`;
     const editor = quillRef.current?.getEditor?.();
 
     if (editor) {
       try {
-        // Modal kholne par focus chala jata hai, isliye SAVED cursor position use karte hain
         const saved = cursorIndexRef.current[activePart];
         const len = editor.getLength();
         let index = typeof saved === 'number' ? Math.min(saved, len) : len;
@@ -535,7 +542,6 @@ export default function BlogForm({
         }
         editor.insertText(index, marker, "user");
 
-        // ✅ YELLOW HIGHLIGHT — box me turant dikhe ke table yahan hai
         editor.formatText(index, marker.length, {
           background: "#FEF3C7",
           color: "#92400E",
@@ -549,15 +555,13 @@ export default function BlogForm({
         editor.setSelection(newCursor, 0);
         cursorIndexRef.current[activePart] = newCursor;
         return;
-      } catch { /* fallback neeche */ }
+      } catch { /* fallback */ }
     }
 
-    // Fallback: styled marker content ke end me
     const idx = parseInt(activePart) - 1;
     handleContentChange(idx, `${blogContents[idx] || ""}<p>${styledMarker(tableId)}</p>`);
   };
 
-  // ✅ Marker hatao (table END me le jaane ke liye)
   const removeMarkerFromContent = (tableId: string) => {
     const idx = parseInt(activePart) - 1;
     handleContentChange(idx, stripMarker(blogContents[idx] || "", tableId));
@@ -570,14 +574,13 @@ export default function BlogForm({
     const html = buildTableHtml(tableData, tableFirstRowHeader);
     const id = `TBL${Date.now()}`;
 
-    // ✅ Sirf list me add — Quill me asli table nahi jaati
     setPartTables(prev => ({
       ...prev,
       [activePart]: [...(prev[activePart] || []), { id, html }]
     }));
 
     setShowTableModal(false);
-    setTimeout(() => insertTableMarker(id), 50); // ✅ editor me yellow marker
+    setTimeout(() => insertTableMarker(id), 50);
     alert(`✅ Table add ho gayi! Editor me YELLOW highlight [[TABLE:...]] marker dekho — wahi table ki jagah hai. Marker se pehle aur baad dono jagah text likho. Marker line cut-paste karke table kahin bhi shift kar sakte ho.`);
   };
 
@@ -618,11 +621,10 @@ export default function BlogForm({
 
     setShowMdModal(false);
     setMdInput("");
-    setTimeout(() => insertTableMarker(id), 50); // ✅ editor me yellow marker
+    setTimeout(() => insertTableMarker(id), 50);
     alert(`✅ Table add ho gayi! Editor me YELLOW marker dekho — upar/neeche text likh sakte ho.`);
   };
 
-  // ✅ Table remove — uska YELLOW marker bhi content se jaye
   const removeTable = (partKey: string, tableId: string) => {
     const idx = parseInt(partKey) - 1;
     const cur = blogContents[idx] || "";
@@ -642,9 +644,11 @@ export default function BlogForm({
     const partIndex = parseInt(activePart) - 1;
     const tables = partTables[activePart] || [];
     const d: ActionData = {
-      // ✅ Text + tables SATH save (yellow markers ki positions par)
-      [`content${activePart}`]: buildFinalContent(blogContents[partIndex], tables),
-      imgOrientations: imgOrientations
+      // ✅ sanitize yahan — editor loop nahi banega (React #185 fix)
+      [`content${activePart}`]: sanitizeQuill(buildFinalContent(blogContents[partIndex], tables)),
+      imgOrientations: imgOrientations,
+      imgAlts: imgAlts,
+      imgDims: imgDims
     };
 
     const img = blogImages[partIndex];
@@ -670,21 +674,21 @@ export default function BlogForm({
       isFeatured: blogFeatured, isPublished: blogPublished, desc: blogDesc,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
       imgOrientations: imgOrientations,
+      imgAlts: imgAlts,
+      imgDims: imgDims,
       writerName: blogWriterName,
       writerSocial: blogWriterSocial,
       heroVideoUrl: blogHeroVideo
     };
 
-    // ✅ Slug sirf NEW blog par generate hoga — edit par slug bhejega hi nahi
+    // ✅ Slug sirf NEW blog par — edit par slug locked (purane links tootne se bachne ke liye)
     if (!editingId) {
-      const sl = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      d.slug = { _type: 'slug', current: sl } as unknown as Record<string, string>;
+      d.slug = { _type: 'slug', current: blogSlug || slugify(blogTitle) } as unknown as Record<string, string>;
     }
 
-    // ✅ Saare 10 parts — har ek apne tables ke sath
     for (let i = 0; i < 10; i++) {
       const partKey = i + 1;
-      d[`content${partKey}`] = buildFinalContent(blogContents[i], partTables[String(partKey)] || []);
+      d[`content${partKey}`] = sanitizeQuill(buildFinalContent(blogContents[i], partTables[String(partKey)] || []));
       const img = blogImages[i];
       if (img.assetId) {
         d[`img${partKey}`] = { _type: 'image', asset: { _ref: img.assetId, _type: 'reference' } };
@@ -722,8 +726,7 @@ export default function BlogForm({
     for (let i = 0; i < 10; i++) {
       if (blogContents[i] || (partTables[String(i + 1)]?.length || 0) > 0) {
         const contentEl = document.createElement('div');
-        // ✅ Tables yellow markers ki positions par render hongi
-        contentEl.innerHTML = buildFinalContent(blogContents[i], partTables[String(i + 1)] || []);
+        contentEl.innerHTML = sanitizeQuill(buildFinalContent(blogContents[i], partTables[String(i + 1)] || []));
         contentEl.style.marginBottom = '20px';
         printContainer.appendChild(contentEl);
       }
@@ -771,7 +774,7 @@ export default function BlogForm({
         heightLeft -= pageHeight;
       }
 
-      const fileName = blogTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '.pdf';
+      const fileName = slugify(blogTitle) + '.pdf';
       pdf.save(fileName);
     } catch (error) {
       console.error("PDF Error:", error);
@@ -785,6 +788,8 @@ export default function BlogForm({
 
   const currentPartIndex = parseInt(activePart) - 1;
   const currentPartTables = partTables[activePart] || [];
+  const totalWords = blogContents.reduce((s, c) => s + getWordCount(c), 0);
+  const readingTime = Math.max(1, Math.round(totalWords / 200));
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center z-50 pt-6 overflow-y-auto pb-6">
@@ -801,15 +806,37 @@ export default function BlogForm({
         <div className="px-6 md:px-8 py-6 space-y-5">
           {/* TITLE + SUMMARY */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)} placeholder="Blog Title *" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-            <input type="text" value={blogDesc} onChange={(e) => setBlogDesc(e.target.value)} placeholder="Short Summary" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+            <input type="text" id="blogTitle" name="blogTitle" autoComplete="off"
+              value={blogTitle} onChange={(e) => handleTitleChange(e.target.value)} placeholder="Blog Title *"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+            <input type="text" id="blogDesc" name="blogDesc" autoComplete="off"
+              value={blogDesc} onChange={(e) => setBlogDesc(e.target.value)} placeholder="Short Summary"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+          </div>
+
+          {/* ✅ URL SLUG */}
+          <div>
+            <label htmlFor="blogSlug" className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">🔗 URL Slug</label>
+            <input
+              type="text" id="blogSlug" name="blogSlug" autoComplete="off"
+              value={blogSlug}
+              onChange={(e) => { if (!editingId) { setSlugEdited(true); setBlogSlug(slugify(e.target.value)); } }}
+              readOnly={!!editingId}
+              placeholder="url-slug-yahan-aayega"
+              className={`w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all ${editingId ? 'opacity-60 cursor-not-allowed' : ''}`}
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              {editingId
+                ? "🔒 Existing post ka slug locked hai (URL change karne se purane links toot jate hain)."
+                : "Short aur keyword-rich slug rakho (3-5 words best). Example: h1b-visa-fees-2026"}
+            </p>
           </div>
 
           {/* HERO VIDEO */}
           <div className="border border-blue-100 bg-blue-50/50 rounded-xl p-4">
-            <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">🎬 Hero Video URL (Optional)</label>
+            <label htmlFor="heroVideo" className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">🎬 Hero Video URL (Optional)</label>
             <input
-              type="url"
+              type="url" id="heroVideo" name="heroVideo" autoComplete="off"
               value={blogHeroVideo}
               onChange={(e) => setBlogHeroVideo(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
@@ -820,19 +847,25 @@ export default function BlogForm({
 
           {/* CATEGORY + SUBCATEGORY */}
           <div className="grid grid-cols-2 gap-4">
-            <select value={blogCategory} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900">
-              {catList.map((c) => <option key={c._id} value={getSlug(c.slug)}>{c.emoji} {c.name}</option>)}
-            </select>
+            <div>
+              <label htmlFor="category" className="sr-only">Category</label>
+              <select id="category" name="category" value={blogCategory} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900">
+                {catList.map((c) => <option key={c._id} value={getSlug(c.slug)}>{c.emoji} {c.name}</option>)}
+              </select>
+            </div>
 
             <div className="flex flex-col gap-1">
               {!isAddingSubCat ? (
-                <select value={blogSubCategory} onChange={(e) => setBlogSubCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900 disabled:opacity-50" disabled={availableSubCats.length === 0}>
-                  {availableSubCats.length > 0 ? (<><option value="">-- Sub-Category --</option>{availableSubCats.map((s) => <option key={s._id} value={getSlug(s.slug)}>{s.emoji} {s.name}</option>)}</>) : (<option value="">No sub-categories</option>)}
-                </select>
+                <>
+                  <label htmlFor="subCategory" className="sr-only">Sub-Category</label>
+                  <select id="subCategory" name="subCategory" value={blogSubCategory} onChange={(e) => setBlogSubCategory(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all text-gray-900 disabled:opacity-50" disabled={availableSubCats.length === 0}>
+                    {availableSubCats.length > 0 ? (<><option value="">-- Sub-Category --</option>{availableSubCats.map((s) => <option key={s._id} value={getSlug(s.slug)}>{s.emoji} {s.name}</option>)}</>) : (<option value="">No sub-categories</option>)}
+                  </select>
+                </>
               ) : (
                 <div className="flex gap-2">
                   <input
-                    type="text"
+                    type="text" id="newSubCat" name="newSubCat" autoComplete="off"
                     value={newSubCatName}
                     onChange={(e) => setNewSubCatName(e.target.value)}
                     placeholder="Enter New Sub-Category"
@@ -863,8 +896,12 @@ export default function BlogForm({
           <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">✍️ Writer / Author Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input type="text" value={blogWriterName} onChange={(e) => setBlogWriterName(e.target.value)} placeholder="Writer Name (e.g. John Doe)" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-              <input type="url" value={blogWriterSocial} onChange={(e) => setBlogWriterSocial(e.target.value)} placeholder="Social Link (https://twitter.com/...)" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+              <input type="text" id="writerName" name="writerName" autoComplete="off"
+                value={blogWriterName} onChange={(e) => setBlogWriterName(e.target.value)} placeholder="Writer Name (e.g. John Doe)"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+              <input type="url" id="writerSocial" name="writerSocial" autoComplete="off"
+                value={blogWriterSocial} onChange={(e) => setBlogWriterSocial(e.target.value)} placeholder="Social Link (https://twitter.com/...)"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
             </div>
           </div>
 
@@ -875,7 +912,7 @@ export default function BlogForm({
                 <p className={`text-sm font-medium ${blogPublished ? 'text-green-800' : 'text-gray-900'}`}>{blogPublished ? '🟢 Published' : '🟡 Draft'}</p>
                 <p className="text-[11px] text-gray-400 mt-0.5">Toggle to change status</p>
               </div>
-              <button type="button" onClick={() => setBlogPublished(!blogPublished)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogPublished ? 'bg-green-500' : 'bg-gray-300'}`}>
+              <button type="button" id="publishToggle" name="publishToggle" aria-label="Toggle publish status" onClick={() => setBlogPublished(!blogPublished)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogPublished ? 'bg-green-500' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${blogPublished ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
@@ -884,7 +921,7 @@ export default function BlogForm({
                 <p className={`text-sm font-medium ${blogFeatured ? 'text-[#6D28D9]' : 'text-gray-900'}`}>⭐ Featured Article</p>
                 <p className="text-[11px] text-gray-400 mt-0.5">Show on homepage hero</p>
               </div>
-              <button type="button" onClick={() => setBlogFeatured(!blogFeatured)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogFeatured ? 'bg-[#6D28D9]' : 'bg-gray-300'}`}>
+              <button type="button" id="featuredToggle" name="featuredToggle" aria-label="Toggle featured status" onClick={() => setBlogFeatured(!blogFeatured)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogFeatured ? 'bg-[#6D28D9]' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${blogFeatured ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
@@ -901,7 +938,7 @@ export default function BlogForm({
             </div>
 
             <div className="p-5 space-y-5">
-              {/* ✅ LEGEND — yellow = table position */}
+              {/* LEGEND */}
               <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
                 <span className="px-2 py-0.5 rounded font-semibold" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>&nbsp;[[TABLE:...]]&nbsp;</span>
                 <span>= editor me <strong>YELLOW marker</strong> wahin table render hogi. Upar/neeche dono text likho.</span>
@@ -914,9 +951,8 @@ export default function BlogForm({
                   ref={quillRef}
                   theme="snow"
                   value={blogContents[currentPartIndex]}
-                  onChange={(val: string) => handleContentChange(currentPartIndex, sanitizeQuill(val))}
+                  onChange={(val: string) => handleContentChange(currentPartIndex, val ?? "")}
                   onChangeSelection={(range: any) => {
-                    // ✅ Har part ki last cursor position yaad rakho
                     if (range && typeof range.index === 'number') {
                       cursorIndexRef.current[activePart] = range.index;
                     }
@@ -928,14 +964,13 @@ export default function BlogForm({
                 />
               </div>
 
-              {/* ✅ TABLE SECTION — har sub-part ka apna */}
+              {/* TABLE SECTION */}
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">📊 Tables for Part {activePart}</h3>
                 <p className="text-[10px] text-gray-400 mb-3">
                   ℹ️ Text likho → table add karo (yellow marker editor me aa jayega) → phir uske neeche text likho. Marker line cut-paste karke table kahin bhi shift karo. Marker na mile to table end me jayegi.
                 </p>
 
-                {/* ✅ Is part ki tables — live position status */}
                 {currentPartTables.length > 0 && (
                   <div className="space-y-2 mb-3">
                     {currentPartTables.map((t, idx) => {
@@ -961,19 +996,19 @@ export default function BlogForm({
 
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Rows:</span>
-                    <input type="number" min={2} max={15} value={tableRows}
+                    <label htmlFor="tableRows" className="text-xs text-gray-500">Rows:</label>
+                    <input type="number" id="tableRows" name="tableRows" min={2} max={15} value={tableRows}
                       onChange={(e) => resizeTableGrid(Math.max(2, Math.min(15, parseInt(e.target.value) || 2)), tableCols)}
                       className="w-16 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-[#6D28D9]" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Columns:</span>
-                    <input type="number" min={2} max={8} value={tableCols}
+                    <label htmlFor="tableCols" className="text-xs text-gray-500">Columns:</label>
+                    <input type="number" id="tableCols" name="tableCols" min={2} max={8} value={tableCols}
                       onChange={(e) => resizeTableGrid(tableRows, Math.max(2, Math.min(8, parseInt(e.target.value) || 2)))}
                       className="w-16 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-[#6D28D9]" />
                   </div>
-                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                    <input type="checkbox" checked={tableFirstRowHeader}
+                  <label htmlFor="tableHeader" className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                    <input type="checkbox" id="tableHeader" name="tableHeader" checked={tableFirstRowHeader}
                       onChange={(e) => setTableFirstRowHeader(e.target.checked)} />
                     First row = header
                   </label>
@@ -992,7 +1027,8 @@ export default function BlogForm({
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">🔗 Add Embed (Video, Chart or Social Post)</h3>
                 <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                  <select value={embedType} onChange={(e) => setEmbedType(e.target.value)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none cursor-pointer">
+                  <label htmlFor="embedType" className="sr-only">Embed type</label>
+                  <select id="embedType" name="embedType" value={embedType} onChange={(e) => setEmbedType(e.target.value)} className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none cursor-pointer">
                     <option value="youtube">YouTube Video</option>
                     <option value="iframe">📊 Chart Embed (Datawrapper/Flourish)</option>
                     <option value="facebook">Facebook Post</option>
@@ -1000,7 +1036,7 @@ export default function BlogForm({
                     <option value="twitter">Twitter / X Post</option>
                   </select>
                   <input
-                    type="text"
+                    type="text" id="embedInput" name="embedInput" autoComplete="off"
                     value={embedInput}
                     onChange={(e) => setEmbedInput(e.target.value)}
                     placeholder={embedType === 'youtube' ? "Paste YouTube URL (https://youtu.be/...)" : embedType === 'iframe' ? "Paste chart iframe code OR direct URL" : "Paste Raw HTML/Embed Code here..."}
@@ -1012,23 +1048,26 @@ export default function BlogForm({
                 </div>
               </div>
 
-              {/* WORD COUNTS */}
+              {/* WORD COUNTS + READING TIME */}
               <div className="flex items-center justify-between text-[11px] text-gray-400">
                 <span>Part {activePart} · <strong className="text-gray-600">{getWordCount(blogContents[currentPartIndex])} words</strong> · {currentPartTables.length} table(s)</span>
-                <span>Total: <strong className="text-gray-600">{blogContents.reduce((s, c) => s + getWordCount(c), 0)} words</strong></span>
+                <span>Total: <strong className="text-gray-600">{totalWords} words</strong> · ⏱ ≈ {readingTime} min read</span>
               </div>
 
-              {/* IMAGE UPLOAD + ORIENTATION */}
+              {/* IMAGE UPLOAD + ALT + DIMENSIONS + ORIENTATION */}
               <div className="border border-dashed border-gray-200 rounded-xl p-4 hover:border-[#6D28D9]/50 transition-colors">
                 <label className="flex items-center gap-2 text-xs text-gray-500 font-medium mb-3 cursor-pointer">📷 Upload Image {activePart}</label>
-                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, currentPartIndex)} className="text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20 file:cursor-pointer" />
+                <input type="file" id={`imgUpload-${activePart}`} name={`imgUpload-${activePart}`} accept="image/*" onChange={(e) => handleImageUpload(e, currentPartIndex)} className="text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#6D28D9]/10 file:text-[#6D28D9] hover:file:bg-[#6D28D9]/20 file:cursor-pointer" />
+                <p className="text-[10px] text-gray-400 mt-1.5">✅ Auto: resize (max 1920px) + WebP compression + watermark</p>
 
                 {blogImages[currentPartIndex]?.url && (
                   <div className="mt-4 space-y-3">
                     <div className="relative group">
                       <img
                         src={blogImages[currentPartIndex].url}
-                        alt=""
+                        alt={imgAlts[activePart] || ""}
+                        width={blogImages[currentPartIndex].w || 800}
+                        height={blogImages[currentPartIndex].h || 450}
                         className={`rounded-lg object-cover border border-gray-200 ${
                           imgOrientations[activePart] === 'vertical' ? 'h-48 w-auto max-w-xs mx-auto' : 'h-36 w-full'
                         }`}
@@ -1036,151 +1075,143 @@ export default function BlogForm({
                       <button onClick={() => setBlogImages(prev => { const n = [...prev]; n[currentPartIndex] = { url: "", assetId: "" }; return n; })} className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                     </div>
 
+                    {/* ✅ ALT TEXT — Bing/Google dono ke liye zaroori */}
+                    <div>
+                      <label htmlFor={`imgAlt-${activePart}`} className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">🖼️ Image Alt Text (SEO) *</label>
+                      <input
+                        type="text" id={`imgAlt-${activePart}`} name={`imgAlt-${activePart}`} autoComplete="off"
+                        value={imgAlts[activePart] || ""}
+                        onChange={(e) => setAlt(activePart, e.target.value)}
+                        placeholder="Describe the image, e.g. 'Austin Texas downtown skyline at sunset'"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all"
+                      />
+                      <p className={`text-[10px] mt-1 ${imgAlts[activePart] ? 'text-green-600' : 'text-amber-600'}`}>
+                        {imgAlts[activePart] ? `✅ Alt set (${imgAlts[activePart].length} chars)` : "⚠️ Alt text bina image publish na karein — Bing/Google dono check karte hain"}
+                      </p>
+                    </div>
+
+                    {/* ✅ Dimensions status (CLS fix) */}
+                    {blogImages[currentPartIndex].w && (
+                      <p className="text-[10px] text-green-600">✅ Dimensions saved: {blogImages[currentPartIndex].w}×{blogImages[currentPartIndex].h} (no layout shift)</p>
+                    )}
+
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium mr-1">Layout:</span>
                       <button type="button" onClick={() => setOrientation(activePart, 'horizontal')} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-2 transition-all ${(!imgOrientations[activePart] || imgOrientations[activePart] === 'horizontal') ? 'border-[#6D28D9] bg-[#6D28D9]/10 text-[#6D28D9]' : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'}`}>
-                        Horizontal
+                        ▭ Horizontal
                       </button>
                       <button type="button" onClick={() => setOrientation(activePart, 'vertical')} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-semibold border-2 transition-all ${imgOrientations[activePart] === 'vertical' ? 'border-[#6D28D9] bg-[#6D28D9]/10 text-[#6D28D9]' : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'}`}>
-                        Vertical
+                        ▯ Vertical
                       </button>
                     </div>
                   </div>
                 )}
               </div>
-
-              {/* SAVE PART */}
-              <div className="flex justify-end pt-2">
-                <button type="button" onClick={handleSavePart} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-medium hover:bg-gray-700 transition-all">
-                  💾 Save Part {activePart}
-                </button>
-              </div>
             </div>
           </div>
 
-          {/* SEO META */}
-          <div className="border border-gray-200 rounded-xl p-5">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">🔍 SEO Optimization</h3>
-            <div className="space-y-3">
-              <input type="text" value={blogMetaTitle} onChange={(e) => setBlogMetaTitle(e.target.value)} placeholder="Meta Title" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
-              <textarea value={blogMetaDesc} onChange={(e) => setBlogMetaDesc(e.target.value)} placeholder="Meta Description" rows={2} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all resize-none" />
-              <input type="text" value={blogKeywords} onChange={(e) => setBlogKeywords(e.target.value)} placeholder="Keywords (comma separated)" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+          {/* ================= SEO / META SECTION ================= */}
+          <div className="border border-gray-200 rounded-xl p-5 bg-gray-50/50 space-y-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">🔍 SEO Settings</h3>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="metaTitle" className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Meta Title</label>
+                <span className={`text-[11px] font-semibold ${blogMetaTitle.length > 60 ? 'text-red-500' : blogMetaTitle.length > 50 ? 'text-amber-500' : 'text-green-600'}`}>
+                  {blogMetaTitle.length}/60
+                </span>
+              </div>
+              <input type="text" id="metaTitle" name="metaTitle" autoComplete="off"
+                value={blogMetaTitle} onChange={(e) => setBlogMetaTitle(e.target.value)} placeholder="H-1B Visa 2026: Fees, Lottery & Requirements"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="metaDesc" className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Meta Description</label>
+                <span className={`text-[11px] font-semibold ${blogMetaDesc.length > 160 ? 'text-red-500' : blogMetaDesc.length > 150 ? 'text-amber-500' : 'text-green-600'}`}>
+                  {blogMetaDesc.length}/160
+                </span>
+              </div>
+              <textarea id="metaDesc" name="metaDesc" value={blogMetaDesc} onChange={(e) => setBlogMetaDesc(e.target.value)} rows={2} placeholder="Short compelling description that appears in search results..." className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all resize-none" />
+            </div>
+
+            <div>
+              <label htmlFor="keywords" className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Keywords</label>
+              <input type="text" id="keywords" name="keywords" autoComplete="off"
+                value={blogKeywords} onChange={(e) => setBlogKeywords(e.target.value)} placeholder="h1b visa, us work visa, h1b lottery"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 transition-all" />
+              <p className="text-[10px] text-gray-400 mt-1">ℹ️ Google/Bing keywords meta tag ignore karte hain — ye sirf internal tagging ke liye hai. Asli SEO: title, description, aur content quality.</p>
             </div>
           </div>
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 md:px-8 py-5 rounded-b-2xl flex gap-3 z-20">
-          <button onClick={onClose} className="flex-1 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
-
-          <button
-            type="button"
-            onClick={handleDownloadPDF}
-            className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-black transition-all flex items-center justify-center gap-2"
-          >
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 md:px-8 py-4 rounded-b-2xl flex items-center justify-between gap-3 flex-wrap z-20">
+          <button type="button" onClick={handleDownloadPDF} className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-colors">
             📄 Download PDF
           </button>
-
-          <button onClick={handleSaveBlog} className="flex-1 py-3 bg-[#6D28D9] text-white rounded-xl text-sm font-semibold hover:bg-[#5B21B6] transition-all hover:shadow-lg hover:shadow-[#6D28D9]/20 active:scale-[0.98]">{editingId ? "✓ Update" : "🚀 Publish"}</button>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={handleSavePart} className="px-4 py-2.5 bg-white border-2 border-[#6D28D9] text-[#6D28D9] rounded-xl text-sm font-semibold hover:bg-[#6D28D9]/5 transition-colors">
+              💾 Save Part {activePart}
+            </button>
+            <button type="button" onClick={handleSaveBlog} className={`px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${blogPublished ? 'bg-green-600 hover:bg-green-700' : 'bg-[#6D28D9] hover:bg-[#5B21B6]'}`}>
+              {editingId ? '🔄 Update Blog' : (blogPublished ? '🚀 Publish Blog' : '📝 Save Draft')}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ✅ TABLE DATA MODAL */}
+      {/* TABLE MODAL */}
       {showTableModal && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl">
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-              <h3 className="text-lg font-bold text-gray-900">📊 New Table (Part {activePart})</h3>
-              <button onClick={() => setShowTableModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all text-sm">✕</button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">📝 New Table</h3>
+              <button onClick={() => setShowTableModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-sm">✕</button>
             </div>
-            <div className="p-6">
-              {/* Modal ke andar bhi rows/cols adjust */}
-              <div className="flex items-center gap-4 mb-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Rows:</span>
-                  <input type="number" min={2} max={15} value={tableRows}
-                    onChange={(e) => resizeTableGrid(Math.max(2, Math.min(15, parseInt(e.target.value) || 2)), tableCols)}
-                    className="w-16 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-[#6D28D9]" />
+            <div>
+              {tableData.map((row, r) => (
+                <div key={r} className="flex gap-2 mb-2">
+                  {row.map((cell, c) => (
+                    <input key={c} id={`cell-${r}-${c}`} name={`cell-${r}-${c}`} value={cell}
+                      onChange={(e) => setTableData(prev => { const n = prev.map(rr => [...rr]); n[r][c] = e.target.value; return n; })}
+                      placeholder={`R${r + 1}C${c + 1}`}
+                      className={`flex-1 min-w-0 px-2 py-2 border rounded-lg text-xs outline-none focus:border-[#6D28D9] ${r === 0 && tableFirstRowHeader ? 'bg-gray-50 font-semibold' : 'bg-white'}`} />
+                  ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Columns:</span>
-                  <input type="number" min={2} max={8} value={tableCols}
-                    onChange={(e) => resizeTableGrid(tableRows, Math.max(2, Math.min(8, parseInt(e.target.value) || 2)))}
-                    className="w-16 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 outline-none focus:border-[#6D28D9]" />
-                </div>
-                <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                  <input type="checkbox" checked={tableFirstRowHeader}
-                    onChange={(e) => setTableFirstRowHeader(e.target.checked)} />
-                  First row = header
-                </label>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="border-collapse w-full">
-                  <tbody>
-                    {tableData.map((row, r) => (
-                      <tr key={r}>
-                        {row.map((cell, c) => (
-                          <td key={c} className="p-1">
-                            <input
-                              value={cell}
-                              onChange={(e) => {
-                                const next = tableData.map((rw, ri) =>
-                                  r === ri ? rw.map((cl, ci) => c === ci ? e.target.value : cl) : rw
-                                );
-                                setTableData(next);
-                              }}
-                              placeholder={r === 0 && tableFirstRowHeader ? "Header..." : "Cell..."}
-                              className={`w-full min-w-[120px] px-2 py-2 border rounded-md text-sm text-gray-900 outline-none focus:border-[#6D28D9] ${
-                                r === 0 && tableFirstRowHeader ? "bg-gray-100 font-semibold" : "bg-white"
-                              } border-gray-200`}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              ))}
             </div>
-            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
-              <button onClick={() => setShowTableModal(false)}
-                className="px-5 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
-              <button onClick={handleInsertTable}
-                className="px-5 py-2.5 bg-[#6D28D9] text-white rounded-xl text-sm font-semibold hover:bg-[#5B21B6] transition-all">✅ Add Table</button>
-            </div>
+            <label htmlFor="modalTableHeader" className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" id="modalTableHeader" name="modalTableHeader" checked={tableFirstRowHeader} onChange={(e) => setTableFirstRowHeader(e.target.checked)} />
+              First row = header
+            </label>
+            <button type="button" onClick={handleInsertTable} className="w-full px-4 py-2.5 bg-[#6D28D9] text-white rounded-xl text-sm font-semibold hover:bg-[#5B21B6] transition-colors">
+              ✅ Insert Table
+            </button>
           </div>
         </div>
       )}
 
-      {/* ✅ MARKDOWN PASTE MODAL */}
+      {/* MARKDOWN MODAL */}
       {showMdModal && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl">
-            <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h3 className="text-lg font-bold text-gray-900">📋 Paste AI Table (Markdown)</h3>
-              <button onClick={() => setShowMdModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all text-sm">✕</button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">📋 Paste Markdown Table (from AI)</h3>
+              <button onClick={() => setShowMdModal(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-sm">✕</button>
             </div>
-            <div className="p-6">
-              <p className="text-xs text-gray-500 mb-3">
-                ChatGPT/Claude/Meta se table copy karo (|---|---| wala) aur yahan paste karo — Part {activePart} me add hogi.
-              </p>
-              <textarea
-                value={mdInput}
-                onChange={(e) => setMdInput(e.target.value)}
-                rows={10}
-                placeholder={`| Visa | Duration | Lottery |\n|------|----------|---------|\n| O-1  | 3 years  | No      |\n| H-1B | 6 years  | Yes     |`}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 font-mono outline-none focus:border-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20 resize-y"
-              />
-            </div>
-            <div className="border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-2xl">
-              <button onClick={() => setShowMdModal(false)}
-                className="px-5 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
-              <button onClick={handleConvertMarkdown}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all">✅ Convert & Add Table</button>
-            </div>
+            <textarea
+              id="mdInput" name="mdInput"
+              value={mdInput}
+              onChange={(e) => setMdInput(e.target.value)}
+              rows={8}
+              placeholder={"| City | Rent | Jobs |\n|---|---|---|\n| Austin | $1,400 | High |\n| Boise | $1,100 | Medium |"}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-900 outline-none focus:border-[#6D28D9] resize-none"
+            />
+            <button type="button" onClick={handleConvertMarkdown} className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
+              🔄 Convert & Insert
+            </button>
           </div>
         </div>
       )}

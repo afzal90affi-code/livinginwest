@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@sanity/client';
 import RssParser from 'rss-parser';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 const sanityClient = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || "",
@@ -13,273 +10,313 @@ const sanityClient = createClient({
   useCdn: false,
 });
 
-const parser = new RssParser({ 
+const parser = new RssParser({
   timeout: 15000,
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
   }
 });
 
-// ✅ Array ko uncomment kar diya gaya hai taake error na aaye
+/* ============================================================
+   📰 USA NEWS FEEDS — States + National
+============================================================ */
 const newsFeeds = [
-  // 1. Daily West
+  /* ===== NATIONAL ===== */
   { url: 'https://www.wehouse.gov/feed/', category: 'Daily West', subcategory: 'US Government' },
+  { url: 'https://apnews.com/feed', category: 'US News', subcategory: 'National' },
+  { url: 'https://www.cbsnews.com/latest/rss/main', category: 'US News', subcategory: 'Breaking' },
+
+  /* ===== NEW YORK ===== */
+  { url: 'https://gothamist.com/rss.xml', category: 'New York', subcategory: 'NYC News' },
+  { url: 'https://www.nydailynews.com/feed/', category: 'New York', subcategory: 'NYC' },
+
+  /* ===== CALIFORNIA ===== */
+  { url: 'https://calmatters.org/feed/', category: 'California', subcategory: 'CA News' },
+  { url: 'https://www.latimes.com/california/rss2.0.xml', category: 'California', subcategory: 'LA' },
+
+  /* ===== TEXAS ===== */
+  { url: 'https://www.texastribune.org/feed/', category: 'Texas', subcategory: 'TX Politics' },
+  { url: 'https://www.houstonchronicle.com/rss/feed/Houston-Chronicle-News-273.php', category: 'Texas', subcategory: 'Houston' },
+
+  /* ===== ILLINOIS ===== */
+  { url: 'https://chicago.suntimes.com/rss', category: 'Illinois', subcategory: 'Chicago' },
+  { url: 'https://blockclubchicago.org/feed/', category: 'Illinois', subcategory: 'Chicago Local' },
+
+  /* ===== FLORIDA ===== */
+  { url: 'https://www.tampabay.com/rss/', category: 'Florida', subcategory: 'Tampa' },
+  { url: 'https://www.miamiherald.com/latest/rss/', category: 'Florida', subcategory: 'Miami' },
+
+  /* ===== WASHINGTON STATE ===== */
+  { url: 'https://www.seattletimes.com/feed/', category: 'Washington State', subcategory: 'Seattle' },
+
+  /* ===== MASSACHUSETTS ===== */
+  { url: 'https://www.boston.com/feed/', category: 'Massachusetts', subcategory: 'Boston' },
+
+  /* ===== COLORADO ===== */
+  { url: 'https://www.denverpost.com/feed/', category: 'Colorado', subcategory: 'Denver' },
+
+  /* ===== OHIO ===== */
+  { url: 'https://www.cleveland.com/rss/', category: 'Ohio', subcategory: 'Cleveland' },
+
+  /* ===== MICHIGAN ===== */
+  { url: 'https://www.freep.com/rss/', category: 'Michigan', subcategory: 'Detroit' },
+
+  /* ===== NEW JERSEY ===== */
+  { url: 'https://www.nj.com/rss/', category: 'New Jersey', subcategory: 'NJ News' },
+
+  /* ===== OREGON ===== */
+  { url: 'https://www.oregonlive.com/rss/', category: 'Oregon', subcategory: 'Portland' },
+
+  /* ===== ALABAMA ===== */
+  { url: 'https://www.al.com/rss/', category: 'Alabama', subcategory: 'Birmingham' },
+
+  /* ===== MINNESOTA ===== */
+  { url: 'https://www.startribune.com/feeds/globe/', category: 'Minnesota', subcategory: 'Minneapolis' },
+
+  /* ===== GEORGIA ===== */
+  { url: 'https://www.ajc.com/rss/', category: 'Georgia', subcategory: 'Atlanta' },
+
+  /* ===== PENNSYLVANIA ===== */
+  { url: 'https://www.pennlive.com/rss/', category: 'Pennsylvania', subcategory: 'Harrisburg' },
+
+  /* ===== UTAH ===== */
+  { url: 'https://www.sltrib.com/rss/', category: 'Utah', subcategory: 'Salt Lake City' },
+
+  /* ===== NEVADA ===== */
+  { url: 'https://www.reviewjournal.com/feed/', category: 'Nevada', subcategory: 'Las Vegas' },
+
+  /* ===== MISSOURI ===== */
+  { url: 'https://www.stltoday.com/rss/', category: 'Missouri', subcategory: 'St. Louis' },
+
+  /* ===== TENNESSEE ===== */
+  { url: 'https://www.tennessean.com/rss/', category: 'Tennessee', subcategory: 'Nashville' },
+
+  /* ===== MARYLAND ===== */
+  { url: 'https://www.baltimoresun.com/rss2.0.xml', category: 'Maryland', subcategory: 'Baltimore' },
+
+  /* ===== MAINE ===== */
+  { url: 'https://www.pressherald.com/feed/', category: 'Maine', subcategory: 'Portland ME' },
+
+  /* ===== VERMONT ===== */
+  { url: 'https://vtdigger.org/feed/', category: 'Vermont', subcategory: 'VT News' },
+
+  /* ===== MONTANA ===== */
+  { url: 'https://montanafreepress.org/feed/', category: 'Montana', subcategory: 'MT News' },
+
+  /* ===== ALASKA ===== */
+  { url: 'https://www.adn.com/feed/', category: 'Alaska', subcategory: 'Anchorage' },
+
+  /* ===== IOWA ===== */
+  { url: 'https://www.desmoinesregister.com/rss/', category: 'Iowa', subcategory: 'Des Moines' },
+
+  /* ===== LOUISIANA ===== */
+  { url: 'https://www.nola.com/rss/', category: 'Louisiana', subcategory: 'New Orleans' },
+
+  /* ===== ARIZONA ===== */
+  { url: 'https://www.azcentral.com/rss/', category: 'Arizona', subcategory: 'Phoenix' },
+
+  /* ===== WISCONSIN ===== */
+  { url: 'https://jsonfeed.fox6now.com/latest.xml', category: 'Wisconsin', subcategory: 'Milwaukee' },
 ];
+
+/* ============================================================
+   ⚙️ SETTINGS
+   Original news mode: koi AI nahi, koi image generation nahi
+   — sirf original news + asli RSS image save hoti hai
+============================================================ */
+const MAX_FEEDS_PER_RUN = 12;
+const ITEMS_PER_FEED = 5;
+const MAX_NEWS_AGE_DAYS = 7;
+const MAX_NEWS_AGE_MS = MAX_NEWS_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 async function fetchAllNews() {
   let allNews: { title: string, desc: string, url: string, source: string, category: string, subcategory: string, pubDate: string, rssImage: string }[] = [];
   console.log("🌐 Fetching RSS Feeds from various sources...");
-  
-  for (const feedObj of newsFeeds) {
+
+  const shuffled = [...newsFeeds].sort(() => 0.5 - Math.random());
+  const selectedFeeds = shuffled.slice(0, MAX_FEEDS_PER_RUN);
+  console.log(`📌 ${selectedFeeds.length}/${newsFeeds.length} feeds selected for this run:`);
+  selectedFeeds.forEach(f => console.log(`   → ${f.category} (${f.url})`));
+
+  let skippedOld = 0;
+
+  for (const feedObj of selectedFeeds) {
     try {
       const feed = await parser.parseURL(feedObj.url);
-      feed.items.slice(0, 2).forEach(item => {
-        const rawDate = item.isoDate || item.pubDate || new Date().toISOString();
-        let formattedTime = "";
-        try {
-          formattedTime = new Date(rawDate).toLocaleString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
-          });
-        } catch { formattedTime = rawDate; }
 
-        let rssImage = "";
-        if (item.enclosure && item.enclosure.url) {
-          rssImage = item.enclosure.url;
-        } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
-          rssImage = item['media:content'].$.url;
-        } else if (item.content) {
-          const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch && imgMatch[1]) {
-            rssImage = imgMatch[1];
+      feed.items
+        .filter((item) => {
+          /* ✅ Sirf last 7 din ki news */
+          const d = item.isoDate || item.pubDate;
+          if (!d) return false;
+          const age = Date.now() - new Date(d).getTime();
+          if (age > MAX_NEWS_AGE_MS) { skippedOld++; return false; }
+          return true;
+        })
+        .slice(0, ITEMS_PER_FEED)
+        .forEach(item => {
+          const rawDate = item.isoDate || item.pubDate || new Date().toISOString();
+
+          let rssImage = "";
+          if (item.enclosure && item.enclosure.url) {
+            rssImage = item.enclosure.url;
+          } else if (item['media:content'] && item['media:content'].$ && item['media:content'].$.url) {
+            rssImage = item['media:content'].$.url;
+          } else if (item.content) {
+            const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
+            if (imgMatch && imgMatch[1]) rssImage = imgMatch[1];
           }
-        }
 
-        allNews.push({
-          title: item.title || "",
-          desc: item.contentSnippet || item.content || "",
-          url: item.link || "",
-          source: feed.title || "Living In West",
-          category: feedObj.category,
-          subcategory: feedObj.subcategory || "",
-          pubDate: formattedTime,
-          rssImage: rssImage 
+          allNews.push({
+            title: item.title || "",
+            desc: item.contentSnippet || item.content || "",
+            url: item.link || "",
+            source: feed.title || "Living In West",
+            category: feedObj.category,
+            subcategory: feedObj.subcategory || "",
+            pubDate: rawDate,
+            rssImage: rssImage
+          });
         });
-      });
     } catch (error) {
       console.error(`❌ Failed to fetch RSS from ${feedObj.url}`);
     }
   }
-  
-  const selectedNews = allNews.sort(() => 0.5 - Math.random());
-  console.log(`✅ Total ${selectedNews.length} news articles selected for processing.`);
-  return selectedNews;
-}
 
-const preferredAutoNewsModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-const autoNewsFallbackModels = [
-  preferredAutoNewsModel,
-  'gemini-2.5-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-].filter((value, index, arr) => value && arr.indexOf(value) === index);
-
-async function rewriteNews(title: string, desc: string, category: string) {
-  let lastError: unknown = null;
-
-  for (const modelName of autoNewsFallbackModels) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-
-      const prompt = `You are an expert news editor for "Living In West". You are writing an article for the "${category}" category.
-
-      News Title: "${title}"
-      News Description: "${desc}"
-
-      1. Rewrite the title to be catchy, unique, and SEO-friendly.
-      2. Write a comprehensive, 3-paragraph article expanding on the topic. Use <p> tags for paragraphs. If it's a deal, mention the value. If it's visa news, be clear and formal.
-      3. Create a highly descriptive image generation prompt that VISUALLY REPRESENTS THIS SPECIFIC STORY.
-
-      Return STRICTLY in JSON format:
-      {
-        "newTitle": "...",
-        "newDesc": "...",
-        "imagePrompt": "..."
-      }`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-
-      return {
-        title: parsed.newTitle || title,
-        desc: parsed.newDesc || desc,
-        imagePrompt: parsed.imagePrompt || `Photorealistic news photography about: ${title}`,
-      };
-    } catch (error) {
-      lastError = error;
-      console.warn(`Auto-news Gemini model attempt failed for ${modelName}:`, error);
-    }
+  if (skippedOld > 0) {
+    console.log(`⏭️ ${skippedOld} purani items skip (>${MAX_NEWS_AGE_DAYS} din)`);
   }
 
-  console.error('❌ AI Rewrite Error:', lastError?.toString?.() || lastError);
-  return { title, desc, imagePrompt: `Photorealistic news photography about: ${title}` };
+  console.log(`✅ Total ${allNews.length} original news articles found.`);
+  return allNews;
 }
 
-async function fetchPixabayImage(query: string) {
-  const pixabayKey = process.env.PIXABAY_API_KEY;
-  if (!pixabayKey) {
-    console.log("⚠️ PIXABAY_API_KEY .env mein nahi mili!");
-    return null;
-  }
+/* ============================================================
+   ✅ CATEGORY REFERENCE — auto create/find
+============================================================ */
+async function getOrCreateCategory(title: string): Promise<string | null> {
   try {
-    const cleanQuery = query.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 100);
-    const res = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${encodeURIComponent(cleanQuery)}&image_type=photo&per_page=3&safesearch=true`);
-    const data = await res.json();
-    if (data.hits && data.hits.length > 0) {
-      console.log("✅ Pixabay se image mil gai!");
-      return data.hits[0].largeImageURL;
-    }
-    return null;
-  } catch (error) {
-    console.error("Pixabay Error:", error);
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const existing = await sanityClient.fetch(
+      `*[_type == "blogCategory" && slug.current == $slug][0]{ _id }`,
+      { slug }
+    );
+    if (existing?._id) return existing._id;
+
+    const created = await sanityClient.create({
+      _type: 'blogCategory',
+      title,
+      slug: { _type: 'slug', current: slug },
+    });
+    console.log(`📂 Category created: "${title}"`);
+    return created._id;
+  } catch (e) {
+    console.error('Category error:', e);
     return null;
   }
 }
 
-async function downloadAndUploadExistingImage(imageUrl: string, slug: string) {
+/* ✅ Original RSS image download (agar mili to) */
+async function downloadImage(imageUrl: string, slug: string) {
   try {
-    console.log(`   -> Downloading image from: ${imageUrl}`);
-    
     const imageRes = await fetch(imageUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
+    if (!imageRes.ok) throw new Error(`Status ${imageRes.status}`);
 
-    if (!imageRes.ok) {
-      console.log(`❌ Image download failed. Status: ${imageRes.status}`);
-      throw new Error('Failed to fetch image');
-    }
-    
-    const arrayBuffer = await imageRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const asset = await sanityClient.assets.upload('image', buffer, {
+    const buffer = Buffer.from(await imageRes.arrayBuffer());
+    return await sanityClient.assets.upload('image', buffer, {
       filename: `${slug}.jpg`,
       contentType: imageRes.headers.get('content-type') || 'image/jpeg'
     });
-
-    return asset;
   } catch (error: any) {
-    console.error('❌ Image Download Error:', error?.message || error);
+    console.error('❌ Image download error:', error?.message || error);
     return null;
   }
 }
 
-async function generateAndUploadImage(prompt: string, slug: string) {
-  try {
-    const randomSeed = Math.floor(Math.random() * 1000000);
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=800&height=600&nologo=true&model=flux&seed=${randomSeed}`;
-    
-    console.log(`   -> Fetching AI image from Flux...`);
-    const imageRes = await fetch(imageUrl);
-    if (!imageRes.ok) throw new Error('Failed to fetch image from AI');
-    
-    const arrayBuffer = await imageRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const asset = await sanityClient.assets.upload('image', buffer, {
-      filename: `${slug}.jpg`,
-      contentType: 'image/jpeg'
-    });
-
-    return asset;
-  } catch (error: any) {
-    console.error('❌ AI Image Generation Error:', error?.message || error);
-    return null;
+/* ============================================================
+   ✅ SHARED HANDLER — ORIGINAL NEWS mode
+   Koi AI rewrite nahi, koi image generation nahi
+   — fast (seconds), zero cost, tum khud blog likhoge
+============================================================ */
+async function handleRequest(request: Request) {
+  /* 🛡️ CRON_SECRET protection */
+  const secret = process.env.CRON_SECRET;
+  if (secret) {
+    const auth = request.headers.get('authorization');
+    if (auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: 'Unauthorized — invalid secret' }, { status: 401 });
+    }
   }
-}
 
-export async function GET(request: Request) {
   try {
     console.log("=========================================");
-    console.log("🚀 Auto News API Started...");
+    console.log("🚀 Original News Fetch Started...");
     console.log("=========================================");
 
     const newsToProcess = await fetchAllNews();
-    
+
     if (newsToProcess.length === 0) {
       console.log("⚠️ No news found.");
       return NextResponse.json({ message: 'No news found' });
     }
 
     let successCount = 0;
+    const categoryCache: Record<string, string | null> = {};
 
     for (let i = 0; i < newsToProcess.length; i++) {
       const article = newsToProcess[i];
-      console.log(`\n--- Processing Article ${i + 1} of ${newsToProcess.length} ---`);
-      console.log(`📄 Original Title: ${article.title} (Category: ${article.category})`);
+      console.log(`\n--- Article ${i + 1}/${newsToProcess.length}: ${article.title} (${article.category})`);
 
-      // 🛡️ Duplicate Check
+      /* 🛡️ Duplicate check */
       try {
         const existingCount = await sanityClient.fetch(
           `count(*[_type == "blog" && content1 match $urlPattern])`,
           { urlPattern: `*${article.url}*` }
         );
-
         if (existingCount > 0) {
-          console.log(`⏩ Skipping: This news has already been added to Sanity.`);
-          continue; 
+          console.log(`⏩ Skipping — already added.`);
+          continue;
         }
       } catch (err) {
-        console.error("Error checking for duplicates, proceeding anyway...", err);
+        console.error("Duplicate check error, proceeding anyway...", err);
       }
 
-      console.log("✍️ Rewriting with AI...");
-      const rewritten = await rewriteNews(article.title, article.desc, article.category);
-      console.log(`✅ New Title: ${rewritten.title}`);
-      
-      const slugText = rewritten.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 60);
-      
+      /* ✅ Original RSS image (agar hai) — baaki koi image generation nahi */
       let imageAsset = null;
-
-      // 1. صرف Daily West اور Trading & Finance کی اصلی تصاویر لیں
-      if (article.rssImage && (article.category === 'Daily West' || article.category === 'Trading & Finance')) {
-        console.log("🖼️ Trying real RSS image...");
-        imageAsset = await downloadAndUploadExistingImage(article.rssImage, slugText);
-      } 
-      
-      // 2. اگر اصلی تصویر نہ ہو، تو Pixabay سے تصویر لیں
-      if (!imageAsset) {
-        console.log("🖼️ Trying Pixabay image...");
-        const pixabayUrl = await fetchPixabayImage(rewritten.title);
-        if (pixabayUrl) {
-          imageAsset = await downloadAndUploadExistingImage(pixabayUrl, slugText);
-        }
+      if (article.rssImage) {
+        imageAsset = await downloadImage(article.rssImage, `news-${Date.now()}-${i}`);
       }
-      
-      // 3. اگر Pixabay ناکام ہو جائے، تو AI سے تصویر بنائیں
-      if (!imageAsset) {
-        console.log("🎨 Generating safe AI image...");
-        imageAsset = await generateAndUploadImage(rewritten.imagePrompt, slugText);
-      }
-      
-      console.log(`🖼️ Image processed:`, imageAsset ? "Success" : "Failed");
+      console.log(`🖼️ Image:`, imageAsset ? "RSS image saved" : "No image");
 
+      /* ✅ Category reference (cache) */
+      if (!(article.category in categoryCache)) {
+        categoryCache[article.category] = await getOrCreateCategory(article.category);
+      }
+
+      /* ✅ ORIGINAL news as draft — title/desc original
+         content1 me: original summary + source link
+         (tum Edit karke apna blog likhoge) */
       const docData: any = {
         _type: 'blog',
-        title: rewritten.title,
-        slug: { _type: 'slug', current: slugText },
-        desc: rewritten.desc.replace(/<[^>]*>/g, '').substring(0, 150) + '...', 
-        category: article.category, 
-        subCategory: article.subcategory || undefined, // ✅ Subcategory add ki
-        date: new Date(article.pubDate).toISOString(), // ✅ Time Ago fix karne ke liye original date
-        newsTime: article.pubDate,       
-        sourceUrl: article.url,          
-        sourceName: article.source,      
-        content1: `${rewritten.desc}<p>Source: <a href="${article.url}">${article.source}</a></p>`, 
+        title: article.title,  /* ✅ ORIGINAL title — AI rewrite nahi */
+        slug: {
+          _type: 'slug',
+          current: article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 60)
+            + '-' + Date.now().toString(36).slice(-4),
+        },
+        desc: article.desc.replace(/<[^>]*>/g, '').substring(0, 150) + '...',
+        category: categoryCache[article.category]
+          ? { _type: 'reference', _ref: categoryCache[article.category] }
+          : undefined,
+        date: new Date(article.pubDate).toISOString(),
+        newsTime: article.pubDate,
+        sourceUrl: article.url,
+        sourceName: article.source,
+        content1: `<p><strong>📌 Original News (${article.source}):</strong></p>${article.desc}<p>🔗 <a href="${article.url}" target="_blank">Original article yahan parho — ${article.source}</a></p>`,
         isPublished: false,
         isFeatured: false,
       };
@@ -291,24 +328,26 @@ export async function GET(request: Request) {
         };
       }
 
-      console.log("💾 Saving to Sanity...");
       await sanityClient.create(docData);
-      console.log("🎉 Saved successfully!");
+      console.log(`🎉 Saved: ${article.title}`);
       successCount++;
     }
 
-    console.log("\n=========================================");
-    console.log(`✅ All Done! ${successCount} news articles added to drafts!`);
-    console.log("=========================================");
+    console.log(`\n✅ Done! ${successCount} original news added to drafts!`);
 
-    return NextResponse.json({ success: true, message: `${successCount} news with images added to drafts!` });
+    return NextResponse.json({
+      success: true,
+      message: `${successCount} original news drafts me add ho gayi! Ab unhe parh kar apna blog likho.`
+    });
 
   } catch (error: any) {
-    console.error("❌ Detailed Server Error:", error);
-    return NextResponse.json({ 
-      error: "Internal Server Error", 
-      details: error.message || "Unknown error",
-      stack: error.stack 
+    console.error("❌ Server Error:", error);
+    return NextResponse.json({
+      error: "Internal Server Error",
+      details: error?.message || "Unknown error"
     }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) { return handleRequest(request); }
+export async function POST(request: Request) { return handleRequest(request); }

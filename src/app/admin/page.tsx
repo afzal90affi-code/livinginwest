@@ -1,20 +1,52 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { client } from '@/lib/sanityClient';
 
 import {
   getCategories, getSubcategories, getBlogs,
   saveCategory, deleteCategory, saveBlog,
   saveSubcategory, deleteSubcategory,
   deleteBlog, uploadImage, reorderItem,
-  getSubscribers // ✅ سبسکرائبرز کا فنکشن امپورٹ کیا گیا
+  getSubscribers, publishDraft, getBlogImageOptions, applyBlogImage
 } from './actions';
 
 import BlogForm, { getSlug, type Blog, type Category, type Subcategory } from './BlogForm';
+import Image from 'next/image';
+import { X, ExternalLink, Search } from 'lucide-react';
 
 interface ImageState { url: string; assetId: string; }
 type SanityImageRef = { _type: 'image'; asset: { _ref: string; _type: 'reference' } };
 type ActionData = Record<string, string | boolean | number | undefined | SanityImageRef | Record<string, string> | null>;
+
+/* ========== DRAFTS types + helper ========== */
+interface DraftBlog {
+  _id: string;
+  title: string;
+  date?: string;
+  category?: string;
+  imgUrl?: string;
+  newsTime?: string;
+  sourceUrl?: string;
+  sourceName?: string;
+}
+
+const getTimeAgo = (dateString?: string) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours < 24) {
+    return remainingMinutes > 0 ? `${hours} hour ${remainingMinutes} min ago` : `${hours} hour ago`;
+  }
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
+};
 
 // ======== MAIN COMPONENT ========
 export default function AdminPanel() {
@@ -29,13 +61,12 @@ export default function AdminPanel() {
   const [loadingData, setLoadingData] = useState(true);
   const [reorderingType, setReorderingType] = useState<string | null>(null);
 
-  // Multiple Delete & Sort State
   const [selectedBlogs, setSelectedBlogs] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<'newest' | 'oldest'>('newest');
 
   const [showBlogForm, setShowBlogForm] = useState(false);
   const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
-  
+
   const [showCatForm, setShowCatForm] = useState(false);
   const [showSubCatForm, setShowSubCatForm] = useState(false);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
@@ -56,8 +87,24 @@ export default function AdminPanel() {
   const [subCatMetaTitle, setSubCatMetaTitle] = useState("");
   const [subCatMetaDesc, setSubCatMetaDesc] = useState("");
 
-  // ✅ سبسکرائبرز کے لیے نیا اسٹیٹ
   const [subscribers, setSubscribers] = useState<any[]>([]);
+
+  /* ========== 🤖 AUTO NEWS states ========== */
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsMessage, setNewsMessage] = useState("");
+
+  /* ========== 📰 DRAFTS states ========== */
+  const [drafts, setDrafts] = useState<DraftBlog[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [rewritingId, setRewritingId] = useState<string | null>(null);
+
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerBlogId, setPickerBlogId] = useState("");
+  const [pickerTitle, setPickerTitle] = useState("");
+  const [imageOptions, setImageOptions] = useState<{ source: string; url: string }[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+  const [applyingImage, setApplyingImage] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredSubCats = selectedParentCat ? subCatList.filter(s => s.parentId === selectedParentCat) : [];
   const sortFilteredSubCats = sortParentCat ? subCatList.filter(s => s.parentId === sortParentCat) : [];
@@ -74,21 +121,20 @@ export default function AdminPanel() {
     else alert("Upload failed: " + r.error);
   };
 
-  // ✅ fetchData میں سبسکرائبرز کی لسٹ بھی شامل کر دی گئی ہے
   const fetchData = useCallback(async () => {
     setLoadingData(true);
     try {
       const [cats, subs, blogs, subsEmails] = await Promise.all([getCategories(), getSubcategories(), getBlogs(), getSubscribers()]);
-      setCatList(cats); 
-      setSubCatList(subs); 
+      setCatList(cats);
+      setSubCatList(subs);
       setBlogList(blogs);
-      setSubscribers(subsEmails); // ✅ یہ لائن اضافہ کی گئی
+      setSubscribers(subsEmails);
     } catch (e) { console.error(e); }
     setLoadingData(false);
   }, []);
 
   useEffect(() => { if (isLoggedIn) fetchData(); }, [isLoggedIn, fetchData]);
-  
+
   useEffect(() => {
     const hasAdminCookie = document.cookie.split('; ').some((cookie) => cookie.startsWith('admin_auth=true'));
     if (hasAdminCookie) setIsLoggedIn(true);
@@ -141,7 +187,6 @@ export default function AdminPanel() {
   const handleBulkDelete = async () => {
     if (selectedBlogs.length === 0) return alert("Please select blogs to delete.");
     if (!confirm(`Delete ${selectedBlogs.length} selected blogs?`)) return;
-    
     try {
       await Promise.all(selectedBlogs.map(id => deleteBlog(id)));
       setSelectedBlogs([]);
@@ -156,11 +201,8 @@ export default function AdminPanel() {
     setSelectedBlogs(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
   const handleSelectAll = () => {
-    if (selectedBlogs.length === sortedBlogs.length) {
-      setSelectedBlogs([]);
-    } else {
-      setSelectedBlogs(sortedBlogs.map(b => b._id));
-    }
+    if (selectedBlogs.length === sortedBlogs.length) setSelectedBlogs([]);
+    else setSelectedBlogs(sortedBlogs.map(b => b._id));
   };
 
   const quickTogglePublish = async (blog: Blog) => {
@@ -193,6 +235,152 @@ export default function AdminPanel() {
     if (r.success) { setShowSubCatForm(false); fetchData(); } else alert("Error: " + r.error);
   };
   const handleDeleteSubCategory = async (id: string) => { if (!confirm("Delete?")) return; const r = await deleteSubcategory(id); if (r.success) fetchData(); };
+
+  /* ============================================================
+     🤖 AUTO NEWS — Generate (secret sessionStorage me ek dafa)
+  ============================================================ */
+  const handleGenerateNews = async () => {
+    setNewsLoading(true);
+    setNewsMessage("خبریں اور تصاویر بن رہی ہیں... براہ کرم 1-2 منٹ انتظار کریں۔");
+
+    let secret = sessionStorage.getItem("liw_cron_secret") || "";
+    if (!secret) {
+      secret = prompt("Enter CRON SECRET to run:") || "";
+      if (!secret) { setNewsLoading(false); setNewsMessage("Cancelled."); return; }
+      sessionStorage.setItem("liw_cron_secret", secret);
+    }
+
+    try {
+      const res = await fetch('/api/auto-news', {
+        headers: { 'Authorization': `Bearer ${secret}` }
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setNewsMessage("✅ کامیابی! " + (data.message || "خبریں ڈرافٹ میں آ گئیں۔"));
+        fetchDrafts(); // drafts tab bhi fresh ho jaye
+      } else if (res.status === 401) {
+        sessionStorage.removeItem("liw_cron_secret");
+        setNewsMessage("❌ غلط Secret — دوبارہ کوشش کریں۔");
+      } else {
+        setNewsMessage("❌ ایرر: " + (data.error || data.details || "Unknown"));
+      }
+    } catch (error) {
+      setNewsMessage("❌ کچھ غلط ہو گیا۔");
+    }
+    setNewsLoading(false);
+  };
+
+  /* ============================================================
+     📰 DRAFTS — fetch + actions
+  ============================================================ */
+  const fetchDrafts = useCallback(async () => {
+    setDraftsLoading(true);
+    try {
+      /* ✅ reference se category TITLE nikalo (state ka naam dikhega) */
+      const query = `*[_type == "blog" && isPublished == false] | order(date desc) {
+        _id, title, date, "category": category->title, newsTime, sourceUrl, sourceName,
+        "imgUrl": img1.asset->url
+      }`;
+      const result = await client.fetch(query);
+      setDrafts(result);
+    } catch (e) { console.error(e); }
+    setDraftsLoading(false);
+  }, []);
+
+  /* Drafts tab khulte hi fetch */
+  useEffect(() => {
+    if (isLoggedIn && tab === "drafts") fetchDrafts();
+  }, [isLoggedIn, tab, fetchDrafts]);
+
+  const handleDraftPublish = async (id: string) => {
+    const r = await publishDraft(id);
+    if (r.success) {
+      alert("✅ News Published Successfully!");
+      setDrafts(prev => prev.filter(b => b._id !== id));
+      fetchData();
+    } else {
+      alert("❌ Error publishing news: " + r.error);
+    }
+  };
+
+  const handleDraftDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this draft permanently?")) return;
+    const r = await deleteBlog(id);
+    if (r.success) {
+      alert("🗑️ Draft deleted successfully!");
+      setDrafts(prev => prev.filter(b => b._id !== id));
+      fetchData();
+    } else {
+      alert("❌ Error deleting draft.");
+    }
+  };
+
+  /* ✅ Edit — BlogForm modal me khulega (blogList se uthao) */
+  const handleDraftEdit = (id: string) => {
+    const b = blogList.find(x => x._id === id);
+    if (b) { setEditingBlog(b); setShowBlogForm(true); }
+    else alert("Edit ke liye pehle Blogs tab refresh karo, phir try karo.");
+  };
+
+  const handleRewrite = async (id: string) => {
+    setRewritingId(id);
+    try {
+      const res = await fetch('/api/rewrite-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blogId: id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ News Rewritten Successfully by AI!");
+        fetchDrafts();
+      } else {
+        alert("❌ Rewrite failed: " + data.error);
+      }
+    } catch (error) {
+      alert("❌ Error rewriting news.");
+    }
+    setRewritingId(null);
+  };
+
+  const openImagePicker = async (id: string, title: string) => {
+    setIsPickerOpen(true);
+    setPickerBlogId(id);
+    setPickerTitle(title);
+    setImageOptions([]);
+    setSearchQuery("");
+    setLoadingImages(true);
+
+    const r = await getBlogImageOptions(id, title);
+    if (r?.success && r.options) setImageOptions(r.options);
+    else alert("Failed to fetch images: " + (r?.error || "Unknown error"));
+    setLoadingImages(false);
+  };
+
+  const handleManualSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setLoadingImages(true);
+    setImageOptions([]);
+
+    const r = await getBlogImageOptions(pickerBlogId, searchQuery);
+    if (r?.success && r.options) setImageOptions(r.options);
+    else alert("Failed to fetch images: " + (r?.error || "Unknown error"));
+    setLoadingImages(false);
+  };
+
+  const handleSelectImage = async (url: string) => {
+    setApplyingImage(true);
+    const r = await applyBlogImage(pickerBlogId, url);
+    if (r.success) {
+      alert("✅ Image updated successfully!");
+      setDrafts(prev => prev.map(b => b._id === pickerBlogId ? { ...b, imgUrl: r.url } : b));
+      setIsPickerOpen(false);
+    } else {
+      alert("❌ Error applying image: " + r.error);
+    }
+    setApplyingImage(false);
+  };
 
   if (!isLoggedIn) {
     return (
@@ -241,11 +429,13 @@ export default function AdminPanel() {
           <nav className="space-y-1">
             {[
               { id: "dashboard", label: "📊 Dashboard" },
+              { id: "autonews", label: "🤖 Auto News" },        // ✅ NAYA
+              { id: "drafts", label: "📰 AI Drafts" },           // ✅ NAYA
               { id: "blogs", label: "📝 Blogs" },
               { id: "categories", label: "📁 Categories" },
               { id: "subcategories", label: "📂 Sub-Categories" },
               { id: "sortorder", label: "⬆️ Sort Order" },
-              { id: "subscribers", label: "📧 Subscribers" }, // ✅ نیا ٹیب
+              { id: "subscribers", label: "📧 Subscribers" },
             ].map((item) => (
               <button key={item.id} onClick={() => { setTab(item.id); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${tab === item.id ? "bg-[#6D28D9] text-white shadow-md shadow-[#6D28D9]/20" : "text-gray-600 hover:bg-gray-100"}`}>{item.label}</button>
             ))}
@@ -275,19 +465,154 @@ export default function AdminPanel() {
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
               <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                 {[
-                  { label: "Total Blogs", value: blogList.length, color: "text-gray-900" },
-                  { label: "Published", value: totalPublished, color: "text-green-600" },
-                  { label: "Drafts", value: totalDrafts, color: "text-amber-600" },
-                  { label: "Featured", value: totalFeatured, color: "text-[#6D28D9]" },
-                  { label: "Categories", value: catList.length, color: "text-gray-900" },
-                  { label: "Total Views", value: totalViews, color: "text-gray-900" },
+                  { label: "Total Blogs", value: blogList.length, color: "text-gray-900", go: "blogs" },
+                  { label: "Published", value: totalPublished, color: "text-green-600", go: "blogs" },
+                  { label: "Drafts", value: totalDrafts, color: "text-amber-600", go: "drafts" },   // ✅ Drafts tab pe le jaye
+                  { label: "Featured", value: totalFeatured, color: "text-[#6D28D9]", go: "blogs" },
+                  { label: "Categories", value: catList.length, color: "text-gray-900", go: "categories" },
+                  { label: "Total Views", value: totalViews, color: "text-gray-900", go: "blogs" },
                 ].map((stat, i) => (
-                  <div key={i} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <button key={i} onClick={() => stat.go && setTab(stat.go)}
+                    className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#6D28D9]/30 transition-all text-left">
                     <p className="text-[11px] text-gray-400 uppercase tracking-wider font-medium mb-2">{stat.label}</p>
                     <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ========== 🤖 AUTO NEWS (NEW TAB) ========== */}
+          {tab === "autonews" && (
+            <div className="max-w-lg">
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">Auto News Generator 🤖</h1>
+              <p className="text-sm text-gray-400 mb-6">یہ سسٹم USA کی خبریں لے کر AI سے ری رائٹ اور تصویر بنا کر ڈرافٹ کرے گا۔</p>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center">
+                <div className="text-4xl mb-3">📰🇺🇸</div>
+                <button
+                  onClick={handleGenerateNews}
+                  disabled={newsLoading}
+                  className="w-full bg-[#6D28D9] text-white py-3 rounded-xl font-semibold hover:bg-[#5B21B6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {newsLoading ? "Processing..." : "🚀 Generate News Now"}
+                </button>
+
+                {newsLoading && (
+                  <div className="mt-4 flex justify-center">
+                    <div className="w-6 h-6 border-2 border-[#6D28D9] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+
+                {newsMessage && (
+                  <div className="mt-5 p-4 bg-gray-50 rounded-lg text-sm text-gray-700 border border-gray-100">
+                    {newsMessage}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => { setTab("drafts"); }}
+                  className="mt-5 text-xs font-semibold text-[#6D28D9] hover:underline"
+                >
+                  📰 Drafts dekhne ke liye yahan click karo →
+                </button>
+              </div>
+
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  💡 <strong>Note:</strong> Generate hone ke baad drafts <strong>"AI Drafts" tab</strong> me milenge — wahan review karke Publish ya Delete karo.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ========== 📰 AI DRAFTS (NEW TAB) ========== */}
+          {tab === "drafts" && (
+            <div className="max-w-4xl">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6 border-b pb-4">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900">
+                  AI Drafted News <span className="text-gray-400 font-normal ml-2 text-base">({drafts.length})</span>
+                </h1>
+                <div className="flex items-center gap-2">
+                  <button onClick={fetchDrafts} disabled={draftsLoading}
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 hover:border-[#6D28D9] hover:text-[#6D28D9] transition-all disabled:opacity-50">
+                    {draftsLoading ? "⏳ Loading..." : "🔄 Refresh"}
+                  </button>
+                  <button onClick={() => setTab("autonews")}
+                    className="px-3 py-2 bg-[#6D28D9] text-white rounded-lg text-xs font-semibold hover:bg-[#5B21B6] transition-all">
+                    🤖 Generate New
+                  </button>
+                </div>
+              </div>
+
+              {draftsLoading ? (
+                <div className="space-y-3">
+                  {[...Array(3)].map((_, i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-gray-100" />)}
+                </div>
+              ) : drafts.length === 0 ? (
+                <div className="bg-white p-10 rounded-xl text-center text-gray-500 border border-dashed">
+                  No drafts available. <button onClick={() => setTab("autonews")} className="text-[#6D28D9] font-semibold hover:underline">Auto News se generate karo</button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {drafts.map((blog) => (
+                    <div key={blog._id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-green-500 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+
+                      <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                        {blog.imgUrl ? (
+                          <div className="relative w-full md:w-32 h-32 overflow-hidden rounded-lg bg-gray-100">
+                            <Image src={blog.imgUrl} alt={blog.title} fill className="object-cover" sizes="128px" />
+                          </div>
+                        ) : (
+                          <div className="w-full md:w-32 h-32 flex-shrink-0 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs">No Image</div>
+                        )}
+                        <button
+                          onClick={() => openImagePicker(blog._id, blog.title)}
+                          className="text-[10px] text-blue-600 font-semibold hover:underline"
+                        >
+                          🔄 Replace
+                        </button>
+                      </div>
+
+                      <div className="flex-1 w-full">
+                        <div className="flex items-center gap-2 mb-1">
+                          {/* ✅ State ka naam (category title) */}
+                          <span className="text-[10px] uppercase tracking-widest text-red-600 font-bold">{blog.category || 'News'}</span>
+                          <span className="text-[9px] uppercase tracking-wider text-green-700 font-bold bg-green-100 px-2 py-0.5 rounded-full">🟢 Pending</span>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mt-1">{blog.title}</h3>
+
+                        <div className="flex flex-col gap-1 mt-2 text-xs text-gray-500">
+                          <p className="flex items-center gap-1">
+                            <span>🕒</span> {getTimeAgo(blog.date)}
+                          </p>
+                          {blog.newsTime && <span>⏰ Release Time: {blog.newsTime}</span>}
+                          {blog.sourceUrl && (
+                            <a href={blog.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline w-fit">
+                              🔗 Source: {blog.sourceName || 'View Original'} <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 flex-shrink-0 justify-end">
+                        <button
+                          onClick={() => handleRewrite(blog._id)}
+                          disabled={rewritingId === blog._id}
+                          className="px-4 py-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {rewritingId === blog._id ? "⏳..." : "🤖 Rewrite"}
+                        </button>
+                        <button onClick={() => handleDraftEdit(blog._id)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors">✏️ Edit</button>
+                        <button onClick={() => handleDraftDelete(blog._id)} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors">🗑️ Delete</button>
+                        <button onClick={() => handleDraftPublish(blog._id)} className="px-5 py-2 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors">✅ Publish</button>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -296,22 +621,17 @@ export default function AdminPanel() {
             <div>
               <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900">Blogs <span className="text-gray-400 font-normal ml-2 text-base">({blogList.length})</span></h1>
-                
+
                 <div className="flex flex-wrap items-center gap-3">
                   {selectedBlogs.length > 0 && (
-                    <button 
-                      onClick={handleBulkDelete}
-                      className="px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 shadow-sm transition-all flex items-center gap-2"
-                    >
+                    <button onClick={handleBulkDelete}
+                      className="px-4 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 shadow-sm transition-all flex items-center gap-2">
                       🗑️ Delete Selected ({selectedBlogs.length})
                     </button>
                   )}
 
-                  <select 
-                    value={sortOption} 
-                    onChange={(e) => setSortOption(e.target.value as 'newest' | 'oldest')}
-                    className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-[#6D28D9] cursor-pointer"
-                  >
+                  <select value={sortOption} onChange={(e) => setSortOption(e.target.value as 'newest' | 'oldest')}
+                    className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-[#6D28D9] cursor-pointer">
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
                   </select>
@@ -325,12 +645,7 @@ export default function AdminPanel() {
                   <thead className="border-b border-gray-100 text-gray-400 bg-gray-50/50">
                     <tr>
                       <th className="p-4 w-12">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedBlogs.length === sortedBlogs.length && sortedBlogs.length > 0}
-                          onChange={handleSelectAll}
-                          className="w-4 h-4 cursor-pointer accent-[#6D28D9]"
-                        />
+                        <input type="checkbox" checked={selectedBlogs.length === sortedBlogs.length && sortedBlogs.length > 0} onChange={handleSelectAll} className="w-4 h-4 cursor-pointer accent-[#6D28D9]" />
                       </th>
                       <th className="p-4 font-semibold">Title</th>
                       <th className="p-4 font-semibold">Status</th>
@@ -343,12 +658,7 @@ export default function AdminPanel() {
                     {sortedBlogs.map((blog) => (
                       <tr key={blog._id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${selectedBlogs.includes(blog._id) ? 'bg-[#6D28D9]/5' : ''}`}>
                         <td className="p-4">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedBlogs.includes(blog._id)}
-                            onChange={() => handleSelectBlog(blog._id)}
-                            className="w-4 h-4 cursor-pointer accent-[#6D28D9]"
-                          />
+                          <input type="checkbox" checked={selectedBlogs.includes(blog._id)} onChange={() => handleSelectBlog(blog._id)} className="w-4 h-4 cursor-pointer accent-[#6D28D9]" />
                         </td>
                         <td className="p-4 font-medium text-gray-900 max-w-[250px] truncate">{blog.title}</td>
                         <td className="p-4">
@@ -548,9 +858,9 @@ export default function AdminPanel() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-xl md:text-2xl font-bold text-gray-900">Email Subscribers <span className="text-gray-400 font-normal ml-2 text-base">({subscribers.length})</span></h1>
-                
+
                 {subscribers.length > 0 && (
-                  <button 
+                  <button
                     onClick={() => {
                       const csv = "Email,Subscribed At\n" + subscribers.map(s => `${s.email},${new Date(s.subscribedAt).toLocaleString()}`).join('\n');
                       const blob = new Blob([csv], { type: 'text/csv' });
@@ -578,9 +888,7 @@ export default function AdminPanel() {
                   </thead>
                   <tbody>
                     {subscribers.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="p-10 text-center text-gray-400 text-sm">No subscribers yet. Be patient!</td>
-                      </tr>
+                      <tr><td colSpan={3} className="p-10 text-center text-gray-400 text-sm">No subscribers yet. Be patient!</td></tr>
                     ) : (
                       subscribers.map((sub, i) => (
                         <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
@@ -600,13 +908,13 @@ export default function AdminPanel() {
       </div>
 
       {/* ===== BLOG FORM MODAL ===== */}
-      <BlogForm 
-        showForm={showBlogForm} 
-        onClose={() => setShowBlogForm(false)} 
-        initialData={editingBlog} 
-        catList={catList} 
-        subCatList={subCatList} 
-        onSaved={fetchData} 
+      <BlogForm
+        showForm={showBlogForm}
+        onClose={() => setShowBlogForm(false)}
+        initialData={editingBlog}
+        catList={catList}
+        subCatList={subCatList}
+        onSaved={() => { fetchData(); fetchDrafts(); }}
       />
 
       {/* ===== CATEGORY MODAL ===== */}
@@ -666,6 +974,64 @@ export default function AdminPanel() {
               <button onClick={() => { setShowSubCatForm(false); setEditingSubCatId(null); }} className="flex-1 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-200 transition-all font-medium">Cancel</button>
               <button onClick={handleSaveSubCategory} className="flex-1 py-3 bg-[#6D28D9] text-white rounded-xl text-sm font-medium hover:bg-[#5B21B6] transition-all">{editingSubCatId ? "Update" : "Add"}</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 📰 DRAFTS IMAGE PICKER MODAL ===== */}
+      {isPickerOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto relative">
+            <button onClick={() => setIsPickerOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900">
+              <X className="w-6 h-6" />
+            </button>
+            <h2 className="text-xl font-bold mb-1">Select Image for: <span className="text-blue-600">{pickerTitle.substring(0, 30)}...</span></h2>
+            <p className="text-xs text-gray-500 mb-4">If images are not relevant, search manually below:</p>
+
+            <div className="flex gap-2 mb-6 bg-gray-50 p-2 rounded-lg border">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
+                placeholder="e.g. Technology, Sports, Politics..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500"
+              />
+              <button onClick={handleManualSearch} className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1 hover:bg-blue-700">
+                <Search className="w-4 h-4" /> Search
+              </button>
+            </div>
+
+            {loadingImages && <p className="text-gray-500 text-center py-10 animate-pulse">Fetching best images from Pexels, Unsplash & AI...</p>}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {imageOptions.map((opt, idx) => (
+                <div key={idx} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer group" onClick={() => !applyingImage && handleSelectImage(opt.url)}>
+                  <div className="relative aspect-video bg-gray-100 flex items-center justify-center">
+                    <img
+                      src={opt.url}
+                      alt={opt.source}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform absolute inset-0"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                    <div className="hidden w-full h-full items-center justify-center text-gray-400 text-xs p-4 text-center absolute inset-0 bg-gray-100">
+                      Image blocked or API limit reached.
+                    </div>
+                  </div>
+                  <div className="p-3 bg-white text-center">
+                    <span className="text-xs font-bold text-gray-700">{opt.source}</span>
+                    {opt.source.includes('AI') && <span className="block text-[10px] text-gray-400">(Loading may take 15s)</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {applyingImage && <p className="text-green-600 text-center mt-4 font-semibold animate-pulse">Applying image to Sanity...</p>}
           </div>
         </div>
       )}

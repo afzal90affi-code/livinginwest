@@ -58,6 +58,28 @@ const blog = {
       title: 'Image Orientations',
       type: 'object',
       options: { collapsible: true }
+    },
+
+    // ✅ NEW: Image Alt Texts (SEO) — har image ka alt text, part key se
+    // Format: { "1": "Austin skyline at sunset", "2": "..." }
+    {
+      name: 'imgAlts',
+      title: 'Image Alt Texts (SEO)',
+      type: 'object',
+      description: 'Alt text per image part — Bing/Google image SEO ke liye zaroori',
+      options: { collapsible: true },
+      hidden: true
+    },
+
+    // ✅ NEW: Image Dimensions (CLS fix) — har image ki width/height
+    // Format: { "1": { "w": 1920, "h": 1080 }, "2": { "w": 800, "h": 600 } }
+    {
+      name: 'imgDims',
+      title: 'Image Dimensions (Layout Shift Fix)',
+      type: 'object',
+      description: 'Width/height per image part — browser ko pehle se size pata rehta hai, content jump nahi karta',
+      options: { collapsible: true },
+      hidden: true
     }
   ],
 };

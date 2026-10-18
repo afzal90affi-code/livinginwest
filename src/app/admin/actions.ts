@@ -50,12 +50,12 @@ export async function uploadImage(formData: FormData) {
     const fileObj = file as File;
     const arrayBuffer = await fileObj.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
+
     const asset = await writeClient.assets.upload('image', buffer, {
       filename: fileObj.name,
       contentType: fileObj.type || 'image/jpeg',
     });
-    
+
     return { success: true, url: asset.url, assetId: asset._id };
   } catch (error: any) {
     console.error('Upload error:', error);
@@ -92,7 +92,18 @@ export async function getBlogs() {
       "subCategory": coalesce(subCategory->slug.current, subCategory),
       "contents": [content1, content2, content3, content4, content5, content6, content7, content8, content9, content10],
       "imgUrls": [coalesce(img1.asset->url, img1), coalesce(img2.asset->url, img2), coalesce(img3.asset->url, img3), coalesce(img4.asset->url, img4), coalesce(img5.asset->url, img5), coalesce(img6.asset->url, img6), coalesce(img7.asset->url, img7), coalesce(img8.asset->url, img8), coalesce(img9.asset->url, img9), coalesce(img10.asset->url, img10)],
-      "img1Url": coalesce(img1.asset->url, img1)
+      "img1Url": coalesce(img1.asset->url, img1),
+      "slug": coalesce(slug.current, slug),
+      // ✅ NEW: SEO fields — alt text, dimensions, orientations (form load ke liye)
+      "imgAlts": coalesce(imgAlts, {}),
+      "imgDims": coalesce(imgDims, {}),
+      "imgOrientations": coalesce(imgOrientations, {}),
+      "metaTitle": coalesce(metaTitle, ""),
+      "metaDesc": coalesce(metaDesc, ""),
+      "keywords": coalesce(keywords, ""),
+      "writerName": coalesce(writerName, ""),
+      "writerSocial": coalesce(writerSocial, ""),
+      "heroVideoUrl": coalesce(heroVideoUrl, "")
     }`);
   } catch (error) { console.error(error); return []; }
 }
@@ -189,6 +200,31 @@ export async function deleteSubcategory(id: string) {
 // ======== BLOG CRUD ========
 export async function saveBlog(data: any, editingId?: string) {
   try {
+    // ✅ NEW: imgAlts cleanup — sirf valid (non-empty) alt entries rakho
+    if (data.imgAlts !== undefined) {
+      const cleanAlts: Record<string, string> = {};
+      if (data.imgAlts && typeof data.imgAlts === 'object') {
+        Object.entries(data.imgAlts).forEach(([k, v]) => {
+          if (typeof v === 'string' && v.trim()) cleanAlts[k] = v.trim();
+        });
+      }
+      data.imgAlts = cleanAlts;
+    }
+
+    // ✅ NEW: imgDims cleanup — sirf valid {w, h} numbers rakho
+    if (data.imgDims !== undefined) {
+      const cleanDims: Record<string, { w: number; h: number }> = {};
+      if (data.imgDims && typeof data.imgDims === 'object') {
+        Object.entries(data.imgDims).forEach(([k, v]) => {
+          const d = v as any;
+          if (d && typeof d.w === 'number' && typeof d.h === 'number' && d.w > 0 && d.h > 0) {
+            cleanDims[k] = { w: Math.round(d.w), h: Math.round(d.h) };
+          }
+        });
+      }
+      data.imgDims = cleanDims;
+    }
+
     if (editingId) {
       const unsetKeys = [];
       for (let i = 1; i <= 10; i++) {
@@ -199,11 +235,11 @@ export async function saveBlog(data: any, editingId?: string) {
       }
 
       const patchRequest = writeClient.patch(editingId).set(data);
-      
+
       if (unsetKeys.length > 0) {
         patchRequest.unset(unsetKeys);
       }
-      
+
       await patchRequest.commit();
 
     } else {
@@ -237,7 +273,6 @@ export async function publishDraft(blogId: string) {
 
 // ======== IMAGE REPLACEMENT FUNCTIONS (Drafts Page) ========
 
-// TypeScript Types define karne se sab errors khatam ho jayenge
 interface ImageOption {
   source: string;
   url: string;
@@ -320,10 +355,10 @@ export async function applyBlogImage(blogId: string, imageUrl: string): Promise<
   try {
     const imageRes = await fetch(imageUrl);
     if (!imageRes.ok) throw new Error('Failed to fetch selected image');
-    
+
     const arrayBuffer = await imageRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
+
     const asset = await writeClient.assets.upload('image', buffer, {
       filename: `blog-${blogId}.jpg`,
       contentType: imageRes.headers.get('content-type') || 'image/jpeg'
@@ -341,6 +376,7 @@ export async function applyBlogImage(blogId: string, imageUrl: string): Promise<
     return { success: false, error: error.message };
   }
 }
+
 // ✅ سبسکرائبرز کی لسٹ لانے کا فنکشن
 export async function getSubscribers() {
   try {
