@@ -1,133 +1,94 @@
-// components/Footer.tsx
-import Link from 'next/link';
-import Image from 'next/image'; // ✅ Image component import kiya
+import type { Metadata } from "next";
+import Link from "next/link";
 
-// 🛠️ Custom SVG Icons for Social Media
-const InstagramIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-  </svg>
-);
+export const metadata: Metadata = {
+  title: "Disclaimer | Living In West",
+  description: "Disclaimer for Living In West — information accuracy, external links, aur content liability.",
+};
 
-const FacebookIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-  </svg>
-);
-
-const TwitterIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
-  </svg>
-);
-
-const YoutubeIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
-  </svg>
-);
-
-export default function Footer() {
+export default function DisclaimerPage() {
   return (
-    <footer className="bg-[#0A0A0A] text-white mt-20">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
-          
-          {/* Column 1: Brand */}
-          <div className="md:col-span-1">
-            {/* ✅ Logo Image aur Text dono add kiye */}
-            <Link href="/" className="flex items-center gap-3 mb-4">
-              <Image 
-                src="/livinginwest-logo.png" 
-                alt="Living In West Logo" 
-                width={180} 
-                height={96} 
-                className="h-20 w-auto object-contain"
-              />
-            </Link>
-            <p className="text-gray-500 text-sm leading-relaxed">Premium stories and lifestyle updates from around the globe.</p>
-          </div>
-
-          {/* Column 2: Quick Links */}
-          <div>
-            <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold mb-4">Navigation</h3>
-            <ul className="space-y-3">
-              <li><Link href="/" className="text-sm text-gray-300 hover:text-white transition-colors">Home</Link></li>
-              <li><Link href="/categories" className="text-sm text-gray-300 hover:text-white transition-colors">Categories</Link></li>
-            </ul>
-          </div>
-
-          {/* Column 3: Legal */}
-          {/* Column 3: Legal */}
-          <div>
-            <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold mb-4">Legal</h3>
-            <ul className="space-y-3">
-            <li><Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">About Us</Link></li>
-            <li><Link href="/contact-us" className="text-sm text-gray-300 hover:text-white transition-colors">Contact Us</Link></li>
-           <li><Link href="/privacy-policy" className="text-sm text-gray-300 hover:text-white transition-colors">Privacy Policy</Link></li>
-            <li><Link href="/disclaimer" className="text-sm text-gray-300 hover:text-white transition-colors">Disclaimer</Link></li>
-           </ul>
-          </div>
-          {/* Column 4: Socials */}
-          <div>
-            <h3 className="text-xs uppercase tracking-[0.2em] text-gray-400 font-bold mb-4">Follow Us</h3>
-            <div className="flex items-center gap-3">
-              {/* Instagram Link */}
-              <a 
-                href="https://instagram.com/living.in.west" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                aria-label="Instagram"
-                className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
-              >
-                <InstagramIcon className="w-4 h-4 text-gray-400" />
-              </a>
-              
-              {/* Facebook Link */}
-              <a 
-                href="https://www.facebook.com/livinginwest?mibextid=ZbWKwL" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                aria-label="Facebook"
-                className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
-              >
-                <FacebookIcon className="w-4 h-4 text-gray-400" />
-              </a>
-
-              {/* Twitter Link */}
-              <a 
-                href="https://twitter.com/livinginwest" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                aria-label="Twitter"
-                className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
-              >
-                <TwitterIcon className="w-4 h-4 text-gray-400" />
-              </a>
-
-              {/* YouTube Link */}
-              <a 
-                href="https://youtube.com/@livinginwest" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                aria-label="YouTube"
-                className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
-              >
-                <YoutubeIcon className="w-4 h-4 text-gray-400" />
-              </a>
-            </div>
-          </div>
-
-        </div>
-
-        <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="text-xs text-gray-600">© 2025 LivingInWest. All rights reserved.</span>
-          <span className="text-[10px] text-gray-700 uppercase tracking-widest">Designed with Next.js</span>
+    <main className="min-h-screen bg-white dark:bg-[#0A0A0A]">
+      {/* Header */}
+      <div className="border-b border-gray-100 dark:border-gray-800">
+        <div className="max-w-3xl mx-auto px-4 py-10 md:py-14 text-center">
+          <p className="text-[11px] font-black uppercase tracking-[0.35em] text-[#6D28D9]">
+            Living In West
+          </p>
+          <h1 className="mt-2 text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+            Disclaimer
+          </h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Last updated: {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+          </p>
         </div>
       </div>
-    </footer>
+
+      <div className="max-w-3xl mx-auto px-4 py-10 space-y-8">
+        {/* General Information */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">General Information</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-7">
+            The information provided on Living In West (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) is for general
+            informational and educational purposes only. All information on this site is provided in good
+            faith; however, we make no representation or warranty of any kind, express or implied, regarding
+            the accuracy, adequacy, validity, reliability, availability or completeness of any information.
+          </p>
+        </section>
+
+        {/* Not Professional Advice */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Not Professional Advice</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-7">
+            Content on this website — including articles about travel, visas, housing, finance and lifestyle
+            — is not professional, legal, immigration, or financial advice. Before making decisions based on
+            any information from this site, you should consult a qualified professional. Your use of this
+            site does not create any advisor-client relationship.
+          </p>
+        </section>
+
+        {/* External Links */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">External Links</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-7">
+            This site may contain links to other websites or content belonging to third parties. Such links
+            are not investigated, monitored, or checked for accuracy by us. We do not warrant, endorse, or
+            assume any liability for the accuracy or completeness of any information on third-party websites.
+          </p>
+        </section>
+
+        {/* Errors and Omissions */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Errors and Omissions</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-7">
+            While we strive to keep information up to date and correct, laws, regulations, prices and
+            procedures change frequently. Living In West is not responsible for any errors or omissions, or
+            for the results obtained from the use of this information. Content may change without notice.
+          </p>
+        </section>
+
+        {/* Copyright notice for images */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Images & Media</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-7">
+            Some images used on this site may be sourced from third-party providers or used under license
+            for editorial purposes. If you believe any image or content infringes your rights, please
+            contact us and we will review and remove it promptly.
+          </p>
+        </section>
+
+        {/* Contact */}
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Contact</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 leading-7">
+            If you have any questions about this Disclaimer, please reach out via our{" "}
+            <Link href="/contact-us" className="text-[#6D28D9] hover:underline font-semibold">
+              Contact page
+            </Link>
+            .
+          </p>
+        </section>
+      </div>
+    </main>
   );
 }
