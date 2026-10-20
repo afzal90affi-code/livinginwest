@@ -311,8 +311,8 @@ export default function AboutUs() {
                   <Image
                     src="/afzal.jpeg"
                     alt="Muhammad Afzal — Founder and Writer of Living In West"
-                    width={300}
-                    height={400}
+                    width={640}
+                    height={640}
                     className="aspect-square w-full object-cover"
                   />
 

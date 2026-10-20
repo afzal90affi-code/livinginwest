@@ -28,6 +28,9 @@ interface BlogData {
 export const metadata = {
   title: "Living In West - Premium Lifestyle & News",
   description: "Explore the latest in lifestyle, travel, food, automotive, and world news.",
+  alternates: {
+    canonical: "/", // 👈 SEO: homepage ka canonical URL
+  },
 };
 
 // 👇 FIXED: "slug": slug.current se object ki jagah direct string aayega
@@ -39,8 +42,9 @@ const CATEGORIES_QUERY = `*[_type == "category"] | order(_createdAt asc) {
   image
 }`;
 
-// 👇 FIXED: "slug": slug.current se object ki jagah direct string aayega
-const BLOGS_QUERY = `*[_type == "blog"] | order(_createdAt desc) [0...20] {
+// ✅ FIXED: [0...20] se [0...100] — ab saari posts (65) fetch hongi,
+// isliye FINANCE jaisi categories me saare posts homepage par dikhenge
+const BLOGS_QUERY = `*[_type == "blog"] | order(_createdAt desc) [0...100] {
   _id, 
   title, 
   "slug": slug.current, 

@@ -1,9 +1,8 @@
-
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check, CloudSun, TrendingUp } from 'lucide-react'; // ✅ TrendingUp add kiya
+import { Search, Menu, X, ChevronLeft, ChevronRight, Globe, Check, CloudSun, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
 
@@ -15,10 +14,14 @@ export default function Navbar({ categories }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const router = useRouter();
-  const trackRef = useRef<HTMLDivElement>(null);
+
+  // ✅ FIXED: pehle EK hi trackRef do jagah attach ho raha tha (desktop + mobile) —
+  // jis se arrows galat element control karte the. Ab dono ke alag refs + alag states hain
+  const desktopTrackRef = useRef<HTMLDivElement>(null);
+  const mobileTrackRef = useRef<HTMLDivElement>(null);
+  const [deskScroll, setDeskScroll] = useState({ left: false, right: false });
+  const [mobScroll, setMobScroll] = useState({ left: false, right: false });
 
   // 🌍 Language State & Config
   const [langOpen, setLangOpen] = useState(false);
@@ -44,7 +47,18 @@ export default function Navbar({ categories }: NavbarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // ✅ NEW: reload ke baad selected language cookie se restore hoti hai
+  useEffect(() => {
+    const m = document.cookie.match(/googtrans=\/en\/([^;]+)/);
+    if (m) {
+      const found = languages.find((l) => l.code === m[1]);
+      if (found) setSelectedLang(found.label);
+    }
+  }, []);
+
+  // ✅ NEW: "All News" link — /news (blog listing) ab navbar se bhi reachable hai
   const utilityLinks = [
+    { name: "All News", href: "/news" },
     { name: "All Categories", href: "/categories" },
     { name: "About Us", href: "/about-us" },
     { name: "Contact", href: "/contact-us" },
@@ -61,32 +75,44 @@ export default function Navbar({ categories }: NavbarProps) {
     }
   };
 
-  const updateScrollState = () => {
-    if (!trackRef.current) return;
-    const { scrollLeft, scrollWidth, clientWidth } = trackRef.current;
-    setCanScrollLeft(scrollLeft > 5);
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 5);
+  // ✅ FIXED: measure + scroll ab kisi bhi track par kaam karte hain (alag-alag refs)
+  const measure = (el: HTMLDivElement | null, set: (s: { left: boolean; right: boolean }) => void) => {
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    set({ left: scrollLeft > 5, right: scrollLeft + clientWidth < scrollWidth - 5 });
+  };
+
+  const scrollBy = (el: HTMLDivElement | null, dir: 'left' | 'right') => {
+    if (!el) return;
+    const { scrollLeft, clientWidth } = el;
+    const itemWidth = el.firstElementChild?.clientWidth || 140;
+    const showCount = Math.floor(clientWidth / itemWidth);
+    const newPos = dir === 'left'
+      ? Math.max(0, scrollLeft - itemWidth * showCount)
+      : scrollLeft + itemWidth * showCount;
+    el.scrollTo({ left: newPos, behavior: 'smooth' });
   };
 
   useEffect(() => {
-    updateScrollState();
-    const el = trackRef.current;
-    if (el) {
-      el.addEventListener('scroll', updateScrollState, { passive: true });
-      return () => el.removeEventListener('scroll', updateScrollState);
-    }
-  }, [categories]);
+    measure(desktopTrackRef.current, setDeskScroll);
+    measure(mobileTrackRef.current, setMobScroll);
 
-  const scroll = (dir: 'left' | 'right') => {
-    if (!trackRef.current) return;
-    const current = trackRef.current.scrollLeft;
-    const itemWidth = trackRef.current.firstElementChild?.clientWidth || 140;
-    const showCount = Math.floor(trackRef.current.clientWidth / itemWidth);
-    const newPos = dir === 'left'
-      ? Math.max(0, current - itemWidth * showCount)
-      : current + itemWidth * showCount;
-    trackRef.current.scrollTo({ left: newPos, behavior: 'smooth' });
-  };
+    const d = desktopTrackRef.current;
+    const m = mobileTrackRef.current;
+    const onD = () => measure(desktopTrackRef.current, setDeskScroll);
+    const onM = () => measure(mobileTrackRef.current, setMobScroll);
+
+    d?.addEventListener('scroll', onD, { passive: true });
+    m?.addEventListener('scroll', onM, { passive: true });
+    // ✅ NEW: window resize par desktop arrows update hote hain
+    window.addEventListener('resize', onD);
+
+    return () => {
+      d?.removeEventListener('scroll', onD);
+      m?.removeEventListener('scroll', onM);
+      window.removeEventListener('resize', onD);
+    };
+  }, [categories, mobileOpen]); // ✅ mobileOpen: menu khulne par mobile track measure ho
 
   const handleLanguageChange = (code: string, label: string) => {
     setSelectedLang(label);
@@ -103,7 +129,7 @@ export default function Navbar({ categories }: NavbarProps) {
       {/* LINE 1: Logo & Search */}
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between border-b border-gray-100 dark:border-gray-700">
         
-        <button onClick={() => { setMobileOpen(!mobileOpen); setMobileSearchOpen(false); }} className="lg:hidden text-gray-900 dark:text-white">
+        <button onClick={() => { setMobileOpen(!mobileOpen); setMobileSearchOpen(false); }} className="lg:hidden text-gray-900 dark:text-white" aria-label="Menu">
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
@@ -123,6 +149,14 @@ export default function Navbar({ categories }: NavbarProps) {
         </Link>
 
         <div className="flex items-center gap-4">
+          {/* ✅ NEW: Weather + Markets ab desktop par bhi accessible hain (pehle sirf mobile me the) */}
+          <Link href="/weather" aria-label="Weather & Forecast" title="Weather & Forecast" className="hidden md:flex text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <CloudSun className="w-4 h-4" />
+          </Link>
+          <Link href="/trading-finance" aria-label="Live Markets" title="Live Markets" className="hidden md:flex text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <TrendingUp className="w-4 h-4" />
+          </Link>
+
           <form onSubmit={handleSearch} className="hidden md:flex items-center">
             <div className="relative flex items-center">
               <input 
@@ -170,7 +204,7 @@ export default function Navbar({ categories }: NavbarProps) {
 
           <ThemeToggle />
 
-          <button onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setMobileOpen(false); }} className="md:hidden text-gray-900 dark:text-white">
+          <button onClick={() => { setMobileSearchOpen(!mobileSearchOpen); setMobileOpen(false); }} className="md:hidden text-gray-900 dark:text-white" aria-label="Search">
             <Search className="w-5 h-5" />
           </button>
         </div>
@@ -202,14 +236,15 @@ export default function Navbar({ categories }: NavbarProps) {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center h-10">
             <button
-              onClick={() => scroll('left')}
-              className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all mr-2 ${!canScrollLeft ? 'opacity-0 pointer-events-none' : ''}`}
+              onClick={() => scrollBy(desktopTrackRef.current, 'left')}
+              className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all mr-2 ${!deskScroll.left ? 'opacity-0 pointer-events-none' : ''}`}
+              aria-label="Scroll categories left"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
 
             <div
-              ref={trackRef}
+              ref={desktopTrackRef}
               className="flex-1 flex items-center overflow-x-auto"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
@@ -225,8 +260,9 @@ export default function Navbar({ categories }: NavbarProps) {
             </div>
 
             <button
-              onClick={() => scroll('right')}
-              className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all ml-2 ${!canScrollRight ? 'opacity-0 pointer-events-none' : ''}`}
+              onClick={() => scrollBy(desktopTrackRef.current, 'right')}
+              className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white transition-all ml-2 ${!deskScroll.right ? 'opacity-0 pointer-events-none' : ''}`}
+              aria-label="Scroll categories right"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -255,14 +291,16 @@ export default function Navbar({ categories }: NavbarProps) {
               <p className="text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 font-bold">Categories</p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => scroll('left')}
-                  className={`w-6 h-6 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 ${!canScrollLeft ? 'opacity-0 pointer-events-none' : ''}`}
+                  onClick={() => scrollBy(mobileTrackRef.current, 'left')}
+                  className={`w-6 h-6 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 ${!mobScroll.left ? 'opacity-0 pointer-events-none' : ''}`}
+                  aria-label="Scroll categories left"
                 >
                   <ChevronLeft className="w-3 h-3" />
                 </button>
                 <button
-                  onClick={() => scroll('right')}
-                  className={`w-6 h-6 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 ${!canScrollRight ? 'opacity-0 pointer-events-none' : ''}`}
+                  onClick={() => scrollBy(mobileTrackRef.current, 'right')}
+                  className={`w-6 h-6 flex items-center justify-center rounded-sm border border-gray-200 dark:border-gray-700 text-gray-400 ${!mobScroll.right ? 'opacity-0 pointer-events-none' : ''}`}
+                  aria-label="Scroll categories right"
                 >
                   <ChevronRight className="w-3 h-3" />
                 </button>
@@ -270,7 +308,7 @@ export default function Navbar({ categories }: NavbarProps) {
             </div>
 
             <div
-              ref={trackRef} 
+              ref={mobileTrackRef} 
               className="flex gap-3 overflow-x-auto px-6 pb-2"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
@@ -309,7 +347,6 @@ export default function Navbar({ categories }: NavbarProps) {
                 Check Weather & Forecast
               </Link>
 
-              {/* ✅ MARKETS BUTTON ADD KIYA HAI */}
               <Link 
                 href="/trading-finance" 
                 onClick={() => setMobileOpen(false)}

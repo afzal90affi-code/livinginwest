@@ -32,9 +32,9 @@ interface BlogData {
   img9Url?: string;
   img10Url?: string;
   imgOrientations?: Record<string, string>;
-  imgAlts?: Record<string, string>;                      // ✅ NEW
-  imgDims?: Record<string, { w: number; h: number }>;    // ✅ NEW
-  _updatedAt?: string;                                    // ✅ NEW (schema freshness)
+  imgAlts?: Record<string, string>;
+  imgDims?: Record<string, { w: number; h: number }>;
+  _updatedAt?: string;
   isPublished?: boolean;
   content1?: string;
   content2?: string;
@@ -76,8 +76,6 @@ const cleanQuillHtml = (html: string): string => {
   );
 
   // ✅ CONTENT IMAGES: lazy + explicit dimensions (CLS fix)
-  // Sanity images ko 16:9 (800x450) par force crop karte hain — isliye
-  // browser ko exact size pehle se pata hai, content jump nahi karta.
   normalizedHtml = normalizedHtml.replace(/<img/gi, '<img loading="lazy" decoding="async"');
 
   normalizedHtml = normalizedHtml.replace(/src="(https:\/\/cdn\.sanity\.io\/[^"]+?)\?[^"]*"/g, (match, url) => {
@@ -87,17 +85,13 @@ const cleanQuillHtml = (html: string): string => {
     return `src="${url}?w=800&h=450&fit=crop&auto=format&q=70"`;
   });
 
-  // ✅ Jo images ke paas style nahi hai unhe responsive style do (squash na ho)
   normalizedHtml = normalizedHtml.replace(/<img(?![^>]*\sstyle=)/gi, '<img style="max-width:100%; height:auto;"');
-  // ✅ Explicit dimensions attributes — browser pehle se space reserve karta hai
   normalizedHtml = normalizedHtml.replace(/<img(?![^>]*\swidth=)/gi, '<img width="800"');
   normalizedHtml = normalizedHtml.replace(/<img(?![^>]*\sheight=)/gi, '<img height="450"');
 
-  // ✅ FIXED: Table wrapper ab double-wrap nahi karta (admin content already wrapped hota hai)
   normalizedHtml = normalizedHtml.replace(/(<div class="table-wrapper">\s*)?<table/gi, '<div class="table-wrapper"><table');
   normalizedHtml = normalizedHtml.replace(/<\/table>(\s*<\/div>)?/gi, '</table></div>');
 
-  // ✅ FIXED: 'height' ab allowed styles mein hai (warna width/height attrs se images squash hoti)
   return normalizedHtml.replace(/(<img[^>]*?)style="([^"]*)"/gi, (match, start, style) => {
     const allowedStyles = style
       .split(';')
@@ -116,6 +110,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     "slug": slug.current
   }`;
   
+  // ✅ FIXED: revalidate add kiya (page ke saath consistent caching)
   const blog: { 
     title?: string; 
     desc?: string; 
@@ -125,7 +120,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     date?: string;
     mainImageUrl?: string; 
     slug?: string 
-  } | null = await client.fetch(query, { slug: params.slug });
+  } | null = await client.fetch(query, { slug: params.slug }, { next: { revalidate: 60 } });
 
   if (!blog) {
     return {
@@ -187,17 +182,31 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     notFound();
   }
 
-  const catBlogsQuery = `*[_type == "blog" && coalesce(category->slug.current, category) == $cat && slug.current != $slug && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
+  // ✅ NEW: Category name map — UI me raw slug ("finance") ki jagah asli naam ("FINANCE") dikhega
+  const catsRaw: Array<{ slug: string; name: string }> = await client.fetch(
+    `*[_type == "category"] { "slug": slug.current, name }`,
+    {},
+    { next: { revalidate: 3600 } }
+  );
+  const catNameMap: Record<string, string> = {};
+  catsRaw.forEach((c) => { if (c.slug) catNameMap[c.slug] = c.name; });
+  const catLabel = (slug?: string | null) => (slug ? (catNameMap[slug] || slug) : "");
+
+  // ✅ ORDERING FIX: sirf 4 posts me sortOrder hai (61 me nahi) — pehle order random tha.
+  // Ab: curated posts (sortOrder) pehle, baqi newest-first (date desc)
+  const catBlogsQuery = `*[_type == "blog" && coalesce(category->slug.current, category) == $cat && slug.current != $slug && isPublished != false] | order(coalesce(sortOrder, 9999) asc, coalesce(date, "1970-01-01") desc) [0...5] {
     _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url, writerName, writerSocial
   }`;
   const catBlogs: BlogData[] = await client.fetch(catBlogsQuery, { cat: blog.category, slug: params.slug }, { next: { revalidate: 60 } });
 
-  const recBlogsQuery = `*[_type == "blog" && slug.current != $slug && coalesce(category->slug.current, category) != $cat && isPublished != false] | order(coalesce(sortOrder, 0) asc) [0...5] {
+  const recBlogsQuery = `*[_type == "blog" && slug.current != $slug && coalesce(category->slug.current, category) != $cat && isPublished != false] | order(coalesce(sortOrder, 9999) asc, coalesce(date, "1970-01-01") desc) [0...5] {
     _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url, writerName, writerSocial
   }`;
   const recBlogs: BlogData[] = await client.fetch(recBlogsQuery, { cat: blog.category, slug: params.slug }, { next: { revalidate: 60 } });
 
-  const moreBlogsQuery = `*[_type == "blog" && slug.current != $slug && isPublished != false] | order(date desc) [0...20] {
+  // ✅ NULL-DATE FIX: coalesce(date, "1970-01-01") — date khali post (Why So Many People Feel Lonely)
+  // ab ghalat top pe nahi aayegi, sab se neeche sort hogi
+  const moreBlogsQuery = `*[_type == "blog" && slug.current != $slug && isPublished != false] | order(coalesce(date, "1970-01-01") desc) [0...20] {
     _id, title, "slug": slug.current, category, subCategory, desc, date, "mainImageUrl": img1.asset->url, writerName, writerSocial
   }`;
   const fetchedMoreBlogs: BlogData[] = await client.fetch(moreBlogsQuery, { slug: params.slug }, { next: { revalidate: 60 } });
@@ -266,7 +275,10 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
   };
 
   const SwipeCard = ({ b, widthClass }: { b: BlogData, widthClass: string }) => {
-    const categoryText = b.category && b.subCategory ? `${b.category} - ${b.subCategory}` : b.subCategory || b.category;
+    // ✅ FIXED: raw slug ("usa-states - cost-of-living") ki jagah proper category names
+    const catA = catLabel(b.category);
+    const catB = b.subCategory || "";
+    const categoryText = catA && catB ? `${catA} - ${catB}` : catB || catA;
     return (
       <div className={`${widthClass} snap-start flex flex-col`}>
         <Link href={`/blog/${b.slug}`} className="group block">
@@ -278,7 +290,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
           <p className="text-[9px] uppercase tracking-[0.2em] text-[#1e3a8a] dark:text-blue-400 font-bold mb-1">{categoryText}</p>
           <h4 className="text-[15px] leading-[1.3] font-playfair font-bold text-gray-900 dark:text-gray-100 group-hover:text-[#1e3a8a] dark:group-hover:text-blue-400 transition-colors line-clamp-2">{b.title}</h4>
-          {b.date && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>}
+          {/* ✅ FIXED: timeZone UTC — deterministic date render */}
+          {b.date && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">{new Date(b.date).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</p>}
         </Link>
         <div className="flex items-center justify-between mt-2 border-t border-gray-100 dark:border-gray-800 pt-2">
           <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest">Share</span>
@@ -309,6 +322,9 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
     "datePublished": blog.date,
     // ✅ FIXED: dateModified ab real updated date hai (freshness signal for Bing/Google)
     "dateModified": blog._updatedAt || blog.date,
+    // ✅ NEW: articleSection + inLanguage (rich results ke liye)
+    "articleSection": blog.category,
+    "inLanguage": "en",
     "mainEntityOfPage": {
       "@type": "WebPage",
       "@id": `https://livinginwest.com/blog/${blog.slug}`
@@ -341,14 +357,16 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
           <div className="border-b border-gray-100 dark:border-gray-800">
             <div className="max-w-[680px] mx-auto py-4 flex items-center justify-between">
+              {/* ✅ FIXED: category ka asli naam dikhega (raw slug nahi) */}
               <Link href={`/category/${blog.category}`} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-gray-400 dark:text-gray-500 hover:text-[#1e3a8a] dark:hover:text-blue-400 transition-colors">
                 <ArrowLeft className="w-3 h-3" />
-                {blog.category}
+                {catLabel(blog.category) || blog.category}
               </Link>
+              {/* ✅ FIXED: timeZone UTC — deterministic date render */}
               {blog.date && (
                 <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-gray-300 dark:text-gray-600">
                   <Calendar className="w-3 h-3" />
-                  {new Date(blog.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  {new Date(blog.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}
                 </span>
               )}
             </div>
@@ -356,7 +374,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
           <div className="max-w-[680px] mx-auto pt-10 md:pt-14 text-center">
             <span className="inline-block text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] dark:text-blue-400 font-semibold mb-5">
-              {blog.subCategory || blog.category}
+              {blog.subCategory || catLabel(blog.category)}
             </span>
             <h1 className="text-[30px] md:text-[46px] leading-[1.08] font-playfair font-bold tracking-[-0.025em] text-gray-900 dark:text-gray-100 mb-5 break-words">
               {blog.title}
@@ -388,7 +406,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
               <div className={`relative overflow-hidden bg-gray-50 dark:bg-gray-900 ${isVertical('1') ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
                 <Image 
                   src={blog.mainImageUrl} 
-                  // ✅ FIXED: alt ab admin se set kiya hua imgAlts['1'] use karta hai
                   alt={getImgAlt('1')} 
                   fill 
                   className="object-cover" 
@@ -417,8 +434,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                     <div className={`relative overflow-hidden bg-gray-50 dark:bg-gray-900 ${isVertical(String(section.imageKey)) ? 'aspect-[4/5]' : 'aspect-[3/2]'}`}>
                       <Image 
                         src={section.imageUrl} 
-                        // ✅ FIXED: alt="" (empty — Bing wali 9 instances error YAHI thi) 
-                        // ab admin ke imgAlts se aata hai, fallback post title
                         alt={getImgAlt(String(section.imageKey))} 
                         fill 
                         className="object-cover" 
@@ -511,7 +526,7 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                   <div>
                     <span className="text-[10px] uppercase tracking-[0.3em] text-[#1e3a8a] dark:text-blue-400 font-semibold block mb-2">More Stories</span>
                     <h2 className="text-[24px] md:text-[32px] font-playfair font-bold text-gray-900 dark:text-gray-100 leading-tight">
-                      More from {blog.category}
+                      More from {catLabel(blog.category) || blog.category}
                     </h2>
                   </div>
                 </div>
