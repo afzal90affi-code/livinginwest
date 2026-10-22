@@ -125,14 +125,14 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     return <span className="font-semibold text-gray-900 dark:text-white">By {blog.writerName}</span>;
   };
 
-  // ===== HERO DATA (featured news ya latest 4) =====
-  const featuredFilter = blogs.filter((b: MappedBlog) => b.isFeatured);
-  const heroNews = featuredFilter.length > 0 ? featuredFilter.slice(0, 4) : blogs.slice(0, 4);
+  // ===== HERO DATA (featured news — latest date k hisab se upar) =====
+  const sortedBlogs = [...blogs].sort((a: MappedBlog, b: MappedBlog) => b.timestamp - a.timestamp);
+  const featuredFilter = blogs.filter((b: MappedBlog) => b.isFeatured).sort((a: MappedBlog, b: MappedBlog) => b.timestamp - a.timestamp);
+  const heroNews = featuredFilter.length > 0 ? featuredFilter.slice(0, 4) : sortedBlogs.slice(0, 4);
   const activeHero = heroNews[currentHeroIndex] ?? heroNews[0];
 
-  const editorPicks = blogs.filter((b: MappedBlog) => b.isEditorsPick);
-  const editorLeft = editorPicks[0] || null;
-  const editorRight = editorPicks.slice(1, 3);
+  // ✅ EDITOR'S PICK: sirf wohi blogs jinka form me "Editor's Pick" toggle ON hai (koi category-wise auto-fill nahi)
+  const editorPicks = blogs.filter((b: MappedBlog) => b.isEditorsPick).slice(0, 4);
 
   // ✅ DEDUPE: hero + editor picks mein jo blogs aa chuki hain wo neeche repeat nahi hongi
   const usedIds = new Set<string>([
@@ -140,9 +140,8 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
     ...editorPicks.map((b) => b.id),
   ]);
 
-  // ✅ DEDUPE: hero wali posts Daily Updates me repeat na hon
-  const dailyPool = blogs.filter((b: MappedBlog) => !heroNews.some((h) => h.id === b.id));
-  const dailyBlogs = dailyPool.length >= 3 ? dailyPool.slice(0, 5) : blogs.slice(0, 5);
+  // ✅ DAILY UPDATES: poori site ki 9 SAB SE NAYI posts (latest date first — hero me hon ya na hon)
+  const dailyBlogs = sortedBlogs.slice(0, 9);
 
   const moreStoryFiltered = blogs.filter((b: MappedBlog) => b.isMoreStory && !usedIds.has(b.id));
   const moreStoriesPool = blogs.filter((b: MappedBlog) => !usedIds.has(b.id));
@@ -226,77 +225,72 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
               <div className="grid gap-4 lg:grid-cols-3">
                 {/* Main slide */}
                 <div className="relative lg:col-span-2">
-                  <Link
-                    href={`/blog/${activeHero.slug}`}
-                    className="group relative block aspect-[16/10] overflow-hidden rounded-xl bg-gray-100 lg:aspect-[16/9] dark:bg-gray-800"
-                  >
-                    {activeHero.img && (
-                      <Image
-                        key={activeHero.id}
-                        src={activeHero.img}
-                        alt={activeHero.title}
-                        fill
-                        priority={currentHeroIndex === 0}
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
-                        sizes="(max-width: 1024px) 100vw, 60vw"
-                      />
+                  {/* ✅ IMAGE — image ke upar sirf category + heading */}
+                  <div className="relative">
+                    <Link
+                      href={`/blog/${activeHero.slug}`}
+                      className="group relative block aspect-[16/10] overflow-hidden rounded-xl bg-gray-100 lg:aspect-[16/9] dark:bg-gray-800"
+                    >
+                      {activeHero.img && (
+                        <Image
+                          key={activeHero.id}
+                          src={activeHero.img}
+                          alt={activeHero.title}
+                          fill
+                          priority={currentHeroIndex === 0}
+                          className="object-cover transition-transform duration-700 group-hover:scale-105"
+                          sizes="(max-width: 1024px) 100vw, 60vw"
+                        />
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+
+                      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">
+                          {activeHero.category}
+                        </span>
+
+                        <h2 className="mt-2 line-clamp-2 font-playfair text-2xl font-bold leading-tight text-white md:text-4xl">
+                          {activeHero.title}
+                        </h2>
+                      </div>
+                    </Link>
+
+                    {/* Slide dots (Link ke BAHAR — nested issue nahi) */}
+                    {heroNews.length > 1 && (
+                      <div className="absolute bottom-4 right-4 z-20 flex gap-1.5">
+                        {heroNews.map((b, i) => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            aria-label={`Go to slide ${i + 1}`}
+                            onClick={() => { setCurrentHeroIndex(i); setHeroTick((t) => t + 1); }}
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              i === currentHeroIndex ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
+                            }`}
+                          />
+                        ))}
+                      </div>
                     )}
+                  </div>
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  {/* ✅ SUMMARY + AUTHOR + DATE + SHARE — image ke NEECHE */}
+                  <div className="mt-3 rounded-xl border border-gray-100 bg-white p-4 md:p-5 dark:border-gray-700 dark:bg-gray-800">
+                    <p className="text-sm leading-6 text-gray-600 line-clamp-2 md:line-clamp-3 dark:text-gray-300">
+                      {activeHero.desc}
+                    </p>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">
-                        {activeHero.category}
-                      </span>
-
-                      <h2 className="mt-2 line-clamp-2 font-playfair text-2xl font-bold leading-tight text-white md:text-4xl">
-                        {activeHero.title}
-                      </h2>
-
-                      <p className="mt-3 hidden max-w-2xl text-sm leading-6 text-gray-200 line-clamp-2 md:block">
-                        {activeHero.desc}
-                      </p>
-
-                      <div className="mt-4 flex items-center gap-2 text-xs text-gray-300">
-                        {activeHero.writerName && (
-                          activeHero.writerSocial ? (
-                            <span
-                              role="link"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.open(activeHero.writerSocial, "_blank", "noopener,noreferrer");
-                              }}
-                              className="cursor-pointer font-semibold text-white hover:underline"
-                            >
-                              By {activeHero.writerName}
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-white">By {activeHero.writerName}</span>
-                          )
-                        )}
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3 dark:border-gray-700">
+                      <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        {renderAuthor(activeHero)}
                         {activeHero.writerName && activeHero.date && <span>•</span>}
                         {activeHero.date && <span>{activeHero.date}</span>}
                       </div>
+                      <div onClick={(e) => e.stopPropagation()} className="z-10">
+                        <ShareCardButton title={activeHero.title} url={`/blog/${activeHero.slug}`} />
+                      </div>
                     </div>
-                  </Link>
-
-                  {/* Slide dots (Link ke BAHAR — nested issue nahi) */}
-                  {heroNews.length > 1 && (
-                    <div className="absolute bottom-4 right-4 z-20 flex gap-1.5">
-                      {heroNews.map((b, i) => (
-                        <button
-                          key={b.id}
-                          type="button"
-                          aria-label={`Go to slide ${i + 1}`}
-                          onClick={() => { setCurrentHeroIndex(i); setHeroTick((t) => t + 1); }}
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            i === currentHeroIndex ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Side cards — Up Next */}
@@ -322,6 +316,14 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                       <div className="flex flex-1 flex-col justify-center">
                         <span className="text-[9px] font-bold uppercase tracking-widest text-red-600">{blog.category}</span>
                         <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-gray-900 dark:text-white">{blog.title}</h3>
+                        <div className="mt-1.5 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
+                            {renderAuthor(blog)}
+                            {blog.writerName && blog.date && <span>•</span>}
+                            {blog.date && <span>{blog.date}</span>}
+                          </div>
+                          <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -388,22 +390,31 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                 const day = dateObj.getUTCDate();
 
                 return (
-                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex items-start gap-5 py-5">
+                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex items-start gap-4 py-5 md:gap-5">
                     <div className="flex w-16 flex-shrink-0 flex-col items-center justify-center border-r-2 border-gray-100 pr-4 text-center dark:border-gray-800">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[#1e3a8a] dark:text-blue-400">{month}</span>
                       <span className="mt-1 font-playfair text-3xl font-bold leading-none text-gray-900 dark:text-white">{day}</span>
                       {blog.newsTime && <span className="mt-1 text-[9px] text-gray-400 dark:text-gray-500">{blog.newsTime.split(',')[1]}</span>}
                     </div>
 
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-red-600">{blog.category}</span>
                       <h3 className="line-clamp-2 text-lg font-bold leading-snug text-gray-900 transition-colors group-hover:text-[#1e3a8a] md:text-xl dark:text-white dark:group-hover:text-blue-400">{blog.title}</h3>
-                      <p className="mt-1.5 hidden text-sm text-gray-500 line-clamp-1 md:block dark:text-gray-400">{blog.desc}</p>
+                      <p className="mt-1.5 text-sm leading-6 text-gray-500 line-clamp-3 dark:text-gray-400">{blog.desc}</p>
+
+                      <div className="mt-2.5 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          {renderAuthor(blog)}
+                          {blog.writerName && blog.date && <span>•</span>}
+                          {blog.date && <span>{blog.date}</span>}
+                        </div>
+                        <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                      </div>
                     </div>
 
                     {blog.img && (
-                      <div className="relative hidden h-24 w-28 flex-shrink-0 overflow-hidden rounded-md bg-gray-100 md:block dark:bg-gray-800">
-                        <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="120px" />
+                      <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 shadow-sm md:h-28 md:w-44 dark:bg-gray-800">
+                        <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="(max-width: 768px) 112px, 176px" />
                       </div>
                     )}
                   </Link>
@@ -449,67 +460,41 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             </section>
           )}
 
-          {/* ===== EDITOR'S PICK ===== */}
+          {/* ===== EDITOR'S PICK (sirf manually selected blogs — form ke toggle se) ===== */}
           {editorPicks.length > 0 && (
-            <section className="rounded-xl border border-gray-100 bg-white py-12 shadow-sm md:py-16 dark:border-gray-700 dark:bg-gray-800">
-              <div className="px-6 md:px-10">
-                <div className="mb-8 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
-                  <h2 className="text-2xl font-bold uppercase tracking-tight text-gray-900 md:text-3xl dark:text-white">Editor&apos;s Pick</h2>
-                  <span className="hidden text-xs font-semibold uppercase tracking-widest text-gray-500 md:block dark:text-gray-400">Curated Insights</span>
-                </div>
+            <section className="py-4 md:py-8">
+              <div className="mb-6 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
+                <h2 className="text-2xl font-bold uppercase tracking-tight text-gray-900 md:text-3xl dark:text-white">Editor&apos;s Pick</h2>
+                <span className="hidden text-xs font-semibold uppercase tracking-widest text-gray-500 md:block dark:text-gray-400">Curated Insights</span>
+              </div>
 
-                <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
-                  {editorLeft && (
-                    <Link href={`/blog/${editorLeft.slug}`} className="group block lg:col-span-7">
-                      <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                        {editorLeft.img ? (
-                          <Image src={editorLeft.img} alt={editorLeft.title} fill priority className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 50vw" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>
-                        )}
-                      </div>
-                      <span className="mb-2 inline-block text-[11px] font-bold uppercase tracking-widest text-red-600">{editorLeft.category}</span>
-                      <h3 className="font-playfair text-3xl font-bold leading-tight text-gray-900 underline-offset-4 decoration-2 group-hover:underline md:text-4xl dark:text-white">{editorLeft.title}</h3>
-                      <p className="mt-3 text-base leading-relaxed text-gray-600 line-clamp-2 dark:text-gray-300">{editorLeft.desc}</p>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {editorPicks.map((blog) => (
+                  <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+                    <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                      {blog.img ? (
+                        <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>
+                      )}
+                      <div className="absolute left-2 top-2 rounded bg-[#6D28D9] px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white">{blog.category}</div>
+                    </div>
 
-                      <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-2">
-                          {renderAuthor(editorLeft)}
-                          {editorLeft.writerName && <span>•</span>}
-                          <span>5 min read</span>
+                    <div className="flex flex-1 flex-col p-4">
+                      <h3 className="line-clamp-2 text-base font-bold leading-snug text-gray-900 transition-colors group-hover:text-[#6D28D9] dark:text-white">{blog.title}</h3>
+                      <p className="mt-2 flex-1 text-sm leading-6 text-gray-500 line-clamp-2 dark:text-gray-400">{blog.desc}</p>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2.5 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                          {renderAuthor(blog)}
+                          {blog.writerName && blog.date && <span>•</span>}
+                          {blog.date && <span>{blog.date}</span>}
                         </div>
-                        <div onClick={(e) => e.stopPropagation()} className="z-10">
-                          <ShareCardButton title={editorLeft.title} url={`/blog/${editorLeft.slug}`} />
-                        </div>
-                      </div>
-                    </Link>
-                  )}
-
-                  {editorRight.length > 0 && (
-                    <div className="flex flex-col justify-between gap-8 lg:col-span-5">
-                      <div className="flex flex-col gap-6 divide-y divide-gray-100 dark:divide-gray-700">
-                        {editorRight.map((blog) => (
-                          <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
-                            <div className="relative h-24 w-28 shrink-0 overflow-hidden bg-gray-100 md:h-28 md:w-32 dark:bg-gray-700">
-                              {blog.img ? (
-                                <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110" sizes="128px" />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-6 h-6" /></div>
-                              )}
-                            </div>
-                            <div className="flex flex-1 flex-col justify-center">
-                              <span className="mb-1 text-[10px] font-bold uppercase tracking-widest text-red-600">{blog.category}</span>
-                              <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-3 group-hover:text-gray-600 md:text-xl dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
-                              <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                                <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
+                        <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
                       </div>
                     </div>
-                  )}
-                </div>
+                  </Link>
+                ))}
               </div>
             </section>
           )}
@@ -556,113 +541,120 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
           <section className="rounded-xl border border-gray-100 bg-white py-12 shadow-sm md:py-16 dark:border-gray-700 dark:bg-gray-800">
             <div className="px-6 md:px-10">
               <div className="flex flex-col gap-16 md:gap-24">
-                {categories.map((cat) => {
-                  const catBlogs = blogs
-                    .filter(b => {
-                      const blogCat = b.category.toLowerCase().trim();
-                      const catName = cat.name.toLowerCase().trim();
-                      const catSlug = cat.slug.toLowerCase().trim();
-                      return blogCat === catName || blogCat === catSlug || blogCat.includes(catName) || blogCat.includes(catSlug);
-                    })
-                    .sort((a, b) => b.timestamp - a.timestamp);
+                {categories
+                  .map((cat) => {
+                    // ✅ Har category ki sab se nayi post ka timestamp nikalo
+                    const catBlogs = blogs
+                      .filter(b => {
+                        const blogCat = b.category.toLowerCase().trim();
+                        const catName = cat.name.toLowerCase().trim();
+                        const catSlug = cat.slug.toLowerCase().trim();
+                        return blogCat === catName || blogCat === catSlug || blogCat.includes(catName) || blogCat.includes(catSlug);
+                      })
+                      .sort((a, b) => b.timestamp - a.timestamp);
 
-                  if (catBlogs.length === 0) return null;
+                    const latestTs = catBlogs.length > 0 ? catBlogs[0].timestamp : 0;
+                    return { cat, catBlogs, latestTs };
+                  })
+                  .sort((a, b) => b.latestTs - a.latestTs) // ✅ jis category me LAST article publish hua wo sab se UPAR
+                  .map(({ cat, catBlogs }) => {
+                    if (catBlogs.length === 0) return null;
 
-                  // ✅ FRESH-FIRST: jo posts hero/editor picks me dikh chuki hain unhe skip karo (agar aur posts available hain)
-                  const freshBlogs = catBlogs.filter((b) => !usedIds.has(b.id));
-                  const pool = freshBlogs.length > 0 ? freshBlogs : catBlogs;
+                    // ✅ FRESH-FIRST: jo posts hero/editor picks me dikh chuki hain unhe skip karo (agar aur posts available hain)
+                    const freshBlogs = catBlogs.filter((b) => !usedIds.has(b.id));
+                    const pool = freshBlogs.length > 0 ? freshBlogs : catBlogs;
 
-                  const mainBlog = pool[0];
-                  const sideBlogs = pool.slice(1, 4);
-                  const mobileBlogs = pool.slice(0, 8); // ✅ mobile carousel ab max 8 cards
+                    const mainBlog = pool[0];
+                    const sideBlogs = pool.slice(1, 4);
+                    const mobileBlogs = pool.slice(0, 8); // ✅ mobile carousel ab max 8 cards
 
-                  return (
-                    <div key={cat.id} className="category-block">
-                      <div className="mb-8 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
-                        <Link href={`/category/${cat.slug}`} className="text-2xl font-bold uppercase tracking-tight text-gray-900 transition-colors hover:text-[#6D28D9] md:text-3xl dark:text-white dark:hover:text-violet-400">
-                          {cat.name}
-                        </Link>
-                        <Link href={`/category/${cat.slug}`} className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-                          View All <ArrowRight className="w-3 h-3" />
-                        </Link>
-                      </div>
+                    return (
+                      <div key={cat.id} className="category-block">
+                        <div className="mb-8 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
+                          <Link href={`/category/${cat.slug}`} className="text-2xl font-bold uppercase tracking-tight text-gray-900 transition-colors hover:text-[#6D28D9] md:text-3xl dark:text-white dark:hover:text-violet-400">
+                            {cat.name}
+                          </Link>
+                          <Link href={`/category/${cat.slug}`} className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                            View All <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
 
-                      <div className="hidden grid-cols-12 gap-10 lg:grid lg:gap-12">
-                        {mainBlog ? (
-                          <div className="col-span-7 group block">
-                            <Link href={`/blog/${mainBlog.slug}`}>
-                              <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                {mainBlog.img ? <Image src={mainBlog.img} alt={mainBlog.title} fill className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 50vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>}
-                              </div>
-                              <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-900 underline-offset-4 decoration-2 group-hover:underline md:text-3xl dark:text-white">{mainBlog.title}</h3>
-                              <p className="mt-3 text-base leading-relaxed text-gray-600 line-clamp-2 dark:text-gray-300">{mainBlog.desc}</p>
-                            </Link>
-                            <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                              <div className="flex items-center gap-2">
-                                {renderAuthor(mainBlog)}
-                                {mainBlog.writerName && <span>•</span>}
-                                <span>{mainBlog.date}</span>
-                              </div>
-                              <div onClick={(e) => e.stopPropagation()}>
-                                <ShareCardButton title={mainBlog.title} url={`/blog/${mainBlog.slug}`} />
+                        <div className="hidden grid-cols-12 gap-10 lg:grid lg:gap-12">
+                          {mainBlog ? (
+                            <div className="col-span-7 group block">
+                              <Link href={`/blog/${mainBlog.slug}`}>
+                                <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                  {mainBlog.img ? <Image src={mainBlog.img} alt={mainBlog.title} fill className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 50vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>}
+                                </div>
+                                <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-900 underline-offset-4 decoration-2 group-hover:underline md:text-3xl dark:text-white">{mainBlog.title}</h3>
+                                <p className="mt-3 text-base leading-relaxed text-gray-600 line-clamp-2 dark:text-gray-300">{mainBlog.desc}</p>
+                              </Link>
+                              <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <div className="flex items-center gap-2">
+                                  {renderAuthor(mainBlog)}
+                                  {mainBlog.writerName && <span>•</span>}
+                                  <span>{mainBlog.date}</span>
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <ShareCardButton title={mainBlog.title} url={`/blog/${mainBlog.slug}`} />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="col-span-7 group block">
-                            <div className="relative mb-5 flex aspect-[16/10] items-center justify-center border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500">No articles published yet.</div>
-                            <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-400 md:text-3xl dark:text-gray-500">Coming Soon</h3>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="col-span-7 group block">
+                              <div className="relative mb-5 flex aspect-[16/10] items-center justify-center border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500">No articles published yet.</div>
+                              <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-400 md:text-3xl dark:text-gray-500">Coming Soon</h3>
+                            </div>
+                          )}
 
-                        <div className="col-span-5 flex flex-col gap-6 divide-y divide-gray-100 dark:divide-gray-700">
-                          {sideBlogs.length > 0 ? sideBlogs.map((blog) => (
-                            <div key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
-                              <Link href={`/blog/${blog.slug}`} className="relative h-24 w-28 shrink-0 overflow-hidden bg-gray-100 md:h-28 md:w-32 dark:bg-gray-700">
-                                {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110" sizes="128px" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-6 h-6" /></div>}
-                              </Link>
-                              <div className="flex flex-1 flex-col justify-center">
-                                <Link href={`/blog/${blog.slug}`}>
-                                  <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-3 group-hover:text-gray-600 md:text-xl dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
+                          <div className="col-span-5 flex flex-col gap-6 divide-y divide-gray-100 dark:divide-gray-700">
+                            {sideBlogs.length > 0 ? sideBlogs.map((blog) => (
+                              <div key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
+                                <Link href={`/blog/${blog.slug}`} className="relative h-24 w-28 shrink-0 overflow-hidden bg-gray-100 md:h-28 md:w-32 dark:bg-gray-700">
+                                  {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110" sizes="128px" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-6 h-6" /></div>}
                                 </Link>
-                                <div className="mt-2 flex items-center justify-between">
-                                  <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
+                                <div className="flex flex-1 flex-col justify-center">
+                                  <Link href={`/blog/${blog.slug}`}>
+                                    <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-3 group-hover:text-gray-600 md:text-xl dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
+                                  </Link>
+                                  <div className="mt-2 flex items-center justify-between">
+                                    <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
+                                    <div onClick={(e) => e.stopPropagation()}><ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} /></div>
+                                  </div>
+                                </div>
+                              </div>
+                            )) : (
+                              <div className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500">More stories coming soon.</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-4 custom-scrollbar lg:hidden">
+                          {mobileBlogs.map((blog) => (
+                            <div key={blog.id} className="group w-[80%] min-w-[80%] flex-shrink-0 snap-center">
+                              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                                <Link href={`/blog/${blog.slug}`} className="block">
+                                  <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                    {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-out group-hover:scale-105" sizes="80vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
+                                    <div className="absolute left-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm">{blog.category}</div>
+                                  </div>
+                                  <div className="p-4">
+                                    <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-2 group-hover:text-gray-600 dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
+                                    <p className="mt-2 text-xs leading-relaxed text-gray-500 line-clamp-2 dark:text-gray-400">{blog.desc}</p>
+                                  </div>
+                                </Link>
+                                <div className="mt-auto flex items-center justify-between border-t border-gray-50 px-4 pb-4 pt-2 dark:border-gray-800">
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
                                   <div onClick={(e) => e.stopPropagation()}><ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} /></div>
                                 </div>
                               </div>
                             </div>
-                          )) : (
-                            <div className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500">More stories coming soon.</div>
-                          )}
+                          ))}
                         </div>
-                      </div>
 
-                      <div className="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-4 custom-scrollbar lg:hidden">
-                        {mobileBlogs.map((blog) => (
-                          <div key={blog.id} className="group w-[80%] min-w-[80%] flex-shrink-0 snap-center">
-                            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                              <Link href={`/blog/${blog.slug}`} className="block">
-                                <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                  {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-out group-hover:scale-105" sizes="80vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
-                                  <div className="absolute left-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm">{blog.category}</div>
-                                </div>
-                                <div className="p-4">
-                                  <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-2 group-hover:text-gray-600 dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
-                                  <p className="mt-2 text-xs leading-relaxed text-gray-500 line-clamp-2 dark:text-gray-400">{blog.desc}</p>
-                                </div>
-                              </Link>
-                              <div className="mt-auto flex items-center justify-between border-t border-gray-50 px-4 pb-4 pt-2 dark:border-gray-800">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
-                                <div onClick={(e) => e.stopPropagation()}><ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} /></div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
                       </div>
-
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             </div>
           </section>

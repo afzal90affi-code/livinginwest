@@ -19,6 +19,7 @@ export interface Blog {
   desc?: string;
   isFeatured: boolean;
   isPublished?: boolean;
+  isEditorsPick?: boolean;
   contents?: string[];
   imgUrls?: string[];
   imgOrientations?: Record<string, string>;
@@ -233,6 +234,7 @@ export default function BlogForm({
   const [imgDims, setImgDims] = useState<Record<string, { w: number; h: number }>>({});
 
   const [blogFeatured, setBlogFeatured] = useState(false);
+  const [blogEditorsPick, setBlogEditorsPick] = useState(false);
   const [blogPublished, setBlogPublished] = useState(false);
   const [blogMetaTitle, setBlogMetaTitle] = useState("");
   const [blogMetaDesc, setBlogMetaDesc] = useState("");
@@ -294,6 +296,7 @@ export default function BlogForm({
         setPartTables(allTables);
         setBlogImages(images);
         setBlogFeatured(initialData.isFeatured);
+        setBlogEditorsPick(initialData.isEditorsPick || false);
         setBlogPublished(initialData.isPublished || false);
         setImgOrientations(initialData.imgOrientations || {});
         setImgAlts(initialData.imgAlts || {});
@@ -315,6 +318,7 @@ export default function BlogForm({
         setBlogContents(Array(10).fill(""));
         setBlogImages(Array(10).fill({ url: "", assetId: "" }));
         setBlogFeatured(false);
+        setBlogEditorsPick(false);
         setBlogPublished(false);
         setBlogMetaTitle("");
         setBlogMetaDesc("");
@@ -671,7 +675,7 @@ export default function BlogForm({
 
     const d: ActionData = {
       title: blogTitle, category: blogCategory, subCategory: blogSubCategory,
-      isFeatured: blogFeatured, isPublished: blogPublished, desc: blogDesc,
+      isFeatured: blogFeatured, isEditorsPick: blogEditorsPick, isPublished: blogPublished, desc: blogDesc,
       metaTitle: blogMetaTitle, metaDesc: blogMetaDesc, keywords: blogKeywords,
       imgOrientations: imgOrientations,
       imgAlts: imgAlts,
@@ -906,7 +910,7 @@ export default function BlogForm({
           </div>
 
           {/* STATUS TOGGLES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${blogPublished ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'}`}>
               <div>
                 <p className={`text-sm font-medium ${blogPublished ? 'text-green-800' : 'text-gray-900'}`}>{blogPublished ? '🟢 Published' : '🟡 Draft'}</p>
@@ -923,6 +927,15 @@ export default function BlogForm({
               </div>
               <button type="button" id="featuredToggle" name="featuredToggle" aria-label="Toggle featured status" onClick={() => setBlogFeatured(!blogFeatured)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogFeatured ? 'bg-[#6D28D9]' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${blogFeatured ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+            <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${blogEditorsPick ? 'bg-amber-50 border-amber-300' : 'bg-gray-50 border-gray-100'}`}>
+              <div>
+                <p className={`text-sm font-medium ${blogEditorsPick ? 'text-amber-700' : 'text-gray-900'}`}>{blogEditorsPick ? "🏆 Editor's Pick ✓" : "🏆 Editor's Pick"}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Show in homepage Editor&apos;s Pick section</p>
+              </div>
+              <button type="button" id="editorsPickToggle" name="editorsPickToggle" aria-label="Toggle editor's pick status" onClick={() => setBlogEditorsPick(!blogEditorsPick)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${blogEditorsPick ? 'bg-amber-500' : 'bg-gray-300'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${blogEditorsPick ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </div>
           </div>
