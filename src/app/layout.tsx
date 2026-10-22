@@ -82,6 +82,15 @@ export default async function RootLayout({
           content="9f262a508100adb89995932d1afb3e0a"
         />
 
+        {/* 💰 GOOGLE ADSENSE — site-wide ads */}
+        <Script
+          id="google-adsense"
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2932883561955233"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+
         {/* ✅ Dark Mode Script (Flash se bachne ke liye) — sirf html par class,
             kyunke <head> mein body abhi exist nahi karta */}
         <script
