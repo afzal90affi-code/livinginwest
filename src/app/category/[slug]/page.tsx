@@ -5,7 +5,7 @@ import { urlFor } from "@/lib/sanityImage";
 import { ShareCardButton } from '@/components/share';
 import type { Metadata } from 'next';
 import { Clock } from 'lucide-react';
-import MarketTicker from '@/components/MarketTicker';
+
 
 export const dynamic = 'force-dynamic';
 

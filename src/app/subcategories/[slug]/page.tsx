@@ -1,6 +1,5 @@
 import { client } from "@/lib/sanityClient";
 import type { Metadata } from 'next';
-import MarketTicker from '@/components/MarketTicker';
 import CategoryClient from '@/app/category/[slug]/CategoryClient'; // ✅ پرانا والا کلائنٹ کمپوننٹ استعمال کریں گے
 
 export const dynamic = 'force-dynamic';

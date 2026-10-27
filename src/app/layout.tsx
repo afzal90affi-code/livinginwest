@@ -6,7 +6,7 @@ import Footer from "@/components/footer"; // ✅ lowercase — file name se matc
 import { client } from "@/lib/sanityClient";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script"; // 🌍 Google Translate & Pinterest Script ke liye
-import MarketTicker from "@/components/MarketTicker"; // ✅ MarketTicker
+
 import WeatherTimeBar from "@/components/WeatherTimeBar"; // ✅ WeatherTimeBar
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -158,9 +158,7 @@ export default async function RootLayout({
           `}
         </Script>
 
-        {/* ✅ MarketTicker (Top most) */}
-        <MarketTicker />
-
+       
         {/* Navbar */}
         <Navbar categories={navCategories} />
 
