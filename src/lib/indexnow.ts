@@ -1,30 +1,11 @@
-/* ============================================================
-   IndexNow Helper — livinginwest.com
-   Key sirf env se aati hai (INDEXNOW_KEY) — code me koi key Nahi
-   SITE hardcoded — env ke www/trailing-slash se 422 nahi aayega
-============================================================ */
+/* IndexNow submit helper — livinginwest.com */
 
-const SITE = "https://livinginwest.com";   // ✅ hardcoded — no env risk
-const HOST = "livinginwest.com";
+const KEY = process.env.INDEXNOW_KEY || "";
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
 
-type IndexNowResult = {
-  ok: boolean;
-  status?: number;
-  reason?: string;
-  error?: unknown;
-};
-
-/** Ek ya zyada URLs IndexNow (Bing/Yandex/Seznam) ko submit karo */
-export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult> {
-  const KEY = process.env.INDEXNOW_KEY;
-
-  if (!KEY) {
-    console.error("IndexNow: INDEXNOW_KEY missing in env!");
-    return { ok: false, reason: "INDEXNOW_KEY missing" };
-  }
-
-  if (urls.length === 0) {
-    return { ok: false, reason: "empty urls" };
+export async function submitToIndexNow(urls: string[]) {
+  if (!KEY || !SITE || urls.length === 0) {
+    return { ok: false, reason: "missing config" };
   }
 
   try {
@@ -32,28 +13,19 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult> 
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
       body: JSON.stringify({
-        host: HOST,
+        host: SITE.replace(/^https?:\/\//, ""),
         key: KEY,
         keyLocation: `${SITE}/${KEY}.txt`,
-        urlList: urls.map((u) =>
-          u.startsWith("http") ? u : `${SITE}${u.startsWith("/") ? "" : "/"}${u}`
-        ),
+        urlList: urls.map((u) => {
+          const full = u.startsWith("http") ? u : `${SITE}${u}`;
+          // livinginwest NON-WWW hai — agar www URL aa jaye to non-www karo
+          return full.replace("//www.livinginwest.com", "//livinginwest.com");
+        }),
       }),
     });
-
-    /* 200 = accepted | 202 = key verification pending (pehli baar) — dono success */
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(`IndexNow ${res.status}: ${text}`);
-    }
-    return { ok: res.ok, status: res.status };
+    return { ok: res.ok || res.status === 202, status: res.status };
   } catch (err) {
     console.error("IndexNow submit failed:", err);
     return { ok: false, error: err };
   }
-}
-
-/** Single URL shortcut */
-export async function submitUrl(path: string) {
-  return submitToIndexNow([path]);
 }
