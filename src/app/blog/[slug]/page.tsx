@@ -57,6 +57,16 @@ const cleanQuillHtml = (html: string): string => {
   cleanHtml = cleanHtml.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
   cleanHtml = cleanHtml.replace(/[\u200B-\u200D\uFEFF\u00AD]/g, '');
 
+  /* ✅ SEO FIX (PERMANENT — future-proof):
+     Page ka sirf 1 H1 allowed hai — upar wala article title (template).
+     CMS (Quill) ke andar writer "Heading 1" use kare ya na kare, body ka
+     har <h1> render se pehle <h2> ban jata hai. Isse:
+     - 39 purane posts ke multiple H1 ek sath fix
+     - Future posts me bhi ye issue kabhi nahi aayega
+     Attributes (class/style) preserve rehte hain. */
+  cleanHtml = cleanHtml.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>');
+  cleanHtml = cleanHtml.replace(/<\/h1\s*>/gi, '</h2>');
+
   cleanHtml = cleanHtml.replace(/style="([^"]*)"/gi, (match, style) => {
     const cleanStyle = style
       .split(';')

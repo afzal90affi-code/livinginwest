@@ -1,28 +1,37 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight, Clock, ImageOff, Mail } from 'lucide-react';
+import { useState, useEffect, useMemo, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { ArrowRight, Clock, ImageOff, Mail } from "lucide-react";
 import { urlFor } from "@/lib/sanityImage";
-import { ShareCardButton } from '@/components/share';
+import { ShareCardButton } from "@/components/share";
 
-interface Category {
+// ===== TYPES (properly typed — `any` removed) =====
+
+interface CategoryRef {
   _id: string;
-  name: string;
+  name?: string;
   slug?: string | { current: string };
   emoji?: string;
-  image?: { asset?: { _ref: string; url?: string }; url?: string };
+  image?: { asset?: { _ref?: string; url?: string }; url?: string };
+}
+
+interface BlogCategoryRef {
+  _id?: string;
+  name?: string;
+  title?: string;
+  current?: string;
 }
 
 interface Blog {
   _id: string;
   title?: string;
   slug?: string;
-  categoryName?: any;
-  category?: any;
+  categoryName?: string | BlogCategoryRef | BlogCategoryRef[];
+  category?: string | BlogCategoryRef | BlogCategoryRef[];
   desc?: string;
-  mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
+  mainImage?: { asset?: { _ref?: string; url?: string }; url?: string };
   date?: string;
   newsTime?: string;
   isFeatured?: boolean;
@@ -30,7 +39,6 @@ interface Blog {
   isMoreStory?: boolean;
   writerName?: string;
   writerSocial?: string;
-  heroVideoUrl?: string;
 }
 
 interface MappedCategory {
@@ -56,64 +64,207 @@ interface MappedBlog {
   isMoreStory: boolean;
   writerName: string;
   writerSocial: string;
-  heroVideoUrl: string;
 }
 
-export default function HomeContent({ initialCategories, initialBlogs }: { initialCategories: Category[], initialBlogs: Blog[] }) {
+// ===== HELPERS =====
+
+/** Link ke andar share button ko click propagation rokne ke liye wrapper */
+function StopClick({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div onClick={(e) => e.stopPropagation()} className={className}>
+      {children}
+    </div>
+  );
+}
+
+/** Email validation regex — `includes("@")` se bahut better */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ===== COMPONENT =====
+
+export default function HomeContent({
+  initialCategories,
+  initialBlogs,
+}: {
+  initialCategories: CategoryRef[];
+  initialBlogs: Blog[];
+}) {
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
   const [heroTick, setHeroTick] = useState(0); // ✅ manual click par timer reset karne ke liye
   const [subEmail, setSubEmail] = useState("");
   const [subStatus, setSubStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [subMessage, setSubMessage] = useState("");
 
-  const categories: MappedCategory[] = initialCategories.map((c: Category) => {
-    let catSlug = 'category';
-    if (typeof c.slug === 'string') catSlug = c.slug;
-    else if (typeof c.slug === 'object' && c.slug !== null && c.slug.current) catSlug = c.slug.current;
-    else if (c.name) catSlug = c.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  // ===== MAP CATEGORIES (filter out those without valid slug/name) =====
+  const categories: MappedCategory[] = useMemo(() => {
+    return initialCategories
+      .map((c: CategoryRef): MappedCategory | null => {
+        let catSlug = "";
+        if (typeof c.slug === "string") catSlug = c.slug;
+        else if (typeof c.slug === "object" && c.slug !== null && c.slug.current) catSlug = c.slug.current;
+        else if (c.name) catSlug = c.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
-    return { id: c._id, name: c.name, slug: catSlug, emoji: c.emoji, img: c.image ? urlFor(c.image).width(600).height(800).auto('format').quality(60).url() : "" };
-  });
+        // ✅ FIX: agar slug ya name nahi hai to category skip kar do
+        // (purane code me default 'category' use hota tha → duplicate URLs ban jate the)
+        if (!catSlug || !c.name) return null;
 
-  const blogs: MappedBlog[] = initialBlogs.map((b: Blog) => {
-    const blogSlug = b.slug || "";
-    const blogDate = b.date ? new Date(b.date) : new Date(0);
-    let blogCat = "general";
-    const catField = b.categoryName || b.category;
-    if (typeof catField === 'string') blogCat = catField;
-    else if (Array.isArray(catField) && catField.length > 0) blogCat = catField.map(c => typeof c === 'string' ? c : (c?.name || c?.title || c?.current || "")).join(', ');
-    else if (catField && typeof catField === 'object') blogCat = catField.name || catField.title || catField.current || "general";
+        return {
+          id: c._id,
+          name: c.name,
+          slug: catSlug,
+          emoji: c.emoji,
+          img: c.image ? urlFor(c.image).width(600).height(800).auto("format").quality(60).url() : "",
+        };
+      })
+      .filter((c): c is MappedCategory => c !== null);
+  }, [initialCategories]);
 
-    return {
-      id: b._id, title: b.title || "Untitled", slug: blogSlug, category: blogCat.trim(), desc: b.desc || '',
-      // ✅ HYDRATION FIX: fixed locale + UTC — server aur client hamesha same date dikhayenge
-      img: b.mainImage ? urlFor(b.mainImage).width(800).height(1000).auto('format').quality(60).url() : "",
-      date: b.date ? blogDate.toLocaleDateString("en-US", { timeZone: "UTC" }) : "",
-      timestamp: blogDate.getTime(), newsTime: b.newsTime || "",
-      isFeatured: b.isFeatured === true, isEditorsPick: b.isEditorsPick === true, isMoreStory: b.isMoreStory === true,
-      writerName: b.writerName || "",
-      writerSocial: b.writerSocial || "",
-      heroVideoUrl: b.heroVideoUrl || ""
-    };
-  });
+  // ===== MAP BLOGS (filter out those without slug/title) =====
+  const blogs: MappedBlog[] = useMemo(() => {
+    return initialBlogs
+      .map((b: Blog): MappedBlog | null => {
+        const blogSlug = b.slug || "";
 
-  // ✅ NESTED <a> FIX: Link ke andar <a> tag mana hai (hydration error deta hai)
-  // Is liye author link ab span hai jo window.open karta hai
+        // ✅ FIX: slug ya title missing blog ko skip kar do → broken `/blog/` URLs nahi banenge
+        if (!blogSlug || !b.title) return null;
+
+        const blogDate = b.date ? new Date(b.date) : new Date(0);
+
+        // Category extraction — properly typed (no `any`)
+        let blogCat = "general";
+        const catField = b.categoryName || b.category;
+        if (typeof catField === "string") {
+          blogCat = catField;
+        } else if (Array.isArray(catField) && catField.length > 0) {
+          blogCat = catField
+            .map((c) => (typeof c === "string" ? c : c?.name || c?.title || c?.current || ""))
+            .filter(Boolean)
+            .join(", ");
+        } else if (catField && typeof catField === "object") {
+          const ref = catField as BlogCategoryRef;
+          blogCat = ref.name || ref.title || ref.current || "general";
+        }
+
+        return {
+          id: b._id,
+          title: b.title,
+          slug: blogSlug,
+          category: blogCat.trim(),
+          desc: b.desc || "",
+          img: b.mainImage ? urlFor(b.mainImage).width(800).height(1000).auto("format").quality(60).url() : "",
+          // ✅ HYDRATION FIX: fixed locale + UTC — server aur client hamesha same date dikhayenge
+          date: b.date ? blogDate.toLocaleDateString("en-US", { timeZone: "UTC" }) : "",
+          timestamp: blogDate.getTime(),
+          newsTime: b.newsTime || "",
+          isFeatured: b.isFeatured === true,
+          isEditorsPick: b.isEditorsPick === true,
+          isMoreStory: b.isMoreStory === true,
+          writerName: b.writerName || "",
+          writerSocial: b.writerSocial || "",
+        };
+      })
+      .filter((b): b is MappedBlog => b !== null);
+  }, [initialBlogs]);
+
+  // ===== DERIVED DATA (all memoized — har render pe dobara compute nahi hoga) =====
+
+  const sortedBlogs = useMemo(() => [...blogs].sort((a, b) => b.timestamp - a.timestamp), [blogs]);
+
+  const heroNews = useMemo(() => {
+    const featured = blogs.filter((b) => b.isFeatured).sort((a, b) => b.timestamp - a.timestamp);
+    return featured.length > 0 ? featured.slice(0, 4) : sortedBlogs.slice(0, 4);
+  }, [blogs, sortedBlogs]);
+
+  const activeHero = heroNews[currentHeroIndex] ?? heroNews[0];
+
+  // ✅ EDITOR'S PICK: sirf wohi blogs jinka form me "Editor's Pick" toggle ON hai
+  const editorPicks = useMemo(() => blogs.filter((b) => b.isEditorsPick).slice(0, 4), [blogs]);
+
+  // ✅ DEDUPE: hero + editor picks mein jo blogs aa chuki hain wo neeche repeat nahi hongi
+  const usedIds = useMemo(() => {
+    return new Set<string>([...heroNews.map((b) => b.id), ...editorPicks.map((b) => b.id)]);
+  }, [heroNews, editorPicks]);
+
+  // ✅ DAILY UPDATES: poori site ki 9 SAB SE NAYI posts (latest date first)
+  const dailyBlogs = useMemo(() => sortedBlogs.slice(0, 9), [sortedBlogs]);
+
+  const moreStories = useMemo(() => {
+    const moreStoryFiltered = blogs.filter((b) => b.isMoreStory && !usedIds.has(b.id));
+    const moreStoriesPool = blogs.filter((b) => !usedIds.has(b.id));
+    return (moreStoryFiltered.length >= 6 ? moreStoryFiltered : moreStoriesPool).slice(0, 12);
+  }, [blogs, usedIds]);
+
+  // ✅ DEALS: hardcoded URL ki jagah category ka asli slug use hota hai
+  const dealBlogs = useMemo(
+    () => blogs.filter((b) => b.category.toLowerCase().trim() === "discounts & offers"),
+    [blogs]
+  );
+
+  const dealsCat = useMemo(
+    () => categories.find((c) => c.name.toLowerCase().trim() === "discounts & offers"),
+    [categories]
+  );
+
+  const catRow1 = useMemo(() => categories.slice(0, 2), [categories]);
+  const catRow2 = useMemo(() => categories.slice(2, 5), [categories]);
+  const catRow3 = useMemo(() => categories.slice(5), [categories]);
+
+  // ✅ Categories with their blogs — empty ones filtered, sorted by latest post timestamp
+  const categoriesWithBlogs = useMemo(() => {
+    return categories
+      .map((cat) => {
+        const catName = cat.name.toLowerCase().trim();
+        const catSlug = cat.slug.toLowerCase().trim();
+
+        // ✅ EXACT match only — `includes()` hata diya (false positives aate the)
+        // Comma-separated categories ka support hai (jaise blog multiple categories me ho)
+        const catBlogs = blogs
+          .filter((b) => {
+            const blogCats = b.category.toLowerCase().trim().split(",").map((c) => c.trim());
+            return blogCats.includes(catName) || blogCats.includes(catSlug);
+          })
+          .sort((a, b) => b.timestamp - a.timestamp);
+
+        const latestTs = catBlogs.length > 0 ? catBlogs[0].timestamp : 0;
+        return { cat, catBlogs, latestTs };
+      })
+      // ✅ FIX: `.map() returning null` ki jagah proper `.filter()` use kiya
+      .filter(({ catBlogs }) => catBlogs.length > 0)
+      .sort((a, b) => b.latestTs - a.latestTs);
+  }, [categories, blogs]);
+
+  // ===== HERO TIMER (resets on manual click via heroTick) =====
+  useEffect(() => {
+    if (heroNews.length <= 1) {
+      setCurrentHeroIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setCurrentHeroIndex((prevIndex) => (prevIndex + 1) % heroNews.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroNews.length, heroTick]);
+
+  // ===== AUTHOR RENDER (accessible custom link — Enter + Space support) =====
   const renderAuthor = (blog: MappedBlog) => {
     if (!blog.writerName) return null;
+
     if (blog.writerSocial) {
+      const open = () => window.open(blog.writerSocial, "_blank", "noopener,noreferrer");
       return (
         <span
           role="link"
           tabIndex={0}
           onClick={(e) => {
             e.stopPropagation();
-            window.open(blog.writerSocial, "_blank", "noopener,noreferrer");
+            open();
           }}
+          // ✅ FIX: Space key bhi handle karo (accessibility)
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
               e.stopPropagation();
-              window.open(blog.writerSocial, "_blank", "noopener,noreferrer");
+              open();
             }
           }}
           className="cursor-pointer font-semibold text-gray-900 hover:text-[#6D28D9] hover:underline transition-colors dark:text-white"
@@ -122,51 +273,16 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
         </span>
       );
     }
+
     return <span className="font-semibold text-gray-900 dark:text-white">By {blog.writerName}</span>;
   };
 
-  // ===== HERO DATA (featured news — latest date k hisab se upar) =====
-  const sortedBlogs = [...blogs].sort((a: MappedBlog, b: MappedBlog) => b.timestamp - a.timestamp);
-  const featuredFilter = blogs.filter((b: MappedBlog) => b.isFeatured).sort((a: MappedBlog, b: MappedBlog) => b.timestamp - a.timestamp);
-  const heroNews = featuredFilter.length > 0 ? featuredFilter.slice(0, 4) : sortedBlogs.slice(0, 4);
-  const activeHero = heroNews[currentHeroIndex] ?? heroNews[0];
-
-  // ✅ EDITOR'S PICK: sirf wohi blogs jinka form me "Editor's Pick" toggle ON hai (koi category-wise auto-fill nahi)
-  const editorPicks = blogs.filter((b: MappedBlog) => b.isEditorsPick).slice(0, 4);
-
-  // ✅ DEDUPE: hero + editor picks mein jo blogs aa chuki hain wo neeche repeat nahi hongi
-  const usedIds = new Set<string>([
-    ...heroNews.map((b) => b.id),
-    ...editorPicks.map((b) => b.id),
-  ]);
-
-  // ✅ DAILY UPDATES: poori site ki 9 SAB SE NAYI posts (latest date first — hero me hon ya na hon)
-  const dailyBlogs = sortedBlogs.slice(0, 9);
-
-  const moreStoryFiltered = blogs.filter((b: MappedBlog) => b.isMoreStory && !usedIds.has(b.id));
-  const moreStoriesPool = blogs.filter((b: MappedBlog) => !usedIds.has(b.id));
-  const moreStories = (moreStoryFiltered.length >= 6 ? moreStoryFiltered : moreStoriesPool).slice(0, 12);
-
-  // ✅ DEALS: hardcoded URL ki jagah category ka asli slug use hota hai
-  const dealBlogs = blogs.filter((b: MappedBlog) => b.category.toLowerCase().trim() === 'discounts & offers');
-  const dealsCat = categories.find(c => c.name.toLowerCase().trim() === 'discounts & offers');
-
-  // ✅ FIX: pehle slice(5, 9) tha — sirf 9 categories dikhti thin. Ab saari categories Explore Topics me hongi
-  const catRow1 = categories.slice(0, 2);
-  const catRow2 = categories.slice(2, 5);
-  const catRow3 = categories.slice(5);
-
-  // ✅ TIMER FIX: heroTick dependency — manual dot click ke baad 5s timer fresh start hota hai
-  useEffect(() => {
-    if (heroNews.length <= 1) { setCurrentHeroIndex(0); return; }
-    const interval = setInterval(() => { setCurrentHeroIndex((prevIndex) => (prevIndex + 1) % heroNews.length); }, 5000);
-    return () => clearInterval(interval);
-  }, [heroNews.length, heroTick]);
-
-  const handleSubSubmit = async (e: React.FormEvent) => {
+  // ===== SUBSCRIBE FORM =====
+  const handleSubSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!subEmail || !subEmail.includes("@")) {
+    // ✅ FIX: proper email regex — `includes("@")` bahut lenient tha
+    if (!subEmail || !EMAIL_REGEX.test(subEmail)) {
       setSubStatus("error");
       setSubMessage("Please enter a valid email address.");
       return;
@@ -207,6 +323,19 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-gray-900 transition-colors duration-300 dark:bg-gray-900 dark:text-white">
 
+      {/* ✅ Skip to content — accessibility (screen reader users ke liye) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-gray-900"
+      >
+        Skip to content
+      </a>
+
+      {/* ✅ FIX: H1 tag add kiya — SEO ke liye page ka primary heading (visually hidden) */}
+      <h1 className="sr-only">
+        Living In West — Lifestyle, Travel, Finance, Health, Visa &amp; News for Western Living
+      </h1>
+
       {/* AD SLOT 1 */}
       <div className="mx-auto max-w-7xl px-6 my-4">
         <div className="flex w-full min-h-[90px] items-center justify-center border border-gray-200/60 bg-gray-50 text-[10px] uppercase tracking-widest text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
@@ -215,7 +344,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
       </div>
 
       {/* ===== MAIN LAYOUT ===== */}
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 lg:flex-row">
+      <div id="main-content" className="mx-auto flex max-w-7xl flex-col gap-8 px-6 lg:flex-row">
 
         <div className="w-full space-y-12 py-4 lg:w-[82%] md:space-y-16">
 
@@ -225,7 +354,6 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
               <div className="grid gap-4 lg:grid-cols-3">
                 {/* Main slide */}
                 <div className="relative lg:col-span-2">
-                  {/* ✅ IMAGE — image ke upar sirf category + heading */}
                   <div className="relative">
                     <Link
                       href={`/blog/${activeHero.slug}`}
@@ -233,7 +361,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     >
                       {activeHero.img && (
                         <Image
-                          key={activeHero.id}
+                          // ✅ FIX: `key={activeHero.id}` hata diya — slide change pe flicker nahi aayega
                           src={activeHero.img}
                           alt={activeHero.title}
                           fill
@@ -263,8 +391,12 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                           <button
                             key={b.id}
                             type="button"
-                            aria-label={`Go to slide ${i + 1}`}
-                            onClick={() => { setCurrentHeroIndex(i); setHeroTick((t) => t + 1); }}
+                            // ✅ IMPROVED: aria-label me title bhi shamil
+                            aria-label={`Go to slide ${i + 1}: ${b.title}`}
+                            onClick={() => {
+                              setCurrentHeroIndex(i);
+                              setHeroTick((t) => t + 1);
+                            }}
                             className={`h-2 rounded-full transition-all duration-300 ${
                               i === currentHeroIndex ? "w-6 bg-white" : "w-2 bg-white/50 hover:bg-white/80"
                             }`}
@@ -274,7 +406,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     )}
                   </div>
 
-                  {/* ✅ SUMMARY + AUTHOR + DATE + SHARE — image ke NEECHE */}
+                  {/* Summary + Author + Date + Share */}
                   <div className="mt-3 rounded-xl border border-gray-100 bg-white p-4 md:p-5 dark:border-gray-700 dark:bg-gray-800">
                     <p className="text-sm leading-6 text-gray-600 line-clamp-2 md:line-clamp-3 dark:text-gray-300">
                       {activeHero.desc}
@@ -286,9 +418,10 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                         {activeHero.writerName && activeHero.date && <span>•</span>}
                         {activeHero.date && <span>{activeHero.date}</span>}
                       </div>
-                      <div onClick={(e) => e.stopPropagation()} className="z-10">
+                      {/* ✅ StopClick wrapper use kiya — repeated onClick code hata diya */}
+                      <StopClick className="z-10">
                         <ShareCardButton title={activeHero.title} url={`/blog/${activeHero.slug}`} />
-                      </div>
+                      </StopClick>
                     </div>
                   </div>
                 </div>
@@ -316,13 +449,15 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                       <div className="flex flex-1 flex-col justify-center">
                         <span className="text-[9px] font-bold uppercase tracking-widest text-red-600">{blog.category}</span>
                         <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-gray-900 dark:text-white">{blog.title}</h3>
-                        <div className="mt-1.5 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-1.5 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500">
                             {renderAuthor(blog)}
                             {blog.writerName && blog.date && <span>•</span>}
                             {blog.date && <span>{blog.date}</span>}
                           </div>
-                          <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                          <StopClick>
+                            <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                          </StopClick>
                         </div>
                       </div>
                     </Link>
@@ -332,7 +467,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             </section>
           )}
 
-          {/* ===== SUBSCRIBE BAR (Single Line - Weekly Update) ===== */}
+          {/* ===== SUBSCRIBE BAR ===== */}
           <section className="overflow-hidden rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg text-white">
             <div className="flex flex-col items-center justify-center gap-4 p-4 text-center sm:flex-row sm:text-left">
 
@@ -389,12 +524,16 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                 const month = dateObj.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
                 const day = dateObj.getUTCDate();
 
+                // ✅ FIX: safe newsTime parsing — comma hone par hi [1] le, warna empty
+                const timeParts = blog.newsTime.split(",");
+                const timeLabel = timeParts.length > 1 ? timeParts[1].trim() : "";
+
                 return (
                   <Link href={`/blog/${blog.slug}`} key={blog.id} className="group flex items-start gap-4 py-5 md:gap-5">
                     <div className="flex w-16 flex-shrink-0 flex-col items-center justify-center border-r-2 border-gray-100 pr-4 text-center dark:border-gray-800">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[#1e3a8a] dark:text-blue-400">{month}</span>
                       <span className="mt-1 font-playfair text-3xl font-bold leading-none text-gray-900 dark:text-white">{day}</span>
-                      {blog.newsTime && <span className="mt-1 text-[9px] text-gray-400 dark:text-gray-500">{blog.newsTime.split(',')[1]}</span>}
+                      {timeLabel && <span className="mt-1 text-[9px] text-gray-400 dark:text-gray-500">{timeLabel}</span>}
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -402,13 +541,15 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                       <h3 className="line-clamp-2 text-lg font-bold leading-snug text-gray-900 transition-colors group-hover:text-[#1e3a8a] md:text-xl dark:text-white dark:group-hover:text-blue-400">{blog.title}</h3>
                       <p className="mt-1.5 text-sm leading-6 text-gray-500 line-clamp-3 dark:text-gray-400">{blog.desc}</p>
 
-                      <div className="mt-2.5 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
+                      <div className="mt-2.5 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                           {renderAuthor(blog)}
                           {blog.writerName && blog.date && <span>•</span>}
                           {blog.date && <span>{blog.date}</span>}
                         </div>
-                        <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                        <StopClick>
+                          <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                        </StopClick>
                       </div>
                     </div>
 
@@ -460,7 +601,7 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
             </section>
           )}
 
-          {/* ===== EDITOR'S PICK (sirf manually selected blogs — form ke toggle se) ===== */}
+          {/* ===== EDITOR'S PICK ===== */}
           {editorPicks.length > 0 && (
             <section className="py-4 md:py-8">
               <div className="mb-6 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
@@ -484,13 +625,15 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                       <h3 className="line-clamp-2 text-base font-bold leading-snug text-gray-900 transition-colors group-hover:text-[#6D28D9] dark:text-white">{blog.title}</h3>
                       <p className="mt-2 flex-1 text-sm leading-6 text-gray-500 line-clamp-2 dark:text-gray-400">{blog.desc}</p>
 
-                      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2.5 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
+                      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2.5 dark:border-gray-700">
                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                           {renderAuthor(blog)}
                           {blog.writerName && blog.date && <span>•</span>}
                           {blog.date && <span>{blog.date}</span>}
                         </div>
-                        <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                        <StopClick>
+                          <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                        </StopClick>
                       </div>
                     </div>
                   </Link>
@@ -509,7 +652,10 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] w-[48%] overflow-hidden bg-gray-100 md:w-[40%] lg:w-[30%] dark:bg-gray-800">
                       {cat.img ? <Image src={cat.img} alt={cat.name} fill className="object-cover brightness-90 transition-all duration-500 group-hover:scale-110 group-hover:brightness-100" sizes="30vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>}
                       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 z-20 p-5 text-center text-white"><h3 className="font-playfair text-xl font-bold tracking-tight md:text-2xl">{cat.name}</h3></div>
+                      <div className="absolute bottom-0 left-0 right-0 z-20 p-5 text-center text-white">
+                        {/* ✅ FIX: category name ab heading tag me hai (SEO) */}
+                        <h3 className="font-playfair text-xl font-bold tracking-tight md:text-2xl">{cat.name}</h3>
+                      </div>
                     </Link>
                   ))}
                 </div>
@@ -518,7 +664,9 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] w-[30%] overflow-hidden bg-gray-100 md:w-[25%] lg:w-[20%] dark:bg-gray-800">
                       {cat.img ? <Image src={cat.img} alt={cat.name} fill className="object-cover brightness-90 transition-all duration-500 group-hover:scale-110 group-hover:brightness-100" sizes="20vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
                       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 text-center text-white"><h3 className="font-playfair text-lg font-bold tracking-tight">{cat.name}</h3></div>
+                      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 text-center text-white">
+                        <h3 className="font-playfair text-lg font-bold tracking-tight">{cat.name}</h3>
+                      </div>
                     </Link>
                   ))}
                 </div>
@@ -528,7 +676,9 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                       <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
                         {cat.img ? <Image src={cat.img} alt={cat.name} fill className="object-cover brightness-90 transition-all duration-500 group-hover:scale-110 group-hover:brightness-100" sizes="25vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
                         <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 text-center text-white"><h3 className="font-playfair text-lg font-bold tracking-tight">{cat.name}</h3></div>
+                        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 text-center text-white">
+                          <h3 className="font-playfair text-lg font-bold tracking-tight">{cat.name}</h3>
+                        </div>
                       </Link>
                     ))}
                   </div>
@@ -541,120 +691,113 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
           <section className="rounded-xl border border-gray-100 bg-white py-12 shadow-sm md:py-16 dark:border-gray-700 dark:bg-gray-800">
             <div className="px-6 md:px-10">
               <div className="flex flex-col gap-16 md:gap-24">
-                {categories
-                  .map((cat) => {
-                    // ✅ Har category ki sab se nayi post ka timestamp nikalo
-                    const catBlogs = blogs
-                      .filter(b => {
-                        const blogCat = b.category.toLowerCase().trim();
-                        const catName = cat.name.toLowerCase().trim();
-                        const catSlug = cat.slug.toLowerCase().trim();
-                        return blogCat === catName || blogCat === catSlug || blogCat.includes(catName) || blogCat.includes(catSlug);
-                      })
-                      .sort((a, b) => b.timestamp - a.timestamp);
+                {categoriesWithBlogs.map(({ cat, catBlogs }) => {
+                  // ✅ FRESH-FIRST: jo posts hero/editor picks me dikh chuki hain unhe skip karo (agar aur posts available hain)
+                  const freshBlogs = catBlogs.filter((b) => !usedIds.has(b.id));
+                  const pool = freshBlogs.length > 0 ? freshBlogs : catBlogs;
 
-                    const latestTs = catBlogs.length > 0 ? catBlogs[0].timestamp : 0;
-                    return { cat, catBlogs, latestTs };
-                  })
-                  .sort((a, b) => b.latestTs - a.latestTs) // ✅ jis category me LAST article publish hua wo sab se UPAR
-                  .map(({ cat, catBlogs }) => {
-                    if (catBlogs.length === 0) return null;
+                  const mainBlog = pool[0];
+                  const sideBlogs = pool.slice(1, 4);
+                  const mobileBlogs = pool.slice(0, 8);
 
-                    // ✅ FRESH-FIRST: jo posts hero/editor picks me dikh chuki hain unhe skip karo (agar aur posts available hain)
-                    const freshBlogs = catBlogs.filter((b) => !usedIds.has(b.id));
-                    const pool = freshBlogs.length > 0 ? freshBlogs : catBlogs;
-
-                    const mainBlog = pool[0];
-                    const sideBlogs = pool.slice(1, 4);
-                    const mobileBlogs = pool.slice(0, 8); // ✅ mobile carousel ab max 8 cards
-
-                    return (
-                      <div key={cat.id} className="category-block">
-                        <div className="mb-8 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
-                          <Link href={`/category/${cat.slug}`} className="text-2xl font-bold uppercase tracking-tight text-gray-900 transition-colors hover:text-[#6D28D9] md:text-3xl dark:text-white dark:hover:text-violet-400">
+                  return (
+                    <div key={cat.id} className="category-block">
+                      <div className="mb-8 flex items-center justify-between border-b-2 border-gray-900 pb-3 dark:border-gray-700">
+                        {/* ✅ FIX: Category naam ab h2 heading me hai, Link andar wrap hai (SEO) */}
+                        <h2 className="text-2xl font-bold uppercase tracking-tight text-gray-900 md:text-3xl dark:text-white">
+                          <Link
+                            href={`/category/${cat.slug}`}
+                            className="transition-colors hover:text-[#6D28D9] dark:text-white dark:hover:text-violet-400"
+                          >
                             {cat.name}
                           </Link>
-                          <Link href={`/category/${cat.slug}`} className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-                            View All <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        </div>
-
-                        <div className="hidden grid-cols-12 gap-10 lg:grid lg:gap-12">
-                          {mainBlog ? (
-                            <div className="col-span-7 group block">
-                              <Link href={`/blog/${mainBlog.slug}`}>
-                                <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                  {mainBlog.img ? <Image src={mainBlog.img} alt={mainBlog.title} fill className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 50vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>}
-                                </div>
-                                <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-900 underline-offset-4 decoration-2 group-hover:underline md:text-3xl dark:text-white">{mainBlog.title}</h3>
-                                <p className="mt-3 text-base leading-relaxed text-gray-600 line-clamp-2 dark:text-gray-300">{mainBlog.desc}</p>
-                              </Link>
-                              <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                <div className="flex items-center gap-2">
-                                  {renderAuthor(mainBlog)}
-                                  {mainBlog.writerName && <span>•</span>}
-                                  <span>{mainBlog.date}</span>
-                                </div>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <ShareCardButton title={mainBlog.title} url={`/blog/${mainBlog.slug}`} />
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="col-span-7 group block">
-                              <div className="relative mb-5 flex aspect-[16/10] items-center justify-center border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500">No articles published yet.</div>
-                              <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-400 md:text-3xl dark:text-gray-500">Coming Soon</h3>
-                            </div>
-                          )}
-
-                          <div className="col-span-5 flex flex-col gap-6 divide-y divide-gray-100 dark:divide-gray-700">
-                            {sideBlogs.length > 0 ? sideBlogs.map((blog) => (
-                              <div key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
-                                <Link href={`/blog/${blog.slug}`} className="relative h-24 w-28 shrink-0 overflow-hidden bg-gray-100 md:h-28 md:w-32 dark:bg-gray-700">
-                                  {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110" sizes="128px" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-6 h-6" /></div>}
-                                </Link>
-                                <div className="flex flex-1 flex-col justify-center">
-                                  <Link href={`/blog/${blog.slug}`}>
-                                    <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-3 group-hover:text-gray-600 md:text-xl dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
-                                  </Link>
-                                  <div className="mt-2 flex items-center justify-between">
-                                    <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
-                                    <div onClick={(e) => e.stopPropagation()}><ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} /></div>
-                                  </div>
-                                </div>
-                              </div>
-                            )) : (
-                              <div className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500">More stories coming soon.</div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-4 custom-scrollbar lg:hidden">
-                          {mobileBlogs.map((blog) => (
-                            <div key={blog.id} className="group w-[80%] min-w-[80%] flex-shrink-0 snap-center">
-                              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                                <Link href={`/blog/${blog.slug}`} className="block">
-                                  <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                                    {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-out group-hover:scale-105" sizes="80vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
-                                    <div className="absolute left-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm">{blog.category}</div>
-                                  </div>
-                                  <div className="p-4">
-                                    <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-2 group-hover:text-gray-600 dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
-                                    <p className="mt-2 text-xs leading-relaxed text-gray-500 line-clamp-2 dark:text-gray-400">{blog.desc}</p>
-                                  </div>
-                                </Link>
-                                <div className="mt-auto flex items-center justify-between border-t border-gray-50 px-4 pb-4 pt-2 dark:border-gray-800">
-                                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
-                                  <div onClick={(e) => e.stopPropagation()}><ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} /></div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
+                        </h2>
+                        <Link href={`/category/${cat.slug}`} className="flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                          View All <ArrowRight className="w-3 h-3" />
+                        </Link>
                       </div>
-                    );
-                  })}
+
+                      <div className="hidden grid-cols-12 gap-10 lg:grid lg:gap-12">
+                        {mainBlog ? (
+                          <div className="col-span-7 group block">
+                            <Link href={`/blog/${mainBlog.slug}`}>
+                              <div className="relative mb-5 aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                {mainBlog.img ? <Image src={mainBlog.img} alt={mainBlog.title} fill className="object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" sizes="(max-width: 1024px) 100vw, 50vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>}
+                              </div>
+                              <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-900 underline-offset-4 decoration-2 group-hover:underline md:text-3xl dark:text-white">{mainBlog.title}</h3>
+                              <p className="mt-3 text-base leading-relaxed text-gray-600 line-clamp-2 dark:text-gray-300">{mainBlog.desc}</p>
+                            </Link>
+                            <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                              <div className="flex items-center gap-2">
+                                {renderAuthor(mainBlog)}
+                                {mainBlog.writerName && <span>•</span>}
+                                <span>{mainBlog.date}</span>
+                              </div>
+                              <StopClick>
+                                <ShareCardButton title={mainBlog.title} url={`/blog/${mainBlog.slug}`} />
+                              </StopClick>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="col-span-7 group block">
+                            <div className="relative mb-5 flex aspect-[16/10] items-center justify-center border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500">No articles published yet.</div>
+                            <h3 className="font-playfair text-2xl font-bold leading-tight text-gray-400 md:text-3xl dark:text-gray-500">Coming Soon</h3>
+                          </div>
+                        )}
+
+                        <div className="col-span-5 flex flex-col gap-6 divide-y divide-gray-100 dark:divide-gray-700">
+                          {sideBlogs.length > 0 ? sideBlogs.map((blog) => (
+                            <div key={blog.id} className="group flex gap-4 pt-6 first:pt-0">
+                              <Link href={`/blog/${blog.slug}`} className="relative h-24 w-28 shrink-0 overflow-hidden bg-gray-100 md:h-28 md:w-32 dark:bg-gray-700">
+                                {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-110" sizes="128px" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-6 h-6" /></div>}
+                              </Link>
+                              <div className="flex flex-1 flex-col justify-center">
+                                <Link href={`/blog/${blog.slug}`}>
+                                  <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-3 group-hover:text-gray-600 md:text-xl dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
+                                </Link>
+                                <div className="mt-2 flex items-center justify-between">
+                                  <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
+                                  <StopClick>
+                                    <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                                  </StopClick>
+                                </div>
+                              </div>
+                            </div>
+                          )) : (
+                            <div className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500">More stories coming soon.</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Mobile carousel */}
+                      <div className="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-4 custom-scrollbar lg:hidden">
+                        {mobileBlogs.map((blog) => (
+                          <div key={blog.id} className="group w-[80%] min-w-[80%] flex-shrink-0 snap-center">
+                            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                              <Link href={`/blog/${blog.slug}`} className="block">
+                                <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                  {blog.img ? <Image src={blog.img} alt={blog.title} fill className="object-cover transition-transform duration-500 ease-out group-hover:scale-105" sizes="80vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
+                                  <div className="absolute left-3 top-3 rounded-md bg-red-600 px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-white shadow-sm">{blog.category}</div>
+                                </div>
+                                <div className="p-4">
+                                  <h3 className="font-playfair text-lg font-bold leading-snug text-gray-900 transition-colors line-clamp-2 group-hover:text-gray-600 dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
+                                  <p className="mt-2 text-xs leading-relaxed text-gray-500 line-clamp-2 dark:text-gray-400">{blog.desc}</p>
+                                </div>
+                              </Link>
+                              <div className="mt-auto flex items-center justify-between border-t border-gray-50 px-4 pb-4 pt-2 dark:border-gray-800">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">{blog.date}</span>
+                                <StopClick>
+                                  <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                                </StopClick>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -673,9 +816,11 @@ export default function HomeContent({ initialCategories, initialBlogs }: { initi
                     <h3 className="mt-2 font-playfair text-lg font-bold leading-tight text-gray-900 transition-colors line-clamp-2 group-hover:text-gray-600 dark:text-white dark:group-hover:text-gray-300">{blog.title}</h3>
                     <p className="mt-1 text-sm text-gray-500 line-clamp-1 dark:text-gray-400">{blog.desc}</p>
 
-                    <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-800">
                       {renderAuthor(blog)}
-                      <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                      <StopClick>
+                        <ShareCardButton title={blog.title} url={`/blog/${blog.slug}`} />
+                      </StopClick>
                     </div>
                   </Link>
                 ))}
