@@ -48,19 +48,27 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     return {
       title: "Category Not Found | Living In West",
       description: "The category you are looking for does not exist.",
+      // ✅ SEO FIX: galat category URL Google/Bing me index na ho
+      robots: { index: false, follow: true },
     };
   }
 
   const title = category.metaTitle || `${category.name} News, Articles & Guides | Living In West`;
   const description = category.metaDesc || `Explore all articles and guides about ${category.name.toLowerCase()}. Stay updated with the latest insights on Living In West.`;
-  
+
+  // ✅ SEO FIX: canonical tag — har category apna khud ka URL
+  const canonicalUrl = `https://livinginwest.com/category/${category.slug}`;
+
   return {
     title,
     description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     openGraph: {
       title,
       description,
-      url: `/category/${category.slug}`,
+      url: canonicalUrl,
       type: "website",
     },
     twitter: {
