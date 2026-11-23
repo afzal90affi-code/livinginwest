@@ -362,8 +362,8 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
 
       <ArticleTracker title={blog.title} category={blog.category || "general"} />
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 px-4 md:px-6">
-        <div className="w-full lg:w-[85%] py-4">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="w-full py-4">
 
           <div className="border-b border-gray-100 dark:border-gray-800">
             <div className="max-w-[680px] mx-auto py-4 flex items-center justify-between">
@@ -580,19 +580,6 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
           </div>
 
         </div>
-
-        <aside className="hidden lg:block w-[15%] py-4">
-          <div className="sticky top-20 flex flex-col gap-6">
-            <div className="w-full min-h-[600px] bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 dark:text-gray-500 tracking-widest uppercase py-4">
-              <span className="mb-2 text-gray-300 dark:text-gray-600 text-[8px]">Advertisement</span>
-              <div className="w-full h-[500px] bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">[ Article Ad 160x600 ]</div>
-            </div>
-            <div className="w-full min-h-[250px] bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg flex flex-col items-center justify-center text-[10px] text-gray-400 dark:text-gray-500 tracking-widest uppercase py-4">
-              <span className="mb-2 text-gray-300 dark:text-gray-600 text-[8px]">Advertisement</span>
-              <div className="w-full h-[200px] bg-gray-100 dark:bg-gray-800 flex items-center justify-center rounded">[ Article Ad 300x250 ]</div>
-            </div>
-          </div>
-        </aside>
 
       </div>
 
