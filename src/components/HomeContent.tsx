@@ -336,17 +336,10 @@ export default function HomeContent({
         Living In West — Lifestyle, Travel, Finance, Health, Visa &amp; News for Western Living
       </h1>
 
-      {/* AD SLOT 1 */}
-      <div className="mx-auto max-w-7xl px-6 my-4">
-        <div className="flex w-full min-h-[90px] items-center justify-center border border-gray-200/60 bg-gray-50 text-[10px] uppercase tracking-widest text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
-          [Advertisement - Top Leaderboard Banner]
-        </div>
-      </div>
-
       {/* ===== MAIN LAYOUT ===== */}
-      <div id="main-content" className="mx-auto flex max-w-7xl flex-col gap-8 px-6 lg:flex-row">
+      <div id="main-content" className="mx-auto max-w-7xl px-6">
 
-        <div className="w-full space-y-12 py-4 lg:w-[82%] md:space-y-16">
+        <div className="w-full space-y-12 py-4 md:space-y-16">
 
           {/* ===== HERO — FEATURED NEWS SLIDER ===== */}
           {heroNews.length > 0 && activeHero && (
@@ -644,12 +637,12 @@ export default function HomeContent({
 
           {/* ===== TOPICS / CATEGORIES ===== */}
           <section className="py-16">
-            <div>
+            <div className="mx-auto w-full max-w-3xl">
               <h2 className="mb-10 border-b border-gray-200 pb-4 text-center font-playfair text-3xl font-bold tracking-tight md:text-4xl dark:border-gray-700">Explore Topics</h2>
-              <div className="flex flex-col items-center gap-6">
-                <div className="flex w-full justify-center gap-4 md:gap-6">
+              <div className="flex flex-col gap-4 md:gap-6">
+                <div className="grid grid-cols-2 gap-4 md:gap-6">
                   {catRow1.map((cat) => (
-                    <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] w-[48%] overflow-hidden bg-gray-100 md:w-[40%] lg:w-[30%] dark:bg-gray-800">
+                    <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
                       {cat.img ? <Image src={cat.img} alt={cat.name} fill className="object-cover brightness-90 transition-all duration-500 group-hover:scale-110 group-hover:brightness-100" sizes="30vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-10 h-10" /></div>}
                       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 z-20 p-5 text-center text-white">
@@ -659,9 +652,9 @@ export default function HomeContent({
                     </Link>
                   ))}
                 </div>
-                <div className="flex w-full justify-center gap-4 md:gap-6">
+                <div className="grid grid-cols-3 gap-4 md:gap-6">
                   {catRow2.map((cat) => (
-                    <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] w-[30%] overflow-hidden bg-gray-100 md:w-[25%] lg:w-[20%] dark:bg-gray-800">
+                    <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
                       {cat.img ? <Image src={cat.img} alt={cat.name} fill className="object-cover brightness-90 transition-all duration-500 group-hover:scale-110 group-hover:brightness-100" sizes="20vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
                       <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 z-20 p-4 text-center text-white">
@@ -671,7 +664,7 @@ export default function HomeContent({
                   ))}
                 </div>
                 {catRow3.length > 0 && (
-                  <div className="mt-4 grid w-full grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
                     {catRow3.map((cat) => (
                       <Link href={`/category/${cat.slug}`} key={cat.id} className="group relative block aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
                         {cat.img ? <Image src={cat.img} alt={cat.name} fill className="object-cover brightness-90 transition-all duration-500 group-hover:scale-110 group-hover:brightness-100" sizes="25vw" /> : <div className="flex h-full w-full items-center justify-center text-gray-300"><ImageOff className="w-8 h-8" /></div>}
@@ -829,20 +822,6 @@ export default function HomeContent({
           </section>
 
         </div>
-
-        {/* --- SIDEBAR ADS --- */}
-        <aside className="hidden w-[18%] py-4 lg:block">
-          <div className="sticky top-4 flex flex-col gap-6">
-            <div className="flex w-full min-h-[600px] flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-4 text-[10px] uppercase tracking-widest text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
-              <span className="mb-2 text-[8px] text-gray-300 dark:text-gray-600">Advertisement</span>
-              <div className="flex h-[500px] w-full items-center justify-center rounded bg-gray-100 dark:bg-gray-900">[ Sidebar Ad 300x600 ]</div>
-            </div>
-            <div className="flex w-full min-h-[250px] flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-4 text-[10px] uppercase tracking-widest text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">
-              <span className="mb-2 text-[8px] text-gray-300 dark:text-gray-600">Advertisement</span>
-              <div className="flex h-[200px] w-full items-center justify-center rounded bg-gray-100 dark:bg-gray-900">[ Sidebar Ad 300x250 ]</div>
-            </div>
-          </div>
-        </aside>
 
       </div>
 

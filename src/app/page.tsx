@@ -19,9 +19,12 @@ interface BlogData {
   desc?: string;
   mainImage?: { asset?: { _ref: string; url?: string }; url?: string };
   date?: string;
+  newsTime?: string;
   isFeatured?: boolean;
   isEditorsPick?: boolean;
   isMoreStory?: boolean;
+  writerName?: string;
+  writerSocial?: string;
 }
 
 // 👇 Google Search Meta Data
@@ -52,7 +55,10 @@ const BLOGS_QUERY = `*[_type == "blog"] | order(_createdAt desc) [0...100] {
   "subcategoryName": subCategory, 
   desc, 
   "mainImage": img1, 
-  date, 
+  date,
+  newsTime,
+  writerName,
+  writerSocial,
   isFeatured, 
   isEditorsPick, 
   isMoreStory

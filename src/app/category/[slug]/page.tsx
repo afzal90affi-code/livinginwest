@@ -4,6 +4,7 @@ import { client } from "@/lib/sanityClient";
 import { urlFor } from "@/lib/sanityImage";
 import { ShareCardButton } from '@/components/share';
 import type { Metadata } from 'next';
+import { permanentRedirect } from 'next/navigation';
 import { Clock } from 'lucide-react';
 
 
@@ -154,6 +155,10 @@ function BlogCard({ blog }: { blog: BlogData }) {
 }
 
 export default async function CategoryPage({ params }: { params: { slug: string } }) {
+  if (params.slug === 'health-and-wellenss') {
+    permanentRedirect('/category/health-and-wellness');
+  }
+
   const category = await getCategoryData(params.slug);
   const subcategories = category ? await getSubcategories(params.slug, category.name) : [];
   
