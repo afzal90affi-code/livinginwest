@@ -456,15 +456,17 @@ export default async function BlogDetail({ params }: { params: { slug: string } 
                   </div>
                 )}
 
+                {/* ✅ AD PLACEHOLDER REMOVED (AdSense-ready):
+                    Pehle har 2 sections ke baad ek bordered ad-label strip render hoti thi
+                    — jab tak real ad code live nahi hai, ye khaali label Google reviewer ko
+                    broken/placeholder site jaisa lagta hai aur rejection ka risk barhata hai.
+                    Approve hone ke baad isi position par real ad unit lagana:
+                    <ins className="adsbygoogle" ... /> — tab "Advertisement" label natural hai.
+                    ✦ ornamental separator (design element) rakha hai — wo harmless hai. */}
                 {((index + 1) % 2 === 0) && (index < blogSections.length - 1) && (
-                  <>
-                    <div className="flex items-center justify-center my-8 md:my-10">
-                      <div className="w-14 h-px bg-gray-300 dark:bg-gray-700" /><span className="mx-4 text-gray-300 dark:text-gray-600 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300 dark:bg-gray-700" />
-                    </div>
-                    <div className="my-6 py-4 border-t border-b border-gray-100 dark:border-gray-800 flex items-center justify-center">
-                      <span className="text-[9px] uppercase tracking-[0.3em] text-gray-300 dark:text-gray-600 font-mono">[ advertisement ]</span>
-                    </div>
-                  </>
+                  <div className="flex items-center justify-center my-8 md:my-10">
+                    <div className="w-14 h-px bg-gray-300 dark:bg-gray-700" /><span className="mx-4 text-gray-300 dark:text-gray-600 text-[10px]">✦</span><div className="w-14 h-px bg-gray-300 dark:bg-gray-700" />
+                  </div>
                 )}
               </div>
             ))}
